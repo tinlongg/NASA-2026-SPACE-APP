@@ -152,7 +152,7 @@ def test_tokenizer_drops_stopwords_and_stems():
 
 
 def test_committed_corpus_state_is_consistent():
-    """The real manifest ships empty until the team supplies verified documents."""
+    """Every indexed source must have a local document and a source URL."""
     manifest = json.loads((BACKEND / "sources" / "manifest.json").read_text())
     for entry in manifest:
         assert (BACKEND / "sources" / entry["file"]).exists(), entry["id"]

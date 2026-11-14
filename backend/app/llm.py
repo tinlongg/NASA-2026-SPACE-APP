@@ -1,9 +1,11 @@
-"""Optional answer generation with Claude. Used only when a credential is configured.
+"""Optional server-side answer generation. Used only when a credential is configured.
 
 The model sees only the retrieved passages. Citations are never taken from its output:
 the caller builds them from source metadata.
 """
 from __future__ import annotations
+
+import os
 
 from .retrieval import Hit
 
@@ -18,6 +20,9 @@ Do not fill gaps from general knowledge.
 give treatment, medication or emergency instructions. If the question sounds urgent, say that urgent concerns \
 need qualified medical personnel.
 - Do not write citations, document titles, URLs or passage numbers. The app shows the sources separately.
+- Distinguish dataset metadata, ground analog studies, and actual spaceflight research. Never infer that a \
+study validates this app, its camera detector, or an individual person's condition. Do not turn research \
+protocols into personal exercise prescriptions.
 - Write two to five plain sentences, with no headings or bullet points."""
 
 
@@ -30,7 +35,12 @@ def build_user_message(question: str, hits: list[Hit]) -> str:
     return f"Passages:\n\n{passages}\n\nQuestion: {question}"
 
 
-def generate(question: str, hits: list[Hit], model: str, timeout_seconds: float = 12.0) -> str:
+def generate(question: str, hits: list[Hit], model: str, timeout_seconds: float = 12.0,
+             provider: str = "meta") -> str:
+    if provider == "meta":
+        return generate_meta(question, hits, model, timeout_seconds)
+    if provider != "anthropic":
+        raise LLMError("unsupported provider")
     # Imported here so the service and its tests run without the SDK when no key is configured.
     import anthropic
 
@@ -60,3 +70,25 @@ def generate(question: str, hits: list[Hit], model: str, timeout_seconds: float 
     if not text:
         raise LLMError("empty response")
     return text
+
+
+def generate_meta(question: str, hits: list[Hit], model: str, timeout_seconds: float) -> str:
+    import httpx
+
+    try:
+        response = httpx.post(
+            "https://api.meta.ai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {os.environ.get('META_API_KEY', '')}"},
+            json={"model": model, "reasoning_effort": "low", "max_completion_tokens": 1200,
+                  "messages": [{"role": "developer", "content": SYSTEM_PROMPT},
+                               {"role": "user", "content": build_user_message(question, hits)}]},
+            timeout=timeout_seconds)
+        response.raise_for_status()
+        choice = response.json()["choices"][0]
+        text = choice["message"]["content"]
+        if choice.get("finish_reason") != "stop" or not isinstance(text, str) or not text.strip():
+            raise LLMError("incomplete response")
+        return text.strip()
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError) as error:
+        # Never include upstream bodies, request headers, or credentials in errors/logs.
+        raise LLMError("Meta generation unavailable") from error

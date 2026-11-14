@@ -54,7 +54,7 @@ def create_app(settings: Optional[Settings] = None, generator: Optional[Generato
 
     if generator is None and settings.llm_configured:
         def generator(question: str, hits: list[Hit]) -> str:  # noqa: F811
-            return llm.generate(question, hits, model=settings.llm_model)
+            return llm.generate(question, hits, model=settings.llm_model, provider=settings.llm_provider)
     app.state.generator = generator
 
     @app.exception_handler(RequestValidationError)
@@ -88,9 +88,12 @@ def create_app(settings: Optional[Settings] = None, generator: Optional[Generato
         answer, mode = extractive_answer(hits), "extractive"
         if app.state.generator is not None:
             try:
-                answer, mode = app.state.generator(question, hits), "generated"
+                generated = app.state.generator(question, hits)
+                if not isinstance(generated, str) or not generated.strip():
+                    raise llm.LLMError("empty response")
+                answer, mode = generated.strip(), "generated"
             except Exception as error:  # any generation problem falls back to quoting the passages
-                logger.warning("generation failed, using extractive answer: %s", error)
+                logger.warning("generation failed, using extractive answer (%s)", type(error).__name__)
         return ChatResponse(answer=answer, citations=citations_for(hits), disclaimer=DISCLAIMER,
                             grounded=True, answerMode=mode)
 
