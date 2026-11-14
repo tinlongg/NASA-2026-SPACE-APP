@@ -87,6 +87,12 @@ final class CoreTests: XCTestCase {
         XCTAssertTrue(SampleData.crew.contains { $0.id == SampleData.monitoredID })
     }
 
+    func testSampleDataStartsWithNoActiveAlertBanner() {
+        let store = EventStore(events: SampleData.events)
+        XCTAssertTrue(store.activeAlerts.isEmpty, "The demo must open on a clean, nominal dashboard")
+        XCTAssertNil(store.highestActiveSeverity)
+    }
+
     func testPlaceholderMuseServiceNeverReturnsAnAnswer() async {
         do {
             _ = try await PlaceholderMuseService().ask("anything", context: .generalWellness)
