@@ -31,7 +31,7 @@ struct SettingsSheet: View {
                     if urlIsInvalid {
                         Text("Enter a full http or https address.")
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.critical)
                     }
                 } header: {
                     Text("Backend address")
@@ -42,9 +42,11 @@ struct SettingsSheet: View {
                 Section("About") {
                     Text("Prototype for a simulated crew. Not a medical device. Detections are possible falls, not diagnoses.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.screenBackground)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

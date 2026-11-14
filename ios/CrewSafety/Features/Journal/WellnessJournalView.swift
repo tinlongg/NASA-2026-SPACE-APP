@@ -35,7 +35,7 @@ struct WellnessJournalView: View {
                         Label("The journal could not be saved to disk. Entries will be lost when the app closes.",
                               systemImage: "exclamationmark.triangle")
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.critical)
                     }
                 }
 
@@ -53,6 +53,8 @@ struct WellnessJournalView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.screenBackground)
             .navigationTitle("Journal")
             .navigationDestination(for: UUID.self) { id in
                 JournalDetailView(entry: store.entries.first { $0.id == id })
@@ -82,10 +84,10 @@ private struct JournalRow: View {
         VStack(alignment: .leading, spacing: 4) {
             Text(entry.timestamp.formatted(date: .abbreviated, time: .shortened))
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
             Text(entry.body).lineLimit(2)
             if let summary = entry.summary {
-                Text(summary.text).font(.caption).foregroundStyle(.secondary)
+                Text(summary.text).font(.caption).foregroundStyle(Theme.secondaryText)
             }
         }
     }
@@ -110,6 +112,8 @@ private struct JournalDetailView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.screenBackground)
             .navigationTitle("Entry")
             .navigationBarTitleDisplayMode(.inline)
         } else {

@@ -2,13 +2,22 @@ import SwiftUI
 
 struct StatusBadge: View {
     let status: CrewStatus
+
+    private var foreground: Color {
+        switch status {
+        case .nominal: Theme.onAccent
+        case .attention: Theme.onHighlight
+        case .alert: Theme.onCritical
+        }
+    }
+
     var body: some View {
         Label(status.displayName, systemImage: status.symbolName)
             .font(.caption.weight(.semibold))
             .padding(.horizontal, Theme.Spacing.s)
             .padding(.vertical, Theme.Spacing.xs)
-            .foregroundStyle(status.color)
-            .background(status.color.opacity(0.15), in: Capsule())
+            .foregroundStyle(foreground)
+            .background(status.color, in: Capsule())
             .accessibilityElement(children: .ignore)
             .accessibilityLabel("Status: \(status.displayName)")
     }
@@ -22,8 +31,8 @@ struct SimulatedBadge: View {
             .font(.caption2.weight(.bold))
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .foregroundStyle(.purple)
-            .background(.purple.opacity(0.15), in: Capsule())
+            .foregroundStyle(Theme.onHighlight)
+            .background(Theme.highlight, in: Capsule())
             .accessibilityLabel("\(text) data")
     }
 }
@@ -36,12 +45,12 @@ struct EmptyStateView: View {
         VStack(spacing: Theme.Spacing.s) {
             Image(systemName: systemImage)
                 .font(.largeTitle)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
             Text(title).font(.headline)
             if let message {
                 Text(message)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                     .multilineTextAlignment(.center)
             }
         }
