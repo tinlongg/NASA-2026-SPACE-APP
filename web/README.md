@@ -13,3 +13,5 @@ This is an experimental prototype, not a medical device. Simulated telemetry is 
 Deployment: `.openai/hosting.json` identifies the Sites deployment; `dist/` contains the static assets. Publish an isolated copy of this folder with the Sites source helper so its managed Git history does not alter the parent GitHub repository.
 
 Pose API reference: https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/web_js
+
+NASA research: Crew dashboard now loads dist/data/nasa-research.json through research.js. Seven selectable historical chart series include units, sample counts, observed ranges, accessible values, source links, and five study cards. Failed loads show a retry action without disabling crew controls. See ../data/nasa-osdr/README.md for provenance and offline rebuilding.

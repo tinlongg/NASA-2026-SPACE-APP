@@ -1,4 +1,10 @@
 import { FallDetector, measurePose } from './detector.js';
+import { initializeResearch } from './research.js';
+
+const researchStyles = document.createElement('link');
+researchStyles.rel = 'stylesheet'; researchStyles.href = './research.css';
+document.head.append(researchStyles);
+initializeResearch();
 
 const element = id => document.getElementById(id);
 const video = element('video');
@@ -9,7 +15,7 @@ let stream, landmarker, animation, generation = 0, mode = 'idle', lastVideoTime 
 const events = [];
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
-const titles = { monitor: ['Camera monitor', 'A clearer view of your crew. Right from your browser.'], dashboard: ['Crew dashboard', 'One crew. One view. Simulated mission telemetry.'], alerts: ['Safety events', 'Review possible-fall detections from this browser session.'], muse: ['MUSE assistant', 'Research support, grounded in verified sources.'], journal: ['Wellness journal', 'A private space to reflect on your day.'] };
+const titles = { monitor: ['Camera monitor', 'A clearer view of your crew. Right from your browser.'], dashboard: ['Crew dashboard', 'Simulated crew telemetry and NASA spaceflight research.'], alerts: ['Safety events', 'Review possible-fall detections from this browser session.'], muse: ['MUSE assistant', 'Research support, grounded in verified sources.'], journal: ['Wellness journal', 'A private space to reflect on your day.'] };
 document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => {
   const tab = button.dataset.tab;
   if (tab !== 'monitor') stopSession();
