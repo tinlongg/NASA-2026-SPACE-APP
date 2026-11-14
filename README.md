@@ -13,6 +13,7 @@ are simulated and labelled. Journal summaries list themes you wrote about; they 
 | --- | --- |
 | `ios/` | Xcode project `CrewSafety.xcodeproj`, app sources, unit tests |
 | `backend/` | FastAPI service for MUSE (`POST /chat`, `GET /health`) |
+| `web/` | Browser testing companion for Windows/Mac: webcam pose detection, replay, alerts, journal; see `web/README.md` |
 | `docs/HANDOFF.md` | **Start here**: current state, what is untested, what to do next |
 | `docs/BUILD_BRIEF.md` | Original project brief |
 | `docs/EXECUTION_PLAN.md` | Architecture, shared contracts, team plan |
