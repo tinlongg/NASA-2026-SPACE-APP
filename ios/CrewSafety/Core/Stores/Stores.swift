@@ -1,0 +1,69 @@
+import Foundation
+import Observation
+
+// MARK: - Shared stores (concrete; owned by Dev 1)
+@MainActor @Observable
+final class EventStore {
+    /// Newest first.
+    private(set) var events: [SafetyEvent] = []
+
+    var activeAlerts: [SafetyEvent] { events.filter { !$0.acknowledged } }
+    var highestActiveSeverity: EventSeverity? { activeAlerts.map(\.severity).max() }
+
+    init(events: [SafetyEvent] = []) { self.events = events.sorted { $0.timestamp > $1.timestamp } }
+
+    func record(_ event: SafetyEvent) { events.insert(event, at: 0) }
+
+    func acknowledge(_ id: SafetyEvent.ID, at date: Date = .now) {
+        guard let i = events.firstIndex(where: { $0.id == id }), !events[i].acknowledged else { return }
+        events[i].acknowledged = true
+        events[i].acknowledgedAt = date
+    }
+
+    func activeAlerts(for crewMemberID: UUID) -> [SafetyEvent] {
+        activeAlerts.filter { $0.crewMemberID == crewMemberID }
+    }
+}
+
+@MainActor @Observable
+final class CrewStore {
+    var crew: [CrewMember]
+    /// The crew member the camera session and journal are attributed to.
+    var monitoredCrewMemberID: UUID
+
+    init(crew: [CrewMember], monitoredCrewMemberID: UUID) {
+        self.crew = crew; self.monitoredCrewMemberID = monitoredCrewMemberID
+    }
+
+    /// Status is derived, not stored: any unacknowledged critical/warning event wins over the base status.
+    func status(for member: CrewMember, events: EventStore) -> CrewStatus {
+        switch events.activeAlerts(for: member.id).map(\.severity).max() {
+        case .critical?: return .alert
+        case .warning?: return .attention
+        default: return member.status
+        }
+    }
+}
+
+enum MuseMode: String, Codable, Sendable { case live, demo }
+
+@MainActor @Observable
+final class AppSettings {
+    /// `.demo` uses bundled precomputed answers and must show a visible "Demo mode" badge.
+    var museMode: MuseMode
+    var museBaseURL: URL?
+    init(museMode: MuseMode = .demo, museBaseURL: URL? = nil) {
+        self.museMode = museMode; self.museBaseURL = museBaseURL
+    }
+}
+
+@MainActor @Observable
+final class AppServices {
+    var muse: any MuseService
+    var journalAnalyzer: any JournalAnalyzing
+    var telemetry: any TelemetryProviding
+    init(muse: any MuseService, journalAnalyzer: any JournalAnalyzing, telemetry: any TelemetryProviding) {
+        self.muse = muse; self.journalAnalyzer = journalAnalyzer; self.telemetry = telemetry
+    }
+}
+
