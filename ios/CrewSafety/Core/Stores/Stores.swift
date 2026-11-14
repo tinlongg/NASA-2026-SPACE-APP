@@ -14,6 +14,20 @@ final class EventStore {
 
     func record(_ event: SafetyEvent) { events.insert(event, at: 0) }
 
+    func mergeSynced(_ remote: [SafetyEvent]) {
+        for event in remote {
+            if let index = events.firstIndex(where: { $0.id == event.id }) {
+                if event.acknowledged && !events[index].acknowledged {
+                    events[index].acknowledged = true
+                    events[index].acknowledgedAt = event.acknowledgedAt
+                }
+            } else {
+                events.append(event)
+            }
+        }
+        events.sort { $0.timestamp > $1.timestamp }
+    }
+
     func acknowledge(_ id: SafetyEvent.ID, at date: Date = .now) {
         guard let i = events.firstIndex(where: { $0.id == id }), !events[i].acknowledged else { return }
         events[i].acknowledged = true
@@ -49,6 +63,10 @@ enum MuseMode: String, Codable, Sendable { case live, demo }
 
 @MainActor @Observable
 final class AppSettings {
+    var dashboardSyncEnabled = false
+    var dashboardBaseURL = ""
+    var dashboardPairingCode = ""
+    var dashboardSyncKey: String { "\(dashboardSyncEnabled)|\(dashboardBaseURL)|\(dashboardPairingCode)" }
     /// `.demo` uses bundled precomputed answers and must show a visible "Demo mode" badge.
     var museMode: MuseMode
     var museBaseURL: URL?
