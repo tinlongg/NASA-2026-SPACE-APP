@@ -1,0 +1,3 @@
+On Earth, we have the luxury of picking up our cell phones and instantly being connected with nearly everything and everyone around us. On a trip to Mars, astronauts will be more isolated and confined than we can imagine. Sleep loss, circadian desynchronization, and work overload compound this issue and may lead to decreased performance, adverse health outcomes, and compromised mission objectives.
+
+To address this hazard, experts are developing methods for monitoring behavioral health and adapting/refining various tools and technologies for use in the spaceflight environment to detect and treat early risk factors. Research is also being conducted in workload and performance, light therapy for circadian alignment, phase shifting and alertness.

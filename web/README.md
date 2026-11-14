@@ -1,17 +1,104 @@
 # CrewSafety web testing companion
 
-Static browser version for Windows and Mac. Run `npm start` in this directory and open http://localhost:4173 in Chrome or Edge. Run detector tests with `npm test` (Node 20+).
+The user-requested Windows/Mac companion to the primary native SwiftUI app. It uses MediaPipe Pose
+Landmarker Lite, not Apple Vision. Run `npm start` here (Node 20+) and open
+[localhost](http://localhost:4173) in Chrome/Edge. `npm test` runs 29 checks; `npm run build` packages a
+Worker. The public test site is [CrewSafety Web Lab](https://crew-safety-web-lab.xron2245.chatgpt.site).
 
-Features: real webcam pose tracking, synthetic upright/fall replays, possible-fall alerts and JSON export, simulated heart rate, browser-local journal with keyword themes, and an explicitly offline MUSE placeholder. This does not run the Swift app or Apple's Vision model. Browser poses use MediaPipe Pose Landmarker Lite, with the native app's thresholds (20% hip drop within 1 s, 60° torso angle, 2 s hold, 15 s cooldown). A pose missing for over 1 s cancels a hold.
+## Camera and local features
 
-Camera access needs HTTPS or localhost. A LAN HTTP address will not work on your teammate's computer. The hosted HTTPS link uses each visitor's own camera; there is no remote camera feed or shared event state. Start camera explicitly and grant access. Stop, navigating away from Monitor, hiding the tab, and closing the page release the webcam. Permission failures and model-download failures show recovery messages. Use synthetic replay rather than performing a fall.
+A webcam requires HTTPS or localhost and explicit permission. A LAN HTTP address will not work.
+Frames stay local and are neither recorded nor uploaded. Stop, leaving Monitor, hiding the page, and
+closing it release the webcam. Permission/model errors have recovery messages. There is one monitored
+person, a fixed camera, and no shared remote feed. Journal entries stay in browser localStorage; event
+history is session-only. Telemetry is generated and labelled Simulated.
 
-Camera frames are processed locally and never recorded/uploaded. MediaPipe JS/WASM and the model download from jsDelivr and Google; fonts download from Google Fonts. First use needs internet. Journal entries persist in localStorage on that browser; events are session-only. MUSE is not connected to the Python backend and does not generate answers; the repository's source corpus is empty.
+The heuristic uses an upright angle <=35°, horizontal angle >=60°, hip drop >=20% of frame height in
+<=1 second, low posture for >=2 seconds, and a 15-second cooldown. Losing the pose for over one second
+cancels a pending hold. These are starting thresholds, not validated performance on people.
 
-This is an experimental prototype, not a medical device. Simulated telemetry is not a measurement. Browser and native model confidence/landmarks differ: the shared thresholds are not validated for real-world falls.
+Seven **synthetic**, generated replays cover standing, walking, sitting, slow lying down, a possible
+fall, and two falls separated by 5 or 20 seconds. They drive the same detector used by webcam
+measurements. The tests run each at 10/15/30/60 FPS. No real person or recorded video is represented.
 
-Deployment: `.openai/hosting.json` identifies the Sites deployment; `dist/` contains the static assets. Publish an isolated copy of this folder with the Sites source helper so its managed Git history does not alter the parent GitHub repository.
+## Historical NASA dashboard
 
-Pose API reference: https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/web_js
+The upstream OSDR dashboard is preserved alongside the camera and research assistant. It loads
+`dist/data/nasa-research.json` through `research.js`, with seven selectable historical chart series,
+units, sample counts, observed ranges, accessible tables, source links and five study cards. These
+measurements are separate from simulated telemetry and do not drive alerts or MUSE answers. Failed
+loads offer retry without disabling crew controls. See `../data/nasa-osdr/README.md` for provenance
+and offline rebuilding. The Worker serves and caches the chart module, styles and data snapshot.
 
-NASA research: Crew dashboard now loads dist/data/nasa-research.json through research.js. Seven selectable historical chart series include units, sample counts, observed ranges, accessible values, source links, and five study cards. Failed loads show a retry action without disabling crew controls. See ../data/nasa-osdr/README.md for provenance and offline rebuilding.
+## Two separate AI features
+
+**Camera Coach**, inside Monitor, optionally explains a numerical pose snapshot when the visitor
+clicks Explain, asks a camera question, or selects Explain in Safety events. It sends only the question,
+source (live/replay), capture time, angle, hip height, and attached detector metrics to Meta through the
+server. Unknown payload fields are discarded. No images, raw landmarks, journal, or crew identity are
+sent. Replies identify their input source/time and do not modify deterministic alerts.
+
+- `POST /api/coach/analyze`, `GET /api/coach/status`.
+- Status indicates configuration, not verified provider access.
+- 25-second upstream/30-second browser timeouts; failures leave local monitoring available.
+
+**MUSE Research** has its own tab. It sends only a question and `context:general_wellness` to `/chat`.
+The server retrieves from the exported NASA corpus; optional Meta generation receives only that
+question and passages. Citations are constructed from source metadata, never model output. Eight
+passages cover five NASA documents including OSDR/OSD-946. Independent source review remains pending.
+
+- `POST /chat` and `GET /health` preserve the native contract in `docs/EXECUTION_PLAN.md` §5.3.
+- Model failure, missing key, or throttling returns cited extractive passages; irrelevant queries
+  return `grounded:false`, no citations, and a no-support message.
+- 12-second upstream/15-second client timeout. Unreachable service offers a visibly labelled saved
+  answer only when the question matches one of six prepared questions. Otherwise it explains that no
+  saved answer exists. Demo mode explicitly skips the model request.
+- `research-data.json` and `dist/fallback.json` are generated by `backend/scripts/export_web.py`.
+  FastAPI is canonical; `research.mjs` is the Worker deployment adapter. Python tests check ranking
+  parity and snapshot freshness. See backend README for regeneration.
+- The linked OSDR catalog supports exploration. MUSE does not fetch arbitrary URLs or process
+  participant datasets. The separate dashboard uses the archived historical research snapshot;
+  neither feature infers personal health conclusions from study records.
+
+## Secrets and request limits
+
+Set `META_API_KEY` as a secret in Sites runtime settings and optionally `META_MODEL` (default
+`muse-spark-1.3`). Redeploy after hosted environment changes. For local use, export variables before
+`npm start`, or use ignored `.env` with `node --env-file=.env scripts/serve.mjs`. Keys never go in client
+JavaScript or Git. Meta uses the official chat-completions endpoint, low reasoning, 1,200 output tokens.
+
+API bodies are limited to 8 KB. Coach requires same-origin browser requests; research accepts absent
+Origin for native clients and rejects a mismatched browser Origin. Both share best-effort per-isolate
+limits of 5 generation calls per IP and 30 total/minute. These are neither authentication nor a durable
+billing cap. Upstream response bodies/credentials are never returned on errors. The application does
+not store requests or responses; Meta processes submitted inputs under its API terms.
+
+## Offline preparation
+
+The service worker caches the shell, detector, replay fixtures, and six saved research responses. The
+Monitor page reports whether this cache is ready. Click **Download camera model for offline use**
+while online to cache the pinned MediaPipe module, both WASM variants, and the model. Success is shown
+only after all resources are present. Initial loading/downloads need internet. System fonts are local.
+
+Replay, alerts, telemetry and the journal run locally; prepared MUSE questions use labelled Demo mode
+when the service is unreachable. Camera Coach needs connectivity. API requests, journal entries, and
+camera data never enter the service-worker cache. Cache versioning follows asset content; browser
+storage eviction, clearing site data, private browsing or a new deployment can require preparation
+again. Test a reload with networking disabled on the actual demo device before relying on it.
+
+Automated tests simulate cache installation, model-download failure, and network-off asset retrieval.
+This is not a completed physical-device airplane-mode test. Live Windows webcam/offline use is still
+pending. Local browser QA verified replay → one event and MUSE → a cited OSDR answer. With the local server
+stopped, the cached shell reloaded and a prepared OSDR question returned a labelled Demo answer.
+The camera-model cache reported complete; camera inference while disconnected remains untested.
+
+## Hosting
+
+`.openai/hosting.json` retains the existing Site identity and has no static directory. `scripts/build.mjs`
+embeds allowlisted browser assets and the exported corpus into `dist/server/index.js`; runtime secrets
+are excluded. Publish an isolated copy of this `web/` folder through the Sites source helper so the
+managed Site repository does not modify the parent GitHub history. A hosted deployment does not mean
+these changes have been committed/pushed to GitHub `main`.
+
+References: [MediaPipe web pose API](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/web_js),
+[Meta chat-completions protocol](https://dev.meta.ai/docs/protocols/chat-completions).

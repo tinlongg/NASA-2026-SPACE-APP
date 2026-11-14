@@ -18,6 +18,7 @@ class Settings:
     top_k: int
     llm_model: str
     llm_enabled: bool
+    llm_provider: str = "meta"
 
     @property
     def manifest_path(self) -> Path:
@@ -29,7 +30,8 @@ class Settings:
 
     @property
     def llm_configured(self) -> bool:
-        has_credential = bool(os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
+        has_credential = bool(os.environ.get("META_API_KEY")) if self.llm_provider == "meta" else bool(
+            os.environ.get("ANTHROPIC_API_KEY") or os.environ.get("ANTHROPIC_AUTH_TOKEN"))
         return self.llm_enabled and has_credential
 
 
@@ -41,6 +43,7 @@ def load_settings() -> Settings:
         sources_dir=sources,
         min_score=float(os.environ.get("MUSE_MIN_SCORE", "1.0")),
         top_k=int(os.environ.get("MUSE_TOP_K", "4")),
-        llm_model=os.environ.get("MUSE_LLM_MODEL", "claude-opus-5-5"),
+        llm_model=os.environ.get("MUSE_LLM_MODEL", "muse-spark-1.3"),
         llm_enabled=os.environ.get("MUSE_LLM_ENABLED", "1") not in ("0", "false", "False", ""),
+        llm_provider=os.environ.get("MUSE_LLM_PROVIDER", "meta"),
     )
