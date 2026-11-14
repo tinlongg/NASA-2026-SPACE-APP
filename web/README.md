@@ -4,9 +4,13 @@ Static browser version for Windows and Mac. Run `npm start` in this directory an
 
 Features: real webcam pose tracking, synthetic upright/fall replays, possible-fall alerts and JSON export, simulated heart rate, browser-local journal with keyword themes, and an explicitly offline MUSE placeholder. This does not run the Swift app or Apple's Vision model. Browser poses use MediaPipe Pose Landmarker Lite, with the native app's thresholds (20% hip drop within 1 s, 60° torso angle, 2 s hold, 15 s cooldown). A pose missing for over 1 s cancels a hold.
 
-Camera access needs HTTPS or localhost. A LAN HTTP address will not work on your teammate's computer. The hosted HTTPS link uses each visitor's own camera; there is no remote camera feed or shared event state. Start camera explicitly and grant access. Stop, navigating away from Monitor, hiding the tab, and closing the page release the webcam. Permission failures and model-download failures show recovery messages. Use synthetic replay rather than performing a fall.
+Camera access needs HTTPS or localhost. The browser webcam will not work over a LAN HTTP address; the paired dashboard and synthetic replay do work there. The hosted HTTPS link uses each visitor's own camera; no remote camera video is streamed. Start camera explicitly and grant access. Stop, navigating away from Monitor, hiding the tab, and closing the page release the webcam. Permission failures and model-download failures show recovery messages. Use synthetic replay rather than performing a fall.
 
-Camera frames are processed locally and never recorded/uploaded. MediaPipe JS/WASM and the model download from jsDelivr and Google; fonts download from Google Fonts. First use needs internet. Journal entries persist in localStorage on that browser; events are session-only. MUSE is not connected to the Python backend and does not generate answers; the repository's source corpus is empty.
+Camera frames are processed locally and never recorded/uploaded. MediaPipe JS/WASM and the model download from jsDelivr and Google; fonts download from Google Fonts. First use needs internet. Journal entries persist in localStorage on that browser; browser-generated events are session-only. Paired iPhone events persist on the local backend. MUSE is not connected to the Python backend and does not generate answers; its source corpus is empty.
+
+## Paired iPhone dashboard
+
+Start the FastAPI backend on port 8000 and open `http://COMPUTER-IP:8000/dashboard/`. In Crew dashboard, create a pairing session. Enter that backend address and code in the updated iOS app's Settings → Website connection, then enable sharing. Crew status, events and labeled telemetry sync while the app is active; website acknowledgements return to iOS. NASA research stays separate. See [the connection guide](../docs/IOS_WEB_CONNECTION.md) for setup, tests and limitations. This local connection does not require publishing to Sites.
 
 This is an experimental prototype, not a medical device. Simulated telemetry is not a measurement. Browser and native model confidence/landmarks differ: the shared thresholds are not validated for real-world falls.
 

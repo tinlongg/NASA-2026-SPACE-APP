@@ -23,6 +23,8 @@ are simulated and labelled. Journal summaries list themes you wrote about; they 
 
 ## Run the app
 
+For iPhone-to-website crew status, events, telemetry and shared acknowledgements, follow [the local connection guide](docs/IOS_WEB_CONNECTION.md). The backend serves the connected dashboard at `http://COMPUTER-IP:8000/dashboard/`.
+
 Open `ios/CrewSafety.xcodeproj` in Xcode 16 or later, set your development team and a bundle
 identifier under Signing & Capabilities, and run on an iPhone (iOS 17+). The Simulator works for
 everything except the live camera; use **Monitor → Replay** there.

@@ -2,6 +2,8 @@ import SwiftUI
 
 @main
 struct CrewSafetyApp: App {
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var dashboardSync = DashboardSync()
     @State private var eventStore: EventStore
     @State private var crewStore: CrewStore
     @State private var settings: AppSettings
@@ -23,6 +25,14 @@ struct CrewSafetyApp: App {
                 .environment(crewStore)
                 .environment(settings)
                 .environment(services)
+                .environment(dashboardSync)
+                .task(id: "\(settings.dashboardSyncKey)|\(scenePhase == .active)") {
+                    if scenePhase == .active {
+                        await dashboardSync.run(settings: settings, crew: crewStore, events: eventStore, services: services)
+                    } else {
+                        dashboardSync.status = "Paused while app is in the background"
+                    }
+                }
                 .onChange(of: settings.museMode) { rebuildMuse() }
                 .onChange(of: settings.museBaseURL) { rebuildMuse() }
         }

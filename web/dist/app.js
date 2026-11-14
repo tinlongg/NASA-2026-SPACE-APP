@@ -1,10 +1,15 @@
 import { FallDetector, measurePose } from './detector.js';
 import { initializeResearch } from './research.js';
+import { initializeCrewSync } from './crew-sync.js';
 
 const researchStyles = document.createElement('link');
 researchStyles.rel = 'stylesheet'; researchStyles.href = './research.css';
 document.head.append(researchStyles);
 initializeResearch();
+const syncStyles = document.createElement('link');
+syncStyles.rel = 'stylesheet'; syncStyles.href = './crew-sync.css';
+document.head.append(syncStyles);
+initializeCrewSync();
 
 const element = id => document.getElementById(id);
 const video = element('video');

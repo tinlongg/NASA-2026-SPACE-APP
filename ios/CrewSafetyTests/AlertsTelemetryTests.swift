@@ -3,6 +3,31 @@ import XCTest
 
 @MainActor
 final class AlertsTests: XCTestCase {
+    func testRemoteAcknowledgementIsMonotonicAndDoesNotDuplicateEvents() {
+        let original = SafetyEvent(crewMemberID: UUID(), type: .possibleFall, severity: .critical, source: .replay, details: "Sync test")
+        let store = EventStore(events: [original])
+        var acknowledged = original
+        acknowledged.acknowledged = true
+        acknowledged.acknowledgedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        store.mergeSynced([acknowledged])
+        store.mergeSynced([original])
+        XCTAssertEqual(store.events.count, 1)
+        XCTAssertTrue(store.events[0].acknowledged)
+        XCTAssertEqual(store.events[0].acknowledgedAt, acknowledged.acknowledgedAt)
+    }
+
+    func testSyncDateCodecUsesUnixMilliseconds() throws {
+        let event = SafetyEvent(crewMemberID: UUID(), type: .possibleFall,
+                                timestamp: Date(timeIntervalSince1970: 1_800_000_000),
+                                severity: .warning, source: .replay, details: "Codec test")
+        let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .millisecondsSince1970
+        let data = try encoder.encode(event)
+        let json = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(json["timestamp"] as? Double, 1_800_000_000_000)
+        let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .millisecondsSince1970
+        XCTAssertEqual(try decoder.decode(SafetyEvent.self, from: data), event)
+    }
+
     func testNewestUnacknowledgedEventIsTheBannerEvent() {
         let store = EventStore()
         let id = UUID()

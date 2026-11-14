@@ -1,5 +1,7 @@
 # MUSE research service
 
+The backend also serves the website at `/dashboard/` and pairs it with the iPhone app through `/sync/`. See [Connect iOS and the website locally](../docs/IOS_WEB_CONNECTION.md). Local camera detection remains independent of the server; the sync API shares only opted-in crew data, events and labeled telemetry.
+
 FastAPI service that answers wellness questions from a small curated set of NASA documents and
 returns citations. Contract: `docs/EXECUTION_PLAN.md` section 5.3.
 
