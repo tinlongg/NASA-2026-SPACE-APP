@@ -1,0 +1,7 @@
+# Fixture section on exercise
+
+ARTIFICIAL TEST TEXT. This paragraph exists only to test retrieval and is not from any real document. In this made-up fixture, crew members use a treadmill and resistance exercise equipment every day to keep muscles and bones strong during long missions.
+
+# Fixture section on sleep
+
+ARTIFICIAL TEST TEXT. This paragraph exists only to test retrieval and is not from any real document. In this made-up fixture, crew members keep a regular sleep schedule and dim the cabin lighting before the rest period.
