@@ -1,23 +1,22 @@
 import Foundation
 
-/// The single place where placeholder services are swapped for real ones.
-/// Only Developer 1 edits this file. When a real type is merged, replace the matching line:
-///   muse (live)  -> RemoteMuseService(baseURL:)      (Developer 4)
-///   muse (demo)  -> DemoMuseService()                (Developer 4)
-///   journal      -> OnDeviceJournalAnalyzer()        (Developer 4)
-///   telemetry    -> SimulatedTelemetryProvider()     (Developer 5)
+/// The single place where services are chosen. Only Developer 1 edits this file.
 @MainActor
 enum ServiceFactory {
     static func makeServices(settings: AppSettings) -> AppServices {
         AppServices(muse: makeMuse(settings: settings),
-                    journalAnalyzer: PlaceholderJournalAnalyzer(),
-                    telemetry: PlaceholderTelemetryProvider())
+                    journalAnalyzer: OnDeviceJournalAnalyzer(),
+                    telemetry: SimulatedTelemetryProvider())
     }
 
     static func makeMuse(settings: AppSettings) -> any MuseService {
         switch settings.museMode {
-        case .live: PlaceholderMuseService()
-        case .demo: PlaceholderMuseService()
+        case .demo:
+            return DemoMuseService()
+        case .live:
+            // Without an address there is nothing to call; the placeholder reports "unavailable".
+            guard let url = settings.museBaseURL else { return PlaceholderMuseService() }
+            return RemoteMuseService(baseURL: url)
         }
     }
 }
