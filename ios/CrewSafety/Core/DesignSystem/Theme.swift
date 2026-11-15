@@ -71,6 +71,23 @@ enum Theme {
     static let onCritical = Color(uiColor: Brand.onCritical)
     static let highlight = Color(uiColor: Brand.neonYellow)
     static let onHighlight = Color(uiColor: Brand.nearBlack)
+
+    // Semantic names used by the check-in, web camera and detector screens, mapped onto the brand palette.
+    static var nominal: Color { accent }
+    static var attention: Color { warning }
+    static var alert: Color { critical }
+    static var hairline: Color { cardBorder }
+}
+
+extension Date {
+    /// Mission-style timestamp in GMT, like "GMT 318 · 14:02" (day of year, then hours and minutes).
+    var missionTimestamp: String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "GMT")!
+        let day = calendar.ordinality(of: .day, in: .year, for: self) ?? 0
+        let parts = calendar.dateComponents([.hour, .minute], from: self)
+        return String(format: "GMT %03d · %02d:%02d", day, parts.hour ?? 0, parts.minute ?? 0)
+    }
 }
 
 private extension UIColor {
@@ -139,6 +156,7 @@ extension EventSource {
         case .liveCamera: "Live camera"
         case .replay: "Replay"
         case .simulated: "Simulated"
+        case .webCamera: "Web camera"
         }
     }
 }

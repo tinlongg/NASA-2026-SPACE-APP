@@ -13,6 +13,8 @@ struct CameraMonitorView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.l) {
                     viewport
                     statusRow
+                    if model.isActive { DetectorReadoutCard(model: model) }
+                    if model.mode == .webCamera { easyDetectionToggle }
                     controls
                     if let message = model.cameraError {
                         Text(message).font(.footnote).foregroundStyle(Theme.critical)
@@ -29,6 +31,9 @@ struct CameraMonitorView: View {
             .background(Theme.screenBackground)
             .navigationTitle("Monitor")
         }
+        .fullScreenCover(isPresented: Binding(get: { model.checkIn.isAwaiting }, set: { _ in })) {
+            CheckInView(model: model)
+        }
         .onAppear {
             model.attach(eventStore: eventStore, crewStore: crewStore)
             model.refreshAccess()
@@ -41,28 +46,49 @@ struct CameraMonitorView: View {
 
     // MARK: Pieces
 
+    private var boxColor: Color {
+        switch model.boxState {
+        case .tracking: Theme.accent
+        case .holding: Theme.attention
+        case .checkingIn: Theme.alert
+        }
+    }
+
     private var viewport: some View {
         ZStack {
             RoundedRectangle(cornerRadius: Theme.cornerRadius).fill(Color.black)
             switch model.mode {
             case .live:
-                CameraPreviewView(session: model.camera.session)
-                    .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
+                ZStack {
+                    CameraPreviewView(session: model.camera.session)
+                    AspectFillPoseOverlay(frame: model.latestFrame, aspectRatio: model.latestAspectRatio,
+                                          boxColor: boxColor, mirrored: CameraService.device?.position == .front)
+                }
+                .clipShape(RoundedRectangle(cornerRadius: Theme.cornerRadius))
             case .replay:
-                PoseCanvas(frame: model.replayFrame, aspectRatio: model.replayAspectRatio)
+                PoseCanvas(frame: model.latestFrame, aspectRatio: model.latestAspectRatio, boxColor: boxColor)
                     .padding(Theme.Spacing.s)
+            case .webCamera:
+                if model.webCameraStatus == .receiving {
+                    PoseCanvas(frame: model.latestFrame, aspectRatio: model.latestAspectRatio, boxColor: boxColor)
+                        .padding(Theme.Spacing.s)
+                } else {
+                    webCameraPlaceholder
+                }
             case .idle:
                 idlePlaceholder
             }
-            if case .replay = model.mode {
+            if model.mode != .live && model.mode != .idle {
                 VStack {
                     HStack {
-                        SimulatedBadge(text: "Replay")
+                        SimulatedBadge(text: model.mode == .webCamera ? "Web camera" : "Replay")
                         Spacer()
                     }
                     Spacer()
                 }
                 .padding(Theme.Spacing.m)
+                // The viewport is always black, so the badge uses its dark-mode colors.
+                .environment(\.colorScheme, .dark)
             }
         }
         .frame(height: 380)
@@ -90,6 +116,34 @@ struct CameraMonitorView: View {
             EmptyStateView(title: "Not monitoring", systemImage: "video",
                            message: "Place the phone upright on a stand with the whole body in view, then start monitoring.")
                 .foregroundStyle(.white)
+        }
+    }
+
+    private var webCameraPlaceholder: some View {
+        let failed: Bool = { if case .failed = model.webCameraStatus { return true } else { return false } }()
+        return EmptyStateView(
+            title: failed ? "Relay not reachable" : "Waiting for the web camera",
+            systemImage: "web.camera",
+            message: failed
+                ? "On the Mac, run node webcam/server.js, then choose Web camera again."
+                : "On the Mac, open http://localhost:8765 and start the camera. Stand back so your whole body is in view.")
+            .foregroundStyle(.white)
+    }
+
+    private var easyDetectionToggle: some View {
+        @Bindable var model = model
+        return Card {
+            Toggle(isOn: $model.easyTestDetection) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                    Text("Easy test detection").font(.headline)
+                    Text(model.easyTestDetection
+                         ? "Bend your knees a little, lean far to one side and hold for a second. Testing only."
+                         : "Standard thresholds, the same as the iPhone camera. A real, fast fall is needed.")
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                }
+            }
+            .tint(Theme.accent)
         }
     }
 
@@ -127,11 +181,18 @@ struct CameraMonitorView: View {
                 .disabled(model.access == .unavailable || model.access == .denied)
 
                 Menu {
-                    ForEach(model.fixtures) { fixture in
-                        Button(fixture.displayName) { model.startReplay(fixture) }
+                    Button {
+                        Task { await model.startWebCamera() }
+                    } label: {
+                        Label("Web camera on this Mac", systemImage: "web.camera")
+                    }
+                    Section("Replay a recording") {
+                        ForEach(model.fixtures) { fixture in
+                            Button(fixture.displayName) { Task { await model.startReplay(fixture) } }
+                        }
                     }
                 } label: {
-                    Label("Replay", systemImage: "play.rectangle").frame(maxWidth: .infinity)
+                    Label("Test", systemImage: "play.rectangle").frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
             }
@@ -152,10 +213,27 @@ struct CameraMonitorView: View {
                 Text("Heuristic score \(Int((detection.score * 100).rounded()))% · not a probability")
                     .font(.caption)
                     .foregroundStyle(Theme.secondaryText)
-                Text("An alert was recorded. Review and acknowledge it in the Alerts tab.")
-                    .font(.caption)
-                    .foregroundStyle(Theme.secondaryText)
+                if let outcome = model.lastOutcome {
+                    Text(outcome.summary)
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(outcomeColor(outcome))
+                    Text(outcomeNote(outcome))
+                        .font(.caption)
+                        .foregroundStyle(Theme.secondaryText)
+                }
             }
+        }
+    }
+
+    private func outcomeColor(_ outcome: CheckInOutcome) -> Color {
+        if case .respondedOK = outcome { return Theme.nominal }
+        return Theme.alert
+    }
+
+    private func outcomeNote(_ outcome: CheckInOutcome) -> String {
+        switch outcome {
+        case .respondedOK: "Logged in Alerts history. No alert was raised."
+        case .requestedHelp, .noResponse: "A critical alert was raised. Review and acknowledge it in the Alerts tab."
         }
     }
 }

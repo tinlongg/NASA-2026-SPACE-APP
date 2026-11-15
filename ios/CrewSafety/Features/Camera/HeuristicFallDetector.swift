@@ -34,6 +34,29 @@ struct HeuristicFallDetector: FallDetecting {
         let torsoAngleDeg: Double
     }
 
+    /// What the detector sees right now, for the live readout. Updated on every frame.
+    struct Reading: Equatable {
+        enum Phase: Equatable {
+            case noPerson
+            /// Torso within the upright angle.
+            case upright
+            /// Leaning, but no fast drop from upright has been seen.
+            case tilted
+            /// Dropped fast and is now staying low; `held` counts toward `lowPostureHold`.
+            case holding
+            /// Just detected; new detections wait for `cooldown`.
+            case cooldown
+        }
+        var phase: Phase = .noPerson
+        /// Mean joint confidence from the pose estimator, 0...1. This one is a real model confidence.
+        var poseConfidence: Double?
+        var torsoAngleDeg: Double?
+        /// How far the hips are below the recent upright reference, as a fraction of frame height.
+        var hipDrop: Double?
+        var held: TimeInterval = 0
+    }
+
+    private(set) var reading = Reading()
     private var uprightHistory: [Sample] = []
     private var hold: Hold?
     private var lastDetectionTime: TimeInterval?
@@ -49,9 +72,11 @@ struct HeuristicFallDetector: FallDetecting {
         hold = nil
         lastDetectionTime = nil
         lastFrameTime = nil
+        reading = Reading()
     }
 
     mutating func process(_ frame: PoseFrame) -> FallDetection? {
+        defer { updateReading(frame) }
         if let last = lastFrameTime, frame.t < last { reset() }
         lastFrameTime = frame.t
         uprightHistory.removeAll { frame.t - $0.t > config.maxDropDuration }
@@ -104,6 +129,31 @@ struct HeuristicFallDetector: FallDetecting {
         hold = Hold(start: frame.t, referenceHipY: reference.hipY, drop: drop,
                     dropDuration: frame.t - reference.t, maxAngle: m.torsoAngleDeg, lostSince: nil)
         return nil
+    }
+
+    // MARK: Reading
+
+    private mutating func updateReading(_ frame: PoseFrame) {
+        let confidences = frame.joints.values.map(\.c)
+        reading.poseConfidence = confidences.isEmpty ? nil : confidences.reduce(0, +) / Double(confidences.count)
+        let m = measure(frame)
+        reading.torsoAngleDeg = m?.torsoAngleDeg
+        let reference = hold?.referenceHipY ?? uprightHistory.map(\.hipY).max()
+        if let m, let reference {
+            reading.hipDrop = max(0, reference - m.hipY)
+        } else {
+            reading.hipDrop = nil
+        }
+        reading.held = hold.map { max(0, frame.t - $0.start) } ?? 0
+        if let last = lastDetectionTime, frame.t - last < config.cooldown {
+            reading.phase = .cooldown
+        } else if hold != nil {
+            reading.phase = .holding
+        } else if let m {
+            reading.phase = m.torsoAngleDeg <= config.uprightMaxTorsoAngleDeg ? .upright : .tilted
+        } else {
+            reading.phase = .noPerson
+        }
     }
 
     // MARK: Measurement
