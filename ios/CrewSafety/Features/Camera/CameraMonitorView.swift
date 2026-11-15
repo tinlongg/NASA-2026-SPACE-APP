@@ -15,7 +15,6 @@ struct CameraMonitorView: View {
                     statusRow
                     if model.isActive { DetectorReadoutCard(model: model) }
                     if model.mode == .webCamera { easyDetectionToggle }
-                    restControls
                     controls
                     if let message = model.cameraError {
                         Text(message).font(.footnote).foregroundStyle(Theme.critical)
@@ -145,30 +144,6 @@ struct CameraMonitorView: View {
                 }
             }
             .tint(Theme.accent)
-        }
-    }
-
-    private var restControls: some View {
-        Card {
-            VStack(alignment: .leading, spacing: Theme.Spacing.s) {
-                Text("Rest period").font(.headline)
-                Text(model.isResting
-                     ? "Monitoring is paused. No events are raised, and the timer starts fresh when it ends."
-                     : "A manual pause for sleep or deliberate stillness. Nothing is detected automatically.")
-                    .font(.caption)
-                    .foregroundStyle(Theme.secondaryText)
-                if model.isResting {
-                    Button("Resume now") { model.endRest() }
-                        .buttonStyle(.bordered)
-                } else {
-                    Menu("Pause monitoring") {
-                        ForEach(RestPause.options, id: \.minutes) { option in
-                            Button(option.label) { model.startRest(minutes: option.minutes) }
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                }
-            }
         }
     }
 

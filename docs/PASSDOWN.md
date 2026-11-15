@@ -252,3 +252,7 @@ Built without the live test (that still needs a person in front of the camera; s
 - Eye and mouth readings are **information for the person watching only**; no alert depends on them (decision: info only; closed eyes cannot tell sleep from a problem). They are recorded on each event as `eyes` and `mouth`.
 - Tests: web 75/75, including a guard that every imported browser module is served by the Worker and cached by the shell (a missing allowlist entry had broken the whole page once during this work).
 - **Not verified:** anything with a real camera. Multi-person tracking, face matching to people, blink and mouth thresholds (0.55 blink score, 0.04 jaw spread) and the crop framing are untested on real people. The tracker matches by position only, so people who cross paths can swap ids. Not done: iOS multi-person, the iOS upper-body fallback, and a layout check at narrow widths (the toolbar overflowed sideways in the narrow browser pane).
+
+### Rest period removed (2026-11-15)
+
+- The manual rest-period pause (web panel, iOS Monitor card, `RestPause`, tests) was removed at the user's request: crew sleep in private areas that the cameras do not cover, so no pause is needed. This reverses roadmap decision D7 and the "Rest period" notes in the Phase 1 section above. Sleep or deliberate stillness in a monitored area can still raise an alert. Web suite 74/74, iOS 43/43.

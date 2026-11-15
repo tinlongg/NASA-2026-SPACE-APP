@@ -86,8 +86,7 @@ export function cropRect(box, videoWidth, videoHeight, aspect = 4 / 3) {
 }
 
 /** Plain-language readings for one person, from the rule-based detector and the face blendshapes. */
-export function describePerson({ tracked, upper, motion, threshold, stillFor, stillSeconds, alerted, paused, eyes, mouth, replay }) {
-  if (paused) return ['Monitoring is paused for a rest period. No events are raised.'];
+export function describePerson({ tracked, upper, motion, threshold, stillFor, stillSeconds, alerted, eyes, mouth, replay }) {
   const lines = [];
   if (!tracked) return ['Not tracked right now. Shoulders need to be visible.'];
   lines.push(upper ? 'Tracking the upper body only (hips are not visible).' : 'Tracking the full body.');

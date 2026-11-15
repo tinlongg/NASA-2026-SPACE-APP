@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { visibilityGroups, missingTorso, FramingMonitor, RestPause } from '../dist/camera-health.js';
+import { visibilityGroups, missingTorso, FramingMonitor } from '../dist/camera-health.js';
 import { POSE_MODELS, MODEL_ASSETS, cacheableAsset } from '../dist/offline-config.js';
 
 const pose = overrides => { const landmarks = Array.from({ length: 33 }, () => ({ visibility: 0.9 })); for (const [index, visibility] of Object.entries(overrides)) landmarks[index] = { visibility }; return landmarks; };
@@ -28,17 +28,6 @@ test('framing guidance appears only after the shoulders are missing for more tha
   assert.equal(monitor.update(3, good), null);        // recovers, and the timer restarts
   assert.equal(monitor.update(4, bad), null);
   assert.equal(monitor.update(10, visibilityGroups(pose({ 23: 0, 24: 0 }))), null, 'hidden hips need no guidance');
-});
-
-test('rest pause ends by itself and reports the time left', () => {
-  const pause = new RestPause();
-  assert.equal(pause.isPaused(0), false);
-  pause.start(1000, 15);
-  assert.equal(pause.isPaused(1000 + 14 * 60000), true);
-  assert.equal(pause.remainingSeconds(1000 + 14 * 60000), 60);
-  assert.equal(pause.isPaused(1000 + 15 * 60000), false);
-  pause.start(0, 30); pause.clear();
-  assert.equal(pause.isPaused(1), false);
 });
 
 test('every offered pose model can be cached, and preparation covers lite and full', () => {

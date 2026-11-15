@@ -59,7 +59,7 @@ test('face box and crop stay inside the frame with the requested aspect', () => 
 
 import { describePerson } from '../dist/people.js';
 test('person readings are plain statements, never conclusions about condition', () => {
-  const base = { tracked: true, upper: false, motion: 0.31, threshold: 0.25, stillFor: 0, stillSeconds: 15, alerted: false, paused: false, eyes: { state: 'open' }, mouth: { state: 'moving' } };
+  const base = { tracked: true, upper: false, motion: 0.31, threshold: 0.25, stillFor: 0, stillSeconds: 15, alerted: false, eyes: { state: 'open' }, mouth: { state: 'moving' } };
   assert.deepEqual(describePerson(base), ['Tracking the full body.', 'Moving: largest joint change 0.31.', 'Eyes look open.', 'The mouth is moving.']);
   const still = describePerson({ ...base, upper: true, stillFor: 9.4, eyes: { state: 'closed' }, mouth: { state: 'still' } });
   assert.ok(still.includes('Tracking the upper body only (hips are not visible).') && still.includes('Still for 9 s. An alert is raised at 15 s without movement.') && still.includes('Eyes look closed.'));

@@ -22,7 +22,6 @@ final class CameraMonitorViewModel {
     private(set) var lastDetection: InactivityDetection?
     private(set) var lastDetectionSource: EventSource?
     private(set) var showsDetectionFlash = false
-    private(set) var rest = RestPause()
     private(set) var personVisible = false
     /// The most recent pose in any mode, for the skeleton and bounding box.
     private(set) var latestFrame: PoseFrame?
@@ -75,22 +74,8 @@ final class CameraMonitorViewModel {
     }
 
     var isActive: Bool { mode != .idle }
-    var isResting: Bool { rest.isPaused() }
-
-    func startRest(minutes: Int) {
-        rest.start(minutes: minutes)
-        detector.reset()
-        reading = detector.reading
-    }
-
-    func endRest() {
-        rest.clear()
-        detector.reset()
-        reading = detector.reading
-    }
 
     var statusText: String {
-        if let until = rest.until, isResting { return "Rest period until \(until.formatted(date: .omitted, time: .shortened))" }
         if checkIn.isAwaiting { return "No movement · checking in" }
         if showsDetectionFlash { return "Possible unresponsive crew member" }
         switch mode {
@@ -217,8 +202,6 @@ final class CameraMonitorViewModel {
         personVisible = !frame.joints.isEmpty
         latestFrame = frame
         latestAspectRatio = aspectRatio
-        // A rest period raises no events; the timer starts fresh when it ends.
-        if isResting { detector.reset(); reading = detector.reading; return }
         // One check-in at a time: detection pauses until the current one is answered or times out.
         guard !checkIn.isAwaiting else { return }
         detector.frameAspectRatio = aspectRatio
