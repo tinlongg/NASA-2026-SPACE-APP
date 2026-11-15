@@ -1189,7 +1189,7 @@ function endWatchCheckIn(person) {
   cancelWatchCheckIn(person.watchCheckInId); watchCheckIns.delete(person.watchCheckInId); person.watchCheckInId = null;
 }
 
-const missionNavigation=initializeMission({onNavigate:path=>showTab('mission',{path})});
+const missionNavigation=initializeMission({onNavigate:path=>{if(location.pathname!==path)history.pushState({page:'mission'},'',path);}});
 showTab(new URLSearchParams(location.search).get('mission')==='1'?'mission':pageForPath(location.pathname)||'home',{historyMode:'replace',path:location.pathname});
 
 // Preference belongs to this browser and applies across every view.
