@@ -196,6 +196,6 @@ Plan: `docs/ROADMAP_PLAN.md` (in worktree `crewsafety-roadmap-9c2217`, not yet c
 
 - D1 resolved from Meta's media-understanding and models docs: `muse-spark-1.3` accepts images on chat-completions as `{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}` in a `user` message.
 - Built: `POST /api/journal/photos/compare` (3a) and `POST /api/coach/look` (3b) in `web/worker.mjs`, `journalPhotosForCompare` in `web/account.mjs`, a compare control per photo entry, and the opt-in "second look" in the Monitor tab. The reply is stored on the event as `lookNote`, next to `snapshot`, so the JSON export shows detector metrics and MUSE side by side. Web suite: 51/51 (Node 22).
-- **Not verified against the real provider.** This worktree has no `web/.env`, so no live Meta call was made; tests use a mocked provider. Run one comparison and one live alert with the real key and record the result here.
+- **Live provider check, 2026-11-15:** with the real `META_API_KEY` (copied from the design-auth worktree's ignored `web/.env`), both routes returned 200 from `muse-spark-1.3` for synthetic solid-colour JPEGs, and described them neutrally as having no person. Not yet tried with a real face photo or a real webcam alert.
 - Camera copy changed from "never uploaded" to "stays on this device unless you turn on the second look".
 - The weight idea is not implemented: a photo cannot measure weight. A manual number field on the entry is the suggested route.
