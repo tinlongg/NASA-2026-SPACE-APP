@@ -23,14 +23,29 @@ test('steady fast or long dragging does not make the eye dizzy',t=>{
   assert.ok(!classes.has('pip-dizzy'));pet.onpointerup(pointer(speed*800,0,800));assert.ok(!classes.has('pip-dizzy'));
  }
 });
-test('sharp acceleration after movement starts makes the eye dizzy, then recovers',t=>{
+test('gentle dragging keeps the happy eye until release, then returns to normal',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const {pet,classes}=setup();pet.onpointerdown(pointer());pet.onpointermove(pointer(20,0,100));assert.ok(classes.has('pip-happy'));
+ t.mock.timers.tick(2000);assert.ok(classes.has('pip-happy'));assert.ok(!classes.has('pip-dizzy'));
+ pet.onpointerup(pointer(20,0,2100));t.mock.timers.tick(1601);assert.ok(!classes.has('pip-happy'));
+});
+test('two strong acceleration changes are required for dizziness, then it recovers',t=>{
  t.mock.timers.enable({apis:['setTimeout']});
  const {pet,classes,bird}=setup();pet.onpointerdown(pointer());
- for(let time=40;time<=160;time+=40)pet.onpointermove(pointer(time*2,0,time));
+ for(let time=40;time<=320;time+=40)pet.onpointermove(pointer(time*2,0,time));
  assert.ok(!classes.has('pip-dizzy'));
- pet.onpointermove(pointer(240,0,200));assert.ok(classes.has('pip-dizzy'));
- pet.onpointerup(pointer(240,0,200));assert.equal(bird.style.transform,'');assert.ok(classes.has('pip-dizzy'));assert.ok(classes.has('pip-returning'));
+ pet.onpointermove(pointer(560,0,360));assert.ok(!classes.has('pip-dizzy'));assert.ok(classes.has('pip-happy'));
+ pet.onpointermove(pointer(480,0,400));pet.onpointermove(pointer(400,0,440));pet.onpointermove(pointer(480,0,480));assert.ok(classes.has('pip-dizzy'));assert.ok(!classes.has('pip-happy'));
+ pet.onpointerup(pointer(480,0,480));assert.equal(bird.style.transform,'');assert.ok(classes.has('pip-dizzy'));assert.ok(classes.has('pip-returning'));
  t.mock.timers.tick(2601);assert.ok(!classes.has('pip-dizzy'));
+});
+test('little fast drags and isolated strong jolts do not cause dizziness',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const {pet,classes}=setup();pet.onpointerdown(pointer());
+ for(let time=24;time<=960;time+=24)pet.onpointermove(pointer(time%48?20:0,0,time));assert.ok(!classes.has('pip-dizzy'));
+ pet.onpointerup(pointer(0,0,960));pet.onpointerdown(pointer());
+ for(let time=40;time<=320;time+=40)pet.onpointermove(pointer(time*2,0,time));pet.onpointermove(pointer(560,0,360));
+ pet.onpointermove(pointer(560,0,1200));pet.onpointermove(pointer(640,0,1240));pet.onpointermove(pointer(560,0,1280));assert.ok(!classes.has('pip-dizzy'));
 });
 test('small pointer jitter and movement after an idle gap do not cause dizziness',t=>{
  t.mock.timers.enable({apis:['setTimeout']});
