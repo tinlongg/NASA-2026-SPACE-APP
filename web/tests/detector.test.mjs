@@ -6,7 +6,7 @@ import { REPLAYS, replayMeasurement } from '../dist/fixtures.js';
 for (const [kind, fixture] of Object.entries(REPLAYS)) {
   test(`UI replay: ${fixture.label} produces ${fixture.expected} event(s)`, () => {
     for (const fps of [10, 15, 30, 60]) {
-      const detector = new InactivityDetector(); const detections = [];
+      const detector = new InactivityDetector({ wholeBody: Boolean(fixture.wholeBody) }); const detections = [];
       for (let frame = 0; frame <= fixture.duration * fps; frame++) {
         const result = detector.process(frame / fps, replayMeasurement(kind, frame / fps));
         if (result) detections.push(result);
@@ -51,5 +51,55 @@ test('measurement keeps confident joints and rejects a missing torso', () => {
   const measurement = measurePose(landmarks, 4 / 3);
   assert.ok(measurement.points[11] && !measurement.points[15]);
   assert.deepEqual(measurement.points[23], [0.5 * 4 / 3, 0.5]);
-  landmarks[24].visibility = 0.1; assert.equal(measurePose(landmarks, 4 / 3), null);
+  landmarks[24].visibility = 0.1;
+  const upper = measurePose(landmarks, 4 / 3); // hips hidden: shoulders still give an upper-body measurement
+  assert.equal(upper.upper, true); assert.ok(upper.points[11] && !upper.points[24]);
+  landmarks[12].visibility = 0.1; assert.equal(measurePose(landmarks, 4 / 3), null);
+});
+
+const seated = (arm = 0, dx = 0) => ({ upper: true, points: { 0: [0.5 + dx, 0.3], 11: [0.4 + dx, 0.45], 12: [0.6 + dx, 0.45], 15: [0.35 + dx, 0.7 - arm] } });
+
+test('a seated person (hips hidden) is tracked and alerts after stillness', () => {
+  const detector = new InactivityDetector();
+  for (let time = 0; time < STILL_SECONDS; time += 0.5) assert.equal(detector.process(time, seated()), null);
+  const event = detector.process(STILL_SECONDS, seated());
+  assert.equal(event.upper, true);
+  assert.equal(detector.process(STILL_SECONDS + 1, seated(0.4)), null, 'a reach restarts the timer');
+});
+
+test('typing-sized hand movement while seated is not stillness', () => {
+  const detector = new InactivityDetector(); let alerts = 0;
+  for (let time = 0; time < 60; time += 0.25) if (detector.process(time, seated(Math.round(time) % 2 ? 0.15 : 0))) alerts++;
+  assert.equal(alerts, 0);
+});
+
+test('sitting down or standing up counts as movement', () => {
+  const detector = new InactivityDetector();
+  for (let time = 0; time < 10; time += 0.5) detector.process(time, body());
+  assert.equal(detector.process(10, seated()), null);
+  for (let time = 10.5; time < 10 + STILL_SECONDS - 0.5; time += 0.5) assert.equal(detector.process(time, seated()), null, 'timer restarted when the tracking mode changed');
+  assert.ok(detector.process(10 + STILL_SECONDS, seated()));
+});
+
+test('walking past with only the torso visible: an alert in space mode, none when the whole body counts', () => {
+  for (const [wholeBody, expected] of [[false, 1], [true, 0]]) {
+    const detector = new InactivityDetector({ wholeBody }); let alerts = 0;
+    for (let time = 0; time <= 20; time += 1 / 15) if (detector.process(time, replayMeasurement('walking', time))) alerts++;
+    assert.equal(alerts, expected, `wholeBody=${wholeBody}`);
+  }
+});
+
+test('turning in place counts as movement only when the whole body counts', () => {
+  const turned = angle => { const c = Math.cos(angle), s = Math.sin(angle), at = (x, y) => [0.5 + x * c - y * s, 0.45 + x * s + y * c]; return { points: { 11: at(-0.1, -0.15), 12: at(0.1, -0.15), 23: at(-0.07, 0.15), 24: at(0.07, 0.15) } }; };
+  for (const [wholeBody, expected] of [[false, 1], [true, 0]]) {
+    const detector = new InactivityDetector({ wholeBody }); let alerts = 0;
+    for (let time = 0; time <= 20; time += 0.5) if (detector.process(time, turned(Math.floor(time / 4) * 0.5))) alerts++;
+    assert.equal(alerts, expected, `wholeBody=${wholeBody}`);
+  }
+});
+
+test('standing perfectly still still alerts when the whole body counts', () => {
+  const detector = new InactivityDetector({ wholeBody: true });
+  for (let time = 0; time < STILL_SECONDS; time += 0.5) assert.equal(detector.process(time, body()), null);
+  assert.ok(detector.process(STILL_SECONDS, body()));
 });
