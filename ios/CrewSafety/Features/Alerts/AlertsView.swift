@@ -25,6 +25,8 @@ struct AlertsView: View {
                             }
                         }
                     }
+                    .scrollContentBackground(.hidden)
+                    .background(Theme.screenBackground)
                 }
             }
             .navigationTitle("Alerts")
@@ -55,7 +57,7 @@ struct AlertsView: View {
                 }
                 Text("\(crewName(event.crewMemberID)) · \(event.timestamp.formatted(date: .abbreviated, time: .standard))")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                 if let checkIn = event.checkIn {
                     Text(checkIn.summary)
                         .font(.caption.weight(.medium))
@@ -64,13 +66,13 @@ struct AlertsView: View {
                 if let score = event.heuristicScore {
                     Text("Heuristic score \(Int((score * 100).rounded()))%")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
         }
         .swipeActions(edge: .trailing) {
             if !event.acknowledged {
-                Button("Acknowledge") { eventStore.acknowledge(event.id) }.tint(.green)
+                Button("Acknowledge") { eventStore.acknowledge(event.id) }.tint(Theme.accent)
             }
         }
     }
@@ -120,6 +122,8 @@ struct AlertDetailView: View {
                     Text("This is an alert, not a diagnosis. It cannot tell whether anyone is hurt.")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.screenBackground)
             .navigationTitle(event.type.displayName)
             .navigationBarTitleDisplayMode(.inline)
         } else {

@@ -14,8 +14,8 @@ struct DashboardView: View {
                     telemetrySection
                     eventsSection
                     Text("Prototype for a simulated crew. Not a medical device.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.footnote)
+                        .foregroundStyle(Theme.secondaryText)
                         .frame(maxWidth: .infinity)
                 }
                 .padding(Theme.Spacing.l)
@@ -42,7 +42,7 @@ struct DashboardView: View {
 
     private var alertSummary: some View {
         let severity = eventStore.highestActiveSeverity
-        let color = severity?.color ?? Theme.nominal
+        let color = severity?.color ?? Theme.accent
         return Card {
             HStack(alignment: .firstTextBaseline, spacing: Theme.Spacing.m) {
                 Image(systemName: severity == nil ? "checkmark.shield" : "exclamationmark.triangle")
@@ -54,7 +54,7 @@ struct DashboardView: View {
                     Text(severity == nil ? "All recorded events are acknowledged."
                                          : "Open the Alerts tab to review and acknowledge.")
                         .font(.subheadline)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
             .accessibilityElement(children: .combine)
@@ -132,7 +132,7 @@ private struct CrewCard: View {
             HStack(alignment: .top, spacing: Theme.Spacing.m) {
                 Text(initials)
                     .font(.subheadline.weight(.medium).monospaced())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                     .frame(width: 36, height: 36)
                     .background(Color(.tertiarySystemFill), in: Circle())
                     .accessibilityHidden(true)
@@ -142,12 +142,12 @@ private struct CrewCard: View {
                         Spacer(minLength: Theme.Spacing.s)
                         StatusBadge(status: status)
                     }
-                    Text(member.role).font(.subheadline).foregroundStyle(.secondary)
+                    Text(member.role).font(.subheadline).foregroundStyle(Theme.secondaryText)
                     if isMonitored || activeAlertCount > 0 {
                         HStack(spacing: Theme.Spacing.m) {
                             if isMonitored {
                                 Label("Camera monitoring", systemImage: "video")
-                                    .foregroundStyle(.secondary)
+                                    .foregroundStyle(Theme.secondaryText)
                                     .accessibilityLabel("Camera monitoring is assigned to this crew member")
                             }
                             if activeAlertCount > 0 {
@@ -181,11 +181,11 @@ private struct EventRow: View {
                     Spacer(minLength: 0)
                     Text(event.timestamp.missionTimestamp)
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
                 Text(crewName)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                 Text(event.acknowledged ? "Acknowledged" : "Not acknowledged")
                     .font(.caption)
                     .foregroundStyle(event.acknowledged ? Color.secondary : event.severity.color)

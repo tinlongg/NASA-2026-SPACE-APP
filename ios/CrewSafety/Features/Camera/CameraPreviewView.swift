@@ -61,7 +61,7 @@ struct PoseCanvas: View {
                     var path = Path()
                     path.move(to: p)
                     path.addLine(to: q)
-                    context.stroke(path, with: .color(.white.opacity(0.85)), lineWidth: 3)
+                    context.stroke(path, with: .color(Theme.Palette.neonYellow), lineWidth: 3)
                 }
                 for point in frame.joints.values {
                     let p = location(point)

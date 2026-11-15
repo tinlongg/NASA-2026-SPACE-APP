@@ -14,7 +14,7 @@ struct MuseChatView: View {
                         SimulatedBadge(text: "Demo mode")
                         Text("Answers are precomputed, not live.")
                             .font(.caption)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.secondaryText)
                         Spacer()
                     }
                     .padding(.horizontal, Theme.Spacing.l)
@@ -36,7 +36,7 @@ struct MuseChatView: View {
                             if model.isLoading {
                                 HStack(spacing: Theme.Spacing.s) {
                                     ProgressView()
-                                    Text("Looking through the research…").font(.subheadline).foregroundStyle(.secondary)
+                                    Text("Looking through the research…").font(.subheadline).foregroundStyle(Theme.secondaryText)
                                 }
                                 .id("loading")
                             }
@@ -64,7 +64,7 @@ struct MuseChatView: View {
     private var inputBar: some View {
         VStack(alignment: .leading, spacing: 4) {
             if model.isOverLength {
-                Text("Questions are limited to 500 characters.").font(.caption).foregroundStyle(.red)
+                Text("Questions are limited to 500 characters.").font(.caption).foregroundStyle(Theme.critical)
             }
             HStack(alignment: .bottom, spacing: Theme.Spacing.s) {
                 TextField("Ask a wellness question", text: $model.draft, axis: .vertical)
@@ -82,10 +82,13 @@ struct MuseChatView: View {
             }
             Text("General information only. Not medical advice or emergency guidance.")
                 .font(.caption2)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
         }
         .padding(Theme.Spacing.m)
-        .background(.bar)
+        .background(Theme.cardBackground)
+        .overlay(alignment: .top) {
+            Rectangle().fill(Theme.cardBorder).frame(height: 1)
+        }
     }
 
     private func errorCard(_ error: MuseError) -> some View {
@@ -93,8 +96,8 @@ struct MuseChatView: View {
             VStack(alignment: .leading, spacing: Theme.Spacing.s) {
                 Label(MuseChatViewModel.title(for: error), systemImage: "exclamationmark.circle")
                     .font(.headline)
-                    .foregroundStyle(.red)
-                Text(MuseChatViewModel.detail(for: error)).font(.subheadline).foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.critical)
+                Text(MuseChatViewModel.detail(for: error)).font(.subheadline).foregroundStyle(Theme.secondaryText)
                 if error != .invalidQuestion {
                     Button("Retry") { Task { await model.retry(using: services.muse) } }
                         .buttonStyle(.bordered)
@@ -114,8 +117,8 @@ private struct MessageBubble: View {
                 Spacer(minLength: 40)
                 Text(message.content)
                     .padding(Theme.Spacing.m)
-                    .foregroundStyle(.white)
-                    .background(Color.accentColor, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
+                    .foregroundStyle(Theme.onAccent)
+                    .background(Theme.accent, in: RoundedRectangle(cornerRadius: Theme.cornerRadius))
             }
         } else {
             Card {
@@ -125,24 +128,24 @@ private struct MessageBubble: View {
                     if isUngrounded {
                         Label("No supporting source found", systemImage: "questionmark.circle")
                             .font(.footnote.weight(.semibold))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(Theme.warning)
                     }
                     if !message.citations.isEmpty {
                         Divider()
-                        Text("Sources").font(.caption.weight(.semibold)).foregroundStyle(.secondary)
+                        Text("Sources").font(.caption.weight(.semibold)).foregroundStyle(Theme.secondaryText)
                         ForEach(message.citations, id: \.self) { citation in
                             Link(destination: citation.url) {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(citation.title).font(.footnote.weight(.semibold)).multilineTextAlignment(.leading)
                                     if let section = citation.sectionOrPage, !section.isEmpty {
-                                        Text(section).font(.caption).foregroundStyle(.secondary)
+                                        Text(section).font(.caption).foregroundStyle(Theme.secondaryText)
                                     }
                                 }
                             }
                         }
                     }
                     if let disclaimer = message.disclaimer, !disclaimer.isEmpty {
-                        Text(disclaimer).font(.caption2).foregroundStyle(.secondary)
+                        Text(disclaimer).font(.caption2).foregroundStyle(Theme.secondaryText)
                     }
                 }
             }
