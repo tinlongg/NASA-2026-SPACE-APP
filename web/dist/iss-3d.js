@@ -120,7 +120,7 @@ function shade(hex, brightness) {
 
 /** Binds the model to a canvas: drag to turn, click to pick, redraw only when the view or camera status changes. */
 export function createIssView(canvas, { onSelect, getStatuses, autoRotate=true }) {
-  const context = canvas.getContext('2d'), scene = buildScene(), view = { yaw: -0.55, pitch: -1.0, width: 600, height: 380, zoom:1, panX:0, panY:0 };
+  const context = canvas.getContext('2d'), scene = buildScene(), view = { yaw: -0.55, pitch: -0.7, width: 600, height: 380, zoom:1, panX:0, panY:0 };
   let selected = null, hovered = null, dragging = null, frame = 0, dirty = true, statusKey = '', lastTime=null,lastAutoDraw=0,pauseUntil=0,rotating=false;
   const motionAllowed=autoRotate&&!(typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
   const pauseRotation=()=>{pauseUntil=performance.now()+2500;};
@@ -182,5 +182,5 @@ export function createIssView(canvas, { onSelect, getStatuses, autoRotate=true }
   canvas.addEventListener('contextmenu',event=>event.preventDefault());
   canvas.addEventListener('wheel', event => {pauseRotation();event.preventDefault();const delta=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?canvas.clientWidth:1);view.zoom=Math.max(.65,Math.min(1.8,view.zoom*Math.exp(-delta*.0015)));dirty=true;}, { passive: false });
   frame = requestAnimationFrame(loop);
-  return { reset(){dragging=null;hovered=null;pauseUntil=0;view.yaw=-.55;view.pitch=-1.0;view.zoom=1;view.panX=0;view.panY=0;dirty=true;}, select(id) { selected = id; dirty=true; }, view, stop() { cancelAnimationFrame(frame); } };
+  return { reset(){dragging=null;hovered=null;pauseUntil=0;view.yaw=-.55;view.pitch=-0.7;view.zoom=1;view.panX=0;view.panY=0;dirty=true;}, select(id) { selected = id; dirty=true; }, view, stop() { cancelAnimationFrame(frame); } };
 }
