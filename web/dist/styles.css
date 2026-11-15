@@ -295,3 +295,9 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 #overlay { cursor: pointer; }
 @media (max-width: 720px) { .closeup-body { grid-template-columns: 1fr; } }
 .voice-answer-status { margin: 0 0 8px; }
+.checkin-box { display: grid; gap: 12px; margin-bottom: 16px; }
+.checkin-card { border: 1px solid var(--warn); border-radius: var(--r-card); background: var(--surface); padding: 16px 20px; display: grid; gap: 8px; }
+.checkin-card h3 { font-size: 20px; }
+.checkin-card .count { font: 500 32px var(--mono); }
+.checkin-card .answers { display: flex; gap: 8px; flex-wrap: wrap; }
+.checkin-card .answers .help { border-color: var(--danger); color: var(--danger); }

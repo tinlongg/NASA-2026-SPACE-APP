@@ -266,3 +266,8 @@ Built without the live test (that still needs a person in front of the camera; s
 
 - `backend/scripts/generate_voice.py` now looks up the voice set on the CrewSafety Check-in agent through the API (falls back to Eric) and prints it. After the user changed the agent's voice, both clips were regenerated with "Hope" (`WAhoMTNdLdMoq1j3wf3I`). The clips are recordings, so any later change to the agent's voice needs `python3 backend/scripts/generate_voice.py --force`, an iOS rebuild and a web server restart.
 - Live test report: a person talking while standing still still raised an alert. Fix: talking (mouth movement) and blinks now count as activity and restart the stillness timer (`InactivityDetector.noteActivity`, `BlinkDetector`, `MouthActivity`), behind a default-on checkbox. Web suite 78/78. Not verified with real people; thresholds are starting values. This reverses the earlier "info only" decision for the face readings at the user's request. Known trade-off: facial movement without the ability to respond would delay an alert.
+
+### "Are you OK?" check-in on the website (2026-11-15)
+
+- Live detections now start a 30 s check-in (new clip `web/dist/voice/web-checkin.mp3`, voice Hope; `web/dist/checkin.js`) before the alert: OK or movement ends it quietly, help or silence raises the event. Replays and the unchecked setting skip it. The check-in length (30 s vs iOS 60 s) and the 45 s grace after OK are untested guesses. Web suite 81/81.
+- Not verified with a live camera or real speech: the countdown card, the spoken prompt followed by listening, and that talking during the check-in ends it. If a person says OK but stays still, they are asked again after about a minute.

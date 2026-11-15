@@ -29,9 +29,11 @@ export async function installLanguagePack() {
   return Boolean(Recognition?.install && await Recognition.install({ langs: ['en-US'], processLocally: true }));
 }
 
-/** Listens for one answer. Resolves 'ok', 'help' or 'none'. Never falls back to server-side recognition. */
+/** Listens for one answer. The promise resolves 'ok', 'help' or 'none'; call .stop() to end it early.
+ *  Never falls back to server-side recognition. */
 export function listenForAnswer({ seconds = LISTEN_SECONDS, onHeard } = {}) {
-  return new Promise(resolve => {
+  let stop = () => {};
+  const promise = new Promise(resolve => {
     const Recognition = recognition();
     if (!Recognition) return resolve('none');
     const rec = new Recognition();
@@ -39,6 +41,7 @@ export function listenForAnswer({ seconds = LISTEN_SECONDS, onHeard } = {}) {
     if (rec.processLocally !== true) return resolve('none'); // would send audio to a server: refuse
     let done = false;
     const finish = result => { if (done) return; done = true; clearTimeout(timer); try { rec.stop(); } catch {} resolve(result); };
+    stop = () => finish('none');
     const timer = setTimeout(() => finish('none'), seconds * 1000);
     rec.onresult = event => {
       let heard = ''; for (const result of event.results) heard += ' ' + result[0].transcript;
@@ -50,4 +53,6 @@ export function listenForAnswer({ seconds = LISTEN_SECONDS, onHeard } = {}) {
     rec.onend = () => finish('none');
     try { rec.start(); } catch { finish('none'); }
   });
+  promise.stop = () => stop();
+  return promise;
 }
