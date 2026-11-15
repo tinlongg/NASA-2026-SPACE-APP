@@ -898,3 +898,11 @@ renderSuit(); loadSuitHistory();
 
 initializeMission();
 if (new URLSearchParams(location.search).get('mission') === '1') showTab('mission');
+
+// Preference belongs to this browser and applies across every view.
+const themeToggle=document.getElementById('theme-toggle');
+function setTheme(theme){document.documentElement.dataset.theme=theme;themeToggle.textContent=theme==='light'?'Dark mode':'Light mode';themeToggle.setAttribute('aria-label','Switch to '+(theme==='light'?'dark':'light')+' mode');document.querySelector('meta[name="theme-color"]').content=theme==='light'?'#f4f5f7':'#121314';}
+let savedTheme='dark';try{savedTheme=localStorage.getItem('crewsafety-theme')||'dark';}catch{}setTheme(savedTheme==='light'?'light':'dark');
+themeToggle.onclick=()=>{const next=document.documentElement.dataset.theme==='light'?'dark':'light';setTheme(next);try{localStorage.setItem('crewsafety-theme',next);}catch{}};
+
+window.addEventListener('crew-journal-updated',()=>{if(account)loadAccountJournal();});

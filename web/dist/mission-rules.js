@@ -5,7 +5,7 @@ export const MISSION_TASKS = [
  {id:'wellness',name:'Mind & mood check-in',fuel:40,icon:'☀',hint:'Any state of mind earns the same reward.'},
  {id:'exercise',name:'Movement & recovery',fuel:30,icon:'↗',hint:'Log movement, an adapted activity, or planned rest.'},
  {id:'meal',name:'Meal log',fuel:25,icon:'◒',hint:'Record a meal or check in about your nutrition routine.'},
- {id:'photo',name:'Daily photo check-in',fuel:15,icon:'▣',hint:'Choose a photo to preview on this device only.'},
+ {id:'photo',name:'Daily photo check-in',fuel:15,icon:'▣',hint:'Save a daily photo to your private account Journal.'},
  {id:'journal',name:'Journal reflection',fuel:10,icon:'✎',hint:'Write a reflection here or in your journal.'}
 ];
 export const MISSION_SHOP=[
@@ -15,7 +15,7 @@ export const MISSION_SHOP=[
  {id:'pack',name:'Sample pack',cost:60,slot:'gear',icon:'🎒',description:'Room for imaginary moon rocks.'},
  {id:'garden',name:'Garden light',cost:75,slot:'buff',icon:'✿',description:'+1 garden growth on each completed daily routine. No change to health or game scoring.'}
 ];
-export const MISSION_GAMES=[{id:'dock',name:'Orbital docking',icon:'◎',description:'Tap when the beacon turns green. Three rounds of timing.'},{id:'memory',name:'Planet memory',icon:'✦',description:'Match six pairs of planets. Take as many turns as you need.'},{id:'minerals',name:'Sample collector',icon:'◇',description:'Collect minerals and leave hazards alone. Twelve decisions.'}];
+export const MISSION_GAMES=[{id:'dock',name:'Orbital docking',icon:'◎',description:'Tap when the beacon turns green. Three rounds of timing.'},{id:'memory',name:'Planet memory',icon:'✦',description:'Match six pairs of planets. Take as many turns as you need.'},{id:'minerals',name:'Sample collector',icon:'◇',description:'Collect minerals and leave hazards alone. Select samples in the salvage window.'}];
 export const missionDay=now=>new Date(now).toISOString().slice(0,10);
 export const missionGap=(a,b)=>Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000);
 export function newMission(){return {version:1,fuel:0,coins:0,rankPoints:0,distance:0,prestige:0,garden:0,streak:0,lastDay:null,days:{},owned:[],equipped:{},history:[],bests:{},pending:null,actions:[],listed:false};}
@@ -30,6 +30,9 @@ export function applyMissionAction(original,action,now=Date.now(),{admin=false}=
  if(s.actions.includes(action.id)) return s;
  s.days[day]??={tasks:[],plays:0}; const today=s.days[day];
  switch(action.type){
+ case 'rename': {
+  if(typeof action.name!=='string')throw Error('Enter a bird name.');const name=action.name.trim().replace(/\s+/g,' ');if(!/^[\p{L}\p{N} .’'-]{1,24}$/u.test(name))throw Error('Use 1–24 letters, numbers, spaces, apostrophes or hyphens.');s.birdName=name;break;
+ }
  case 'admin': {
    if(!admin)throw Error('Admin access required.');
    if(action.distance!==undefined){if(!Number.isInteger(action.distance)||action.distance<0||action.distance>1000)throw Error('Choose journey distance from 0 to 1000.');s.distance=action.distance;}

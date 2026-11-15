@@ -48,7 +48,7 @@ test('mission API isolates accounts, enforces origin and keeps leaderboard opt-i
  assert.equal((await (await b('/api/mission/state')).json()).state.fuel,0);
  assert.equal((await (await a('/api/mission/leaderboard')).json()).rows.length,0);
  await a('/api/mission/action','POST',action('listing',{listed:true}));
- const board=await(await b('/api/mission/leaderboard')).json();assert.equal(board.rows.length,1);assert.deepEqual(Object.keys(board.rows[0]).sort(),['alias','points','rank']);assert.match(board.rows[0].alias,/^Bird-/);
+ const board=await(await b('/api/mission/leaderboard')).json();assert.equal(board.rows.length,1);assert.deepEqual(Object.keys(board.rows[0]).sort(),['alias','points','rank','self']);assert.match(board.rows[0].alias,/^Bird-/);
  assert.equal((await a('/api/mission/action','POST',{...check,answers:['private']})).status,400);
  DB.sqlite.close();
 });
