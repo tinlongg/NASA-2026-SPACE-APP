@@ -11,17 +11,12 @@ import { initCircle } from './circle-ui.js';
 import { onDeviceSupport, installLanguagePack, listenForAnswer, ANSWER_LABEL } from './voice-answer.js';
 import { BlinkDetector, PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthMotion, lipAperture, faceBox, cropRect, describePerson } from './people.js';
 import { startVoiceActivity } from './voice-activity.js';
-import { initializeResearch } from './research.js';
 import { startAgentConversation } from './voice-agent.js';
 import { initializeCrewSync, onWearable, requestWatchCheckIn, cancelWatchCheckIn } from './crew-sync.js';
 import { initAccount, api } from './account.js';
 import { downscaleJpeg, webcamStill, groupByDay, dayKey } from './journal-photo.js';
 import { GROUPS, ITEMS, LAYER_ITEMS, SOURCE_NOTE, SUIT_SOURCE_URL, LEGACY_ITEM_NAMES, overallState, STATE_LABEL } from './suit-layers.js';
 
-const researchStyles = document.createElement('link');
-researchStyles.rel = 'stylesheet'; researchStyles.href = './research.css';
-document.head.append(researchStyles);
-initializeResearch();
 const syncStyles = document.createElement('link');
 syncStyles.rel = 'stylesheet'; syncStyles.href = './crew-sync.css';
 document.head.append(syncStyles);
@@ -54,7 +49,7 @@ let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, dete
 let coachPending = false;
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
-const titles = { mission: ['Mission', 'Care for yourself and your astronaut companion'], home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], circle: ['Circle', 'People who are told when an alert is raised'], stations: ['Stations', 'Phones linked as cameras around a simulated station'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded; MUSE sees close-up screenshots only if you allow it'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
+const titles = { mission: ['Mission', 'Care for yourself and your astronaut companion'], home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], circle: ['Circle', 'People who are told when an alert is raised'], stations: ['Stations', 'Phones linked as cameras around a simulated station'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded; MUSE sees close-up screenshots only if you allow it'], dashboard: ['Crew', 'Paired iPhone and Apple Watch status, events and heart rate'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
 function showTab(tab,{historyMode='push',path=null}={}) {
   if (!titles[tab]) return;
   if(tab==='mission'&&path)missionNavigation.showPath(path);

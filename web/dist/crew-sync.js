@@ -41,10 +41,10 @@ export function initializeCrewSync() {
   const panel = make('section', null, 'panel crew-sync');
   panel.setAttribute('aria-label', 'iPhone connection');
   panel.innerHTML = `<div class="panel-head"><strong>Connect your iPhone</strong><span class="status"><span class="dot" data-sync-dot></span><span class="micro" data-sync-label>Not paired</span></span></div>
-    <form class="sync-form"><label>Backend address<input name="backend" type="url" required placeholder="https://your-dashboard.example"></label>
+    <form class="sync-form"><label hidden>Backend address<input name="backend" type="url" required placeholder="https://your-dashboard.example"></label>
     <label>Pairing code<input name="code" autocomplete="off" spellcheck="false" placeholder="Create a session or enter an existing code" maxlength="32"></label>
     <div class="sync-actions"><button type="button" class="primary" data-create>Create pairing session</button><button type="submit">Connect with code</button><button type="button" data-disconnect hidden>Disconnect browser</button><button type="button" data-end hidden>End shared session</button></div></form>
-    <p class="sync-help">Use the same backend address and code in iOS → Dashboard → Settings → Website connection. For this hosted website, use the HTTPS address shown above on your iPhone. Keep the app open to send updates. Anyone with the code can view this session and acknowledge its alerts.</p>
+    <p class="sync-help">Enter the pairing code in the iPhone app under Dashboard → Settings → Website connection. Keep the app open to send updates. Anyone with the code can view this session and acknowledge its alerts.</p>
     <p class="sync-status" role="status">Not connected. Pair the iPhone app to see its crew, events and telemetry here.</p>
     <div class="sync-data" hidden><div class="sync-crew"></div><div class="sync-telemetry"></div><h3>iPhone safety events</h3><div class="sync-events"></div></div>`;
   document.getElementById('dashboard').prepend(panel);
@@ -74,7 +74,7 @@ export function initializeCrewSync() {
     return response.status === 204 ? null : response.json();
   }
   function render(snapshot, current) {
-    if (!snapshot) { data.hidden = true; status.textContent = 'Session ready. Enter this backend address and pairing code in iOS Settings, then enable sharing.'; return; }
+    if (!snapshot) { data.hidden = true; status.textContent = 'Session ready. Enter this pairing code in the iPhone app under Settings, then turn on sharing.'; return; }
     data.hidden = false;
     const seconds = Math.max(0, Math.floor((Date.now() - snapshot.receivedAt) / 1000));
     status.textContent = seconds > 15 ? `iPhone updates paused · last received ${seconds}s ago. Showing last known state; keep the app open.` : `Connected to iPhone · received ${seconds}s ago · refreshes every 3 seconds`;

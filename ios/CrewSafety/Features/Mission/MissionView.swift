@@ -20,8 +20,6 @@ struct MissionView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Text("Sign in within Mission with your website account to sync Pip. Guest progress stays on this device.")
-                    .font(.caption).foregroundStyle(.secondary).padding(10)
                 if let url = missionURL {
                     ZStack {
                         MissionBrowser(url: url, loading: $loading, failure: $failure)

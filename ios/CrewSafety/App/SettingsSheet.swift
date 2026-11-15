@@ -16,11 +16,13 @@ struct SettingsSheet: View {
                         .font(.footnote)
                 }
                 Section {
-                    TextField("https://your-dashboard.example", text: $settings.dashboardBaseURL)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .disabled(settings.dashboardSyncEnabled)
+                    DisclosureGroup("Advanced: website address") {
+                        TextField("https://your-dashboard.example", text: $settings.dashboardBaseURL)
+                            .keyboardType(.URL)
+                            .textInputAutocapitalization(.never)
+                            .autocorrectionDisabled()
+                            .disabled(settings.dashboardSyncEnabled)
+                    }
                     SecureField("Website pairing code", text: $settings.dashboardPairingCode)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -33,14 +35,14 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Website connection")
                 } footer: {
-                    Text("Open the website, create a pairing session, and enter its code here. Shares crew names, safety events and labeled telemetry while this app is open. Website acknowledgements sync back. Video and journal stay outside this connection. Pairing is not saved when the app closes.")
+                    Text("Open the website, create a pairing session, and enter its code here. The website address is already set; change it under Advanced only to test against another server. Shares crew names, safety events and labeled telemetry while this app is open. Website acknowledgements sync back. Video and journal stay outside this connection. Pairing is not saved when the app closes.")
                 }
                 Section {
                     Toggle("Talk with the voice agent", isOn: $settings.voiceAgentEnabled)
                 } header: {
                     Text("Voice check-in")
                 } footer: {
-                    Text("Off by default. When on, the Are you OK? check-in becomes a live conversation with an ElevenLabs voice agent, and your microphone audio is sent to ElevenLabs while the check-in is open. It uses the website address above. If it cannot connect, the recorded question and on-device listening are used instead.")
+                    Text("Off by default. When on, the Are you OK? check-in becomes a live conversation with an ElevenLabs voice agent, and your microphone audio is sent to ElevenLabs while the check-in is open. It uses the website address in Advanced. If it cannot connect, the recorded question and on-device listening are used instead.")
                 }
                 Section("About") {
                     Text("Prototype for a simulated crew. Not a medical device. Detections mean a crew member stopped moving, not a diagnosis.")

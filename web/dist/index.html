@@ -1,6 +1,6 @@
 <!doctype html>
 <html lang="en">
-<head><base href="/"><meta charset="utf-8"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#121314"><title>CrewSafety</title><link rel="stylesheet" href="./styles.css"></head>
+<head><base href="/"><script>if(new URLSearchParams(location.search).get("mission")==="1")document.documentElement.classList.add("embedded")</script><meta charset="utf-8"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#121314"><title>CrewSafety</title><link rel="stylesheet" href="./styles.css"></head>
 <body>
 <svg width="0" height="0" style="position:absolute" aria-hidden="true">
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"/><path d="M3 10a2 2 0 0 1 .709-1.528l7-5.999a2 2 0 0 1 2.582 0l7 5.999A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></symbol>
@@ -15,17 +15,19 @@
 </svg>
 <aside><button class="brand" data-tab="home" aria-label="CrewSafety overview"><span class="brandmark" aria-hidden="true"></span>CrewSafety</button>
 <nav aria-label="Main navigation">
-<p class="side-label">Monitoring</p>
-<a class="nav active" data-tab="home" data-short="Overview" href="/overview"><svg class="icon"><use href="#i-home"/></svg><span>Overview</span></a>
-<a class="nav" data-tab="monitor" data-short="Camera" href="/monitor"><svg class="icon"><use href="#i-video"/></svg><span>Camera monitor</span></a>
-<a class="nav" data-tab="alerts" data-short="Events" href="/events"><svg class="icon"><use href="#i-alert"/></svg><span>Safety events</span><b id="alert-count">0</b></a>
-<a class="nav" data-tab="stations" data-short="Stations" href="/stations"><svg class="icon"><use href="#i-camera"/></svg><span>Stations</span></a>
-<a class="nav" data-tab="circle" data-short="Circle" href="/circle"><svg class="icon"><use href="#i-users"/></svg><span>Circle</span></a>
-<a class="nav" data-tab="dashboard" data-short="Crew" href="/crew"><svg class="icon"><use href="#i-users"/></svg><span>Crew</span></a>
-<a class="nav" data-tab="suit" data-short="Suit" href="/suit"><svg class="icon"><use href="#i-alert"/></svg><span>Suit check</span></a>
+<p class="side-label">Monitor</p>
+<a class="nav active" data-tab="home" data-short="Overview" href="/overview" title="Everything at a glance"><svg class="icon"><use href="#i-home"/></svg><span class="nav-text"><span>Overview</span><small>Everything at a glance</small></span></a>
+<a class="nav" data-tab="monitor" data-short="Camera" href="/monitor" title="Start the camera and stillness check"><svg class="icon"><use href="#i-video"/></svg><span class="nav-text"><span>Live camera</span><small>Start the camera and stillness check</small></span></a>
+<a class="nav" data-tab="alerts" data-short="Events" href="/events" title="Alerts and check-in results"><svg class="icon"><use href="#i-alert"/></svg><span class="nav-text"><span>Safety events</span><small>Alerts and check-in results</small></span><b id="alert-count">0</b></a>
+<p class="side-label">People</p>
+<a class="nav" data-tab="stations" data-short="Stations" href="/stations" title="Phones watching each room"><svg class="icon"><use href="#i-camera"/></svg><span class="nav-text"><span>Station cameras</span><small>Phones watching each room</small></span></a>
+<a class="nav" data-tab="circle" data-short="Circle" href="/circle" title="Who gets alerts and phone calls"><svg class="icon"><use href="#i-users"/></svg><span class="nav-text"><span>Alert circle</span><small>Who gets alerts and phone calls</small></span></a>
+<a class="nav" data-tab="dashboard" data-short="Crew" href="/crew" title="Paired iPhone and Watch status"><svg class="icon"><use href="#i-users"/></svg><span class="nav-text"><span>Crew and Watch</span><small>Paired iPhone and Watch status</small></span></a>
+<p class="side-label">Checks</p>
+<a class="nav" data-tab="suit" data-short="Suit" href="/suit" title="Inspect each suit layer"><svg class="icon"><use href="#i-alert"/></svg><span class="nav-text"><span>Suit check</span><small>Inspect each suit layer</small></span></a>
 <p class="side-label">Personal</p>
-<a class="nav" data-tab="mission" data-short="Mission" href="/mission"><svg class="icon"><use href="#i-home"/></svg><span>Mission · Pip</span></a>
-<a class="nav" data-tab="journal" data-short="Journal" href="/journal"><svg class="icon"><use href="#i-book"/></svg><span>Journal</span></a>
+<a class="nav" data-tab="mission" data-short="Mission" href="/mission" title="Daily care with your companion"><svg class="icon"><use href="#i-home"/></svg><span class="nav-text"><span>Pip’s mission</span><small>Daily care with your companion</small></span></a>
+<a class="nav" data-tab="journal" data-short="Journal" href="/journal" title="Write and get a MUSE reflection"><svg class="icon"><use href="#i-book"/></svg><span class="nav-text"><span>Wellness journal</span><small>Write and get a MUSE reflection</small></span></a>
 </nav>
 <div class="side-group side-extra"><p class="side-label">Quick actions</p>
 <button class="nav" data-action="camera"><svg class="icon"><use href="#i-camera"/></svg><span>Start camera</span></button>

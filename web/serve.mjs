@@ -1,2 +1,2 @@
-// Compatibility entry point; includes research and Camera Coach APIs.
+// Compatibility entry point; includes the Camera Coach API.
 import './scripts/serve.mjs';

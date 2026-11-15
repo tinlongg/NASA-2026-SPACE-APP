@@ -50,7 +50,7 @@ final class DashboardSync {
               ["http", "https"].contains(base.scheme?.lowercased() ?? ""),
               base.user == nil, base.password == nil, base.query == nil, base.fragment == nil,
               code.count == 32, code.allSatisfy({ $0.isHexDigit }) else {
-            status = "Enter the backend address and 32-character pairing code from the website."
+            status = "Enter the 32-character pairing code from the website."
             return
         }
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .millisecondsSince1970
