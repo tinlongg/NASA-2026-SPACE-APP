@@ -13,9 +13,13 @@ export const MISSION_SHOP=[
  {id:'crown',name:'Star crown',cost:90,slot:'hat',icon:'♛',description:'A golden constellation crown.'},
  {id:'scarf',name:'Comet scarf',cost:45,slot:'gear',icon:'🧣',description:'A coral scarf for your explorer.'},
  {id:'pack',name:'Sample pack',cost:60,slot:'gear',icon:'🎒',description:'Room for imaginary moon rocks.'},
+ {id:'beanie',name:'Nebula beanie',cost:55,slot:'hat',icon:'◒',description:'A plum knit hat with a tiny star pom-pom.'},
+ {id:'antenna',name:'Signal antenna',cost:80,slot:'hat',icon:'⌁',description:'A little teal antenna for receiving cosmic chirps.'},
+ {id:'moon-badge',name:'Moon badge',cost:35,slot:'gear',icon:'☾',description:'A crescent mission patch on the suit collar.'},
+ {id:'wings',name:'Solar wings',cost:110,slot:'gear',icon:'✧',description:'A pair of golden solar panels for your explorer.'},
  {id:'garden',name:'Garden light',cost:75,slot:'buff',icon:'✿',description:'+1 garden growth on each completed daily routine. No change to health or game scoring.'}
 ];
-export const MISSION_GAMES=[{id:'dock',name:'Orbital docking',icon:'◎',description:'Tap when the beacon turns green. Three rounds of timing.',tags:['Reflexes','Timing','Consistency']},{id:'memory',name:'Planet memory',icon:'✦',description:'Match six pairs of planets. Take as many turns as you need.',tags:['Memory','Visual recognition']},{id:'minerals',name:'Sample collector',icon:'◇',description:'Collect minerals and leave hazards alone. Select samples in the salvage window.',tags:['Hazard identification','Attention','Visual search']}];
+export const MISSION_GAMES=[{id:'dock',name:'Orbital docking',icon:'◎',description:'Tap when the beacon turns green. Three rounds of timing.',tags:['Reflexes','Timing','Consistency']},{id:'memory',name:'Planet memory',icon:'✦',description:'Match six pairs of planets. Take as many turns as you need.',tags:['Memory','Visual recognition']},{id:'minerals',name:'Sample collector',icon:'◇',description:'Collect minerals and leave hazards alone. Select samples in the salvage window.',tags:['Hazard identification','Attention','Visual search']},{id:'sequence',name:'Signal sequence',icon:'▦',description:'Watch the numbered beacons, then repeat their order. Three growing sequences.',tags:['Working memory','Sequencing','Attention']},{id:'navigator',name:'Orbit navigator',icon:'➤',description:'Plan a safe route to the station. Move one square at a time and avoid debris.',tags:['Spatial planning','Problem solving','Hazard avoidance']}];
 export const missionDay=now=>new Date(now).toISOString().slice(0,10);
 export const GARDEN_STAGES=['Seed resting','Taking root','First sprout','Seedling','Growing leaves','Budding','First bloom','Full bloom'];
 export const plantGrowthLevel=(growth,index)=>Math.min(GARDEN_STAGES.length-1,Math.max(0,Math.floor((growth-index)/2)));
