@@ -398,6 +398,17 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .setup-dialog legend { font-size: 12px; color: var(--text-3); padding: 0 6px; }
 .setup-dialog .toggle { align-items: flex-start; margin: 10px 0; }
 .setup-dialog .toggle input { margin-top: 2px; flex-shrink: 0; }
+.sens-presets { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 8px; margin: 10px 0; }
+.sens-presets label { display: flex; gap: 8px; align-items: flex-start; padding: 8px 10px; border: 1px solid var(--line); border-radius: var(--r-control); cursor: pointer; }
+.sens-presets label:has(input:checked) { border-color: var(--accent); background: var(--raised); }
+.sens-presets input { width: auto; height: auto; margin: 3px 0 0; padding: 0; flex: 0 0 auto; accent-color: var(--accent); }
+.sens-presets span { min-width: 0; }
+.sens-presets strong { display: block; font-size: 13px; }
+.sens-presets small, .sens-row small { display: block; color: var(--text-3); font-size: 12px; }
+.sens-row { display: grid; grid-template-columns: 1fr auto; gap: 2px 8px; margin: 10px 0; font-size: 13px; }
+.sens-row output { font-variant-numeric: tabular-nums; color: var(--text-2); }
+.sens-row input[type=range] { grid-column: 1 / -1; width: 100%; padding: 0; height: auto; accent-color: var(--accent); }
+.sens-row small { grid-column: 1 / -1; }
 .watch-status { font-size: 13px; color: var(--text-2); margin: 10px 0 0; }
 .watch-status.streaming { color: var(--accent); }
 .thought .wear-button { margin-top: 6px; padding: 4px 10px; font-size: 12px; }
