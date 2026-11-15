@@ -193,6 +193,15 @@ are excluded. Publish an isolated copy of this `web/` folder through the Sites s
 managed Site repository does not modify the parent GitHub history. A hosted deployment does not mean
 these changes have been committed/pushed to GitHub `main`.
 
+### Publishing an update
+1. `npm test`, then `npm run build`. The build writes `dist/server/index.js` (ignored by git) and gives the
+   service worker a new cache version, so visitors get the new scripts instead of cached copies.
+2. In ChatGPT, open the Sites project in `.openai/hosting.json` and publish this `web/` folder with the
+   Sites source helper. Existing secrets (Meta key, `MISSION_ADMIN_ACCOUNT`, VAPID keys) carry over.
+3. Apply any `drizzle/*.sql` migration the hosted D1 database doesn't have yet, in number order.
+   Website-to-phone alerts (`POST /sync/alert`) need no migration: they live in the session's JSON state.
+4. Check the live Monitor page's Session panel shows **Phone alerts**, then pair an iPhone and test.
+
 References: [MediaPipe web pose API](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/web_js),
 [Meta chat-completions protocol](https://dev.meta.ai/docs/protocols/chat-completions).
 
