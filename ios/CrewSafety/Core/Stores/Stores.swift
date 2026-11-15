@@ -62,7 +62,7 @@ final class CrewStore {
 @MainActor @Observable
 final class AppSettings {
     var dashboardSyncEnabled = false
-    var dashboardBaseURL = "https://crew-safety-connected.lustrousbush32.chatgpt.site"
+    var dashboardBaseURL = "https://crew-safety.vercel.app"
     var dashboardPairingCode = ""
     /// Opt-in: send a small Watch health summary (daily averages and ranges, no ECG) to the paired website.
     var shareHealthSummary = UserDefaults.standard.bool(forKey: "shareHealthSummary") {

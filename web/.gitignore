@@ -4,3 +4,7 @@ dist/.openai/
 .env.*
 !.env.example
 .data/
+public/
+.vercel
+.env*
+node_modules/
