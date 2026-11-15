@@ -1,6 +1,18 @@
 import SwiftUI
 import WebKit
 
+/// Builds the mission/habitat page used by the Mission tab and the About easter egg.
+enum MissionWebURL {
+    static func make(from rawBaseURL: String) -> URL? {
+        guard var parts = URLComponents(string: rawBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
+              parts.scheme == "https", parts.host != nil else { return nil }
+        parts.path = "/"
+        parts.queryItems = [URLQueryItem(name: "mission", value: "1")]
+        parts.fragment = nil
+        return parts.url
+    }
+}
+
 /// Reuses the website's mission and account so rewards have one source of truth.
 struct MissionView: View {
     @Environment(AppSettings.self) private var settings
@@ -9,12 +21,7 @@ struct MissionView: View {
     @State private var attempt = UUID()
 
     private var missionURL: URL? {
-        guard var parts = URLComponents(string: settings.dashboardBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)),
-              parts.scheme == "https", parts.host != nil else { return nil }
-        parts.path = "/"
-        parts.queryItems = [URLQueryItem(name: "mission", value: "1")]
-        parts.fragment = nil
-        return parts.url
+        MissionWebURL.make(from: settings.dashboardBaseURL)
     }
 
     var body: some View {
@@ -35,12 +42,15 @@ struct MissionView: View {
                 } else {
                     ContentUnavailableView("Dashboard URL needed", systemImage: "network", description: Text("Set an HTTPS dashboard address in Settings."))
                 }
-            }.navigationTitle("Pip’s mission").navigationBarTitleDisplayMode(.inline)
+            }
+            .navigationTitle("Pip’s mission")
+            .navigationBarTitleDisplayMode(.inline)
+            .settingsToolbar()
         }
     }
 }
 
-private struct MissionBrowser: UIViewRepresentable {
+struct MissionBrowser: UIViewRepresentable {
     let url: URL
     @Binding var loading: Bool
     @Binding var failure: String?

@@ -31,6 +31,7 @@ struct CameraMonitorView: View {
             }
             .background(Theme.screenBackground)
             .navigationTitle("Monitor")
+            .settingsToolbar()
         }
         .fullScreenCover(isPresented: Binding(get: { model.checkIn.isAwaiting }, set: { _ in })) {
             CheckInView(model: model)
