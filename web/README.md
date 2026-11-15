@@ -98,6 +98,14 @@ Both routes call `muse-spark-1.3` on the Meta chat-completions endpoint with an 
 - `POST /api/coach/look` `{ source: 'live', frame }`: one JPEG of at most about 250 KB, live input only (replay is rejected). Off by default; the Monitor tab has the opt-in. The reply is attached to the event as `lookNote` beside the detector `snapshot` in the JSON export, so the team can compare MUSE with MediaPipe. It never raises, lowers, acknowledges or suppresses an alert, and the frame is not stored.
 - Both use the shared per-visitor generation rate limit.
 
+### Sleep notes and photo trend
+
+Entries can carry optional self-reported `sleepHours` (0–24, account and guest). The Journal tab shows a strip of the last eight photos with the sleep the person logged next to each. Photo comparison passes the logged hours to MUSE as context only; the prompt forbids saying sleep explains or caused anything, or that the person needs more or less of anything. No feature infers sleep, muscle or health from a photo.
+
+### Suit check
+
+The Suit check tab is a manual inspection record (Pass, Fail or Not checked per item, with a note). Overall state: Ready only if every item passes, Not ready if any fails, otherwise Incomplete. A failed item adds a "Manual entry" event to Safety events. Signed-in users save to `suit_checks` (`drizzle/0003_sleep_and_suit.sql`, which also adds `journal_entries.sleep_hours`; apply it to hosted D1) via `GET|POST /api/suit/checks`, keeping the newest 50 and showing five; guests keep the current check and last five in localStorage. The items are in `dist/suit-layers.js`. They are inspection areas, not NASA's final per-layer list: see `docs/SOURCES.md` (pending review). It does not sense the suit.
+
 ## Secrets and request limits
 
 Set `META_API_KEY` as a secret in Sites runtime settings and optionally `META_MODEL` (default

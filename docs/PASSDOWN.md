@@ -206,3 +206,9 @@ Plan: `docs/ROADMAP_PLAN.md` (in worktree `crewsafety-roadmap-9c2217`, not yet c
 - `CheckInVoice.speak` plays the bundled clip for an exact phrase match with `AVAudioPlayer`, and falls back to `AVSpeechSynthesizer` for any other phrase or a playback failure. Listening is still on-device. The lazy-creation and repeated-`stop()` behaviour is unchanged.
 - iOS suite: 56/56 on iPhone 17 / iOS 26.5 (two new clip-lookup tests). Verified by ear in the iPhone 17 simulator (Synthetic Stops Moving): the ElevenLabs clip played and the 60-second countdown ran, with speech and notification permission declined. Not verified: a physical iPhone, or listening after the clip with speech permission granted.
 - The ElevenLabs key was pasted in chat; rotate it in the ElevenLabs dashboard and update `backend/.env`.
+
+### Sleep notes, photo trend and suit check (2026-11-15)
+
+- Decision with the user: no feature judges health from photos ("needs more sleep or muscle"). Instead entries take self-reported sleep hours, the Journal tab shows recent photos beside those numbers, and photo comparison gets the numbers as context only.
+- Suit check tab built (`web/dist/suit-layers.js`, `/api/suit/checks`, migration `0003_sleep_and_suit.sql`). **The items are grouped inspection areas, not NASA's 14 layers**: the sources found disagree on the split and the primary PDFs could not be read. A reviewer must read the NASA text and itemise the layers; then edit `suit-layers.js` and the entries in `docs/SOURCES.md`. Helmet/glove and leak-check items come from general knowledge and are also pending review.
+- Web suite 56/56 (Node 22). Checked in the local browser: suit save with a failed item produced a Manual entry event and history row; sleep logging and the photo-trend strip rendered. Not verified: hosted D1 migration, guest-mode suit history across reloads, iOS suit badge (not built).

@@ -6,6 +6,7 @@ import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
 import { initAccount, api } from './account.js';
 import { downscaleJpeg, webcamStill, groupByDay } from './journal-photo.js';
+import { GROUPS, ITEMS, SOURCE_NOTE, overallState, STATE_LABEL } from './suit-layers.js';
 
 const researchStyles = document.createElement('link');
 researchStyles.rel = 'stylesheet'; researchStyles.href = './research.css';
@@ -27,7 +28,7 @@ let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, dete
 let coachPending = false;
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
-const titles = { home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded or uploaded'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'] };
+const titles = { home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded or uploaded'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
 function showTab(tab) {
   if (!titles[tab]) return;
   if (tab !== 'monitor') stopSession();
@@ -230,7 +231,7 @@ function renderEvents() {
     };
     row.append(title,date,details);
     if (event.lookNote) { const note = document.createElement('p'); note.className = 'tag'; note.textContent = event.lookNote.status === 'pending' ? 'MUSE second look: describing the frame…' : `MUSE second look (description only, does not change this alert): ${event.lookNote.text}`; row.append(note); }
-    row.append(button,explain); element('events').append(row);
+    row.append(button,...(event.manual ? [] : [explain])); element('events').append(row);
   }
 }
 
@@ -288,7 +289,7 @@ function renderJournals() {
     element('day-label').textContent = new Date(days[dayIndex].day + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
     element('day-prev').disabled = dayIndex >= days.length - 1; element('day-next').disabled = dayIndex === 0;
   }
-  renderPhotoField();
+  renderPhotoField(); renderPhotoTrend();
   element('journal-search').hidden = !account;
   element('journal-entries').replaceChildren();
   element('home-journal').textContent = account ? `${all.length} ${all.length === 1 ? 'entry' : 'entries'} in your account` : `${all.length} ${all.length === 1 ? 'entry' : 'entries'} in this browser`;
@@ -319,8 +320,9 @@ function renderJournals() {
       };
       photoParts = [image, dropPhoto, compareControl(entry)];
     }
+    const slept = document.createElement('p'); slept.className = 'tag'; slept.textContent = entry.sleepHours == null ? '' : `You logged ${entry.sleepHours} h of sleep.`; slept.hidden = entry.sleepHours == null;
     const summary = document.createElement('p'); summary.className = 'tag'; summary.textContent = `${summarize(entry.body)} Summary of your words, not an assessment.`;
-    row.append(head,...(photoParts.length ? [photoParts[0], body, photoParts[1], photoParts[2]] : [body]),summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); row.append(museJournalElement(entry.body, { memory: Boolean(account) })); element('journal-entries').append(row);
+    row.append(head,...(photoParts.length ? [photoParts[0], body, photoParts[1], photoParts[2]] : [body]),slept,summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); row.append(museJournalElement(entry.body, { memory: Boolean(account) })); element('journal-entries').append(row);
   }
 }
 element('journal-tone-enabled').onchange = renderJournals;
@@ -344,6 +346,16 @@ function compareControl(entry) {
 }
 element('day-prev').onclick = () => { dayIndex++; renderJournals(); };
 element('day-next').onclick = () => { dayIndex = Math.max(0, dayIndex - 1); renderJournals(); };
+function renderPhotoTrend() {
+  const recent = account ? accountEntries.filter(entry => entry.hasPhoto).slice(0, 8).reverse() : [], box = element('photo-trend'); // oldest to newest
+  element('photo-trend-box').hidden = !recent.length; box.replaceChildren();
+  for (const entry of recent) {
+    const figure = document.createElement('figure'), image = document.createElement('img'), caption = document.createElement('figcaption');
+    image.alt = 'Journal photo from ' + new Date(entry.date).toLocaleDateString(); image.loading = 'lazy'; image.src = `/api/journal/entries/${entry.id}/photo`;
+    caption.textContent = `${new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${entry.sleepHours == null ? 'sleep not logged' : `${entry.sleepHours} h sleep`}`;
+    figure.append(image, caption); box.append(figure);
+  }
+}
 function renderPhotoField() {
   const signed = Boolean(account);
   element('journal-photo-file').disabled = !signed; element('journal-photo-cam').disabled = !signed || !navigator.mediaDevices?.getUserMedia;
@@ -363,25 +375,26 @@ element('journal-photo-file').onchange = async event => { const file = event.tar
 element('journal-photo-cam').onclick = async () => { try { await attachPhoto(await webcamStill()); } catch { journalNote('Could not use the camera. Check permission, or choose a photo instead.'); } };
 element('journal-photo-clear').onclick = () => { if (pendingPhoto) URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; renderPhotoField(); };
 element('journal-dataset').textContent = sentimentMetadata.terms.toLocaleString() + ' rated terms · VADER lexicon · MIT license';
+const sleepHours = () => { const raw = element('journal-sleep').value; const value = raw === '' ? NaN : Number(raw); return Number.isFinite(value) && value >= 0 && value <= 24 ? Math.round(value * 10) / 10 : null; };
 element('journal-form').onsubmit = async event => {
   event.preventDefault(); const body = element('journal-body').value.trim(); if (!body) return;
   if (account) {
     const submit = event.target.querySelector('button'); submit.disabled = true; journalNote('Saving to your account…');
     try {
-      const saved = await api('/api/journal/entries', 'POST', { body }); if (element('journal-body').value.trim() === body) element('journal-body').value = '';
+      const saved = await api('/api/journal/entries', 'POST', { body, ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }); if (element('journal-body').value.trim() === body) element('journal-body').value = '';
       let note = 'Saved to your account and added to the vector index.';
       if (pendingPhoto) {
         try { await api(`/api/journal/entries/${saved.entry.id}/photo`, 'PUT', { image: pendingPhoto.image, width: pendingPhoto.width, height: pendingPhoto.height }); URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; note += ' Photo attached.'; }
         catch (error) { note += ` The entry was saved but the photo was not: ${journalFailure(error, 'upload failed.')}`; }
       }
-      dayIndex = 0; journalNote(note); await loadAccountJournal();
+      element('journal-sleep').value = ''; dayIndex = 0; journalNote(note); await loadAccountJournal();
     }
     catch (error) { journalNote(`${journalFailure(error, 'Could not save.')} Your text has not been cleared.`); }
     finally { submit.disabled = false; }
     return;
   }
-  const updated = [{ body, date: new Date().toISOString() }, ...journals];
-  try { localStorage.setItem('crewsafety-journal', JSON.stringify(updated)); journals = updated; element('journal-body').value = ''; journalNote('Saved on this browser only.'); renderJournals(); } catch { journalNote('Browser storage is unavailable or full. Your text has not been cleared.'); }
+  const updated = [{ body, date: new Date().toISOString(), ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }, ...journals];
+  try { localStorage.setItem('crewsafety-journal', JSON.stringify(updated)); journals = updated; element('journal-body').value = ''; element('journal-sleep').value = ''; journalNote('Saved on this browser only.'); renderJournals(); } catch { journalNote('Browser storage is unavailable or full. Your text has not been cleared.'); }
 };
 element('clear-journal').onclick = async () => {
   if (account) {
@@ -416,6 +429,7 @@ const accountControl = initAccount(user => {
   element('hero-account').textContent = user ? 'Open journal' : 'Sign in';
   element('journal-matches').replaceChildren(); element('journal-index').textContent = '';
   renderJournals(); if (user) loadAccountJournal();
+  if (typeof loadSuitHistory === 'function') loadSuitHistory();
 });
 element('hero-account').onclick = () => account ? showTab('journal') : accountControl.open();
 const coachPanel = document.createElement('div'); coachPanel.className = 'panel instructions'; coachPanel.id = 'coach-panel';
@@ -506,3 +520,74 @@ async function offlineSetup() {
   } catch { element('side-offline').textContent = 'Unavailable'; element('offline-status').textContent = 'Offline caching unavailable. Reload online and check browser storage permissions.'; }
 }
 offlineSetup();
+
+// Suit readiness check: a manual record. Guests keep the current check and history in this browser;
+// signed-in users save inspections to their account.
+const suitStore = 'crewsafety-suit', suitHistoryStore = 'crewsafety-suit-history';
+let suit = {}, suitHistory = [];
+try { const saved = JSON.parse(localStorage.getItem(suitStore) || '{}'); if (saved && typeof saved === 'object') suit = saved; } catch {}
+try { const saved = JSON.parse(localStorage.getItem(suitHistoryStore) || '[]'); if (Array.isArray(saved)) suitHistory = saved.slice(0, 5); } catch {}
+const suitStatus = id => (suit[id]?.status) || 'unchecked';
+const persistSuit = () => { try { localStorage.setItem(suitStore, JSON.stringify(suit)); } catch {} };
+function renderSuitState() {
+  const state = overallState(ITEMS.map(item => suitStatus(item.id)));
+  const label = element('suit-state'); label.textContent = STATE_LABEL[state]; label.dataset.state = state;
+}
+function renderSuit() {
+  element('suit-source').textContent = SOURCE_NOTE;
+  const host = element('suit-groups'); host.replaceChildren();
+  for (const group of GROUPS) {
+    const section = document.createElement('section'); section.className = 'suit-group';
+    const heading = document.createElement('h3'); heading.textContent = group.name; section.append(heading);
+    for (const item of group.items) {
+      const row = document.createElement('div'); row.className = 'suit-item';
+      const name = document.createElement('strong'); name.textContent = item.name;
+      const hint = document.createElement('p'); hint.textContent = item.inspect;
+      const seg = document.createElement('div'); seg.className = 'seg'; seg.setAttribute('role', 'radiogroup'); seg.setAttribute('aria-label', item.name);
+      for (const [value, text] of [['pass', 'Pass'], ['fail', 'Fail'], ['unchecked', 'Not checked']]) {
+        const label = document.createElement('label'), input = document.createElement('input');
+        input.type = 'radio'; input.name = 'suit-' + item.id; input.value = value; input.checked = suitStatus(item.id) === value;
+        input.onchange = () => { suit[item.id] = { ...suit[item.id], status: value }; persistSuit(); renderSuitState(); };
+        label.append(input, ' ', text); seg.append(label);
+      }
+      const note = document.createElement('input'); note.type = 'text'; note.maxLength = 300; note.placeholder = 'Note, optional'; note.setAttribute('aria-label', 'Note for ' + item.name); note.value = suit[item.id]?.note || '';
+      note.oninput = () => { suit[item.id] = { ...suit[item.id], status: suitStatus(item.id), note: note.value }; persistSuit(); };
+      row.append(name, hint, seg, note); section.append(row);
+    }
+    host.append(section);
+  }
+  renderSuitState();
+}
+function renderSuitHistory(checks) {
+  const host = element('suit-history'); host.replaceChildren();
+  if (!checks.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No saved inspections yet'; host.append(empty); return; }
+  for (const check of checks) {
+    const row = document.createElement('article'); row.className = 'entry';
+    const time = document.createElement('time'); time.textContent = new Date(check.date).toLocaleString();
+    const title = document.createElement('strong'); title.textContent = STATE_LABEL[check.overall] || check.overall;
+    const failed = check.items.filter(item => item.status === 'fail').map(item => ITEMS.find(known => known.id === item.id)?.name || item.id);
+    const detail = document.createElement('p'); detail.textContent = failed.length ? `Failed: ${failed.join(', ')}` : `${check.items.filter(item => item.status === 'pass').length} of ${check.items.length} passed`;
+    row.append(title, time, detail); host.append(row);
+  }
+}
+async function loadSuitHistory() {
+  if (!account) return renderSuitHistory(suitHistory);
+  try { renderSuitHistory((await api('/api/suit/checks')).checks); } catch { renderSuitHistory([]); }
+}
+element('suit-save').onclick = async () => {
+  const items = ITEMS.map(item => ({ id: item.id, status: suitStatus(item.id), note: (suit[item.id]?.note || '').trim() }));
+  const overall = overallState(items.map(item => item.status)), message = element('suit-message');
+  const now = new Date().toISOString();
+  try {
+    if (account) await api('/api/suit/checks', 'POST', { items });
+    else { suitHistory = [{ id: crypto.randomUUID(), date: now, overall, items }, ...suitHistory].slice(0, 5); try { localStorage.setItem(suitHistoryStore, JSON.stringify(suitHistory)); } catch {} }
+  } catch (error) { message.textContent = error.status === 401 ? 'Your session ended. Sign in again to save to your account.' : 'Could not save the inspection.'; return; }
+  // A failed item shows beside camera events, labelled as manually entered.
+  for (const item of items.filter(entry => entry.status === 'fail')) {
+    const known = ITEMS.find(candidate => candidate.id === item.id);
+    events.unshift({ id: crypto.randomUUID(), date: now, source: 'Manual entry', type: 'Suit check failed', details: `${known.name}${item.note ? `: ${item.note}` : ''}`, snapshot: { source: 'none', capturedAt: null, measurement: null, detection: null }, acknowledged: false, manual: true });
+  }
+  renderEvents(); message.textContent = `Saved: ${STATE_LABEL[overall]}.`; loadSuitHistory();
+};
+element('suit-reset').onclick = () => { suit = {}; persistSuit(); renderSuit(); element('suit-message').textContent = 'Started a new check.'; };
+renderSuit(); loadSuitHistory();
