@@ -6,7 +6,7 @@ export async function handleMission(request,env){
  try{
   if(!env.DB)return reply({error:'Mission storage is unavailable.'},503);
   const user=await accountUser(request,env);if(!user)return reply({error:'Sign in to sync your mission.'},401);
-  const admin=user.id===missionAdminConfig(env)?.id;
+  const admin=user.role=== 'admin';
   const db=env.DB.withSession?env.DB.withSession('first-primary'):env.DB;
   if(url.pathname==='/api/mission/leaderboard'&&request.method==='GET'){
    const own=await db.prepare('SELECT alias,points,listed,state FROM mission_profiles WHERE user_id=?').bind(user.id).first();
@@ -16,9 +16,10 @@ export async function handleMission(request,env){
     const ranked=all.map(r=>({...r,rank:1+all.filter(x=>x.points>r.points).length}));
     return reply({rows:ranked.slice(0,10),self:ranked.find(r=>r.self),demo:true,note:'Admin simulation. Demo bots are fictional and never enter real rankings.'});
    }
-   const rows=(await db.prepare('SELECT user_id,alias,points FROM mission_profiles WHERE listed=1 ORDER BY points DESC, alias ASC LIMIT 10').bind().all()).results;
-   let self=null;if(own?.listed){const above=await db.prepare('SELECT COUNT(*) AS count FROM mission_profiles WHERE listed=1 AND points>?').bind(own.points).first();self={alias:own.alias,points:own.points,rank:above.count+1};}
-   return reply({rows:rows.map((r,i)=>({alias:r.alias,points:r.points,self:r.user_id===user.id,rank:rows.findIndex(x=>x.points===r.points)+1})),self,demo:false,note:'Participation points only; no health details or game performance are published.'});
+   const rows=(await db.prepare("SELECT users.id AS user_id, COALESCE(mission_profiles.alias, 'Bird-' || SUBSTR(REPLACE(users.id, '-', ''), 1, 8)) AS alias, COALESCE(mission_profiles.points, 0) AS points FROM users LEFT JOIN mission_profiles ON mission_profiles.user_id=users.id ORDER BY points DESC, alias ASC").bind().all()).results;
+   let previousPoints=null,rank=0;const ranked=rows.map((r,i)=>{if(r.points!==previousPoints){rank=i+1;previousPoints=r.points;}return {alias:r.alias,points:r.points,self:r.user_id===user.id,rank};});
+   const entry=ranked.find(r=>r.self),self=entry?{alias:entry.alias,points:entry.points,rank:entry.rank}:null;
+   return reply({rows:ranked,self,demo:false,note:'All registered accounts share one global leaderboard, across all crews. Only bird aliases and participation points are shown.'});
   }
   const alias='Bird-'+user.id.replaceAll('-','').slice(0,8);
   await db.prepare('INSERT OR IGNORE INTO mission_profiles (user_id,state,revision,points,listed,alias) VALUES (?,?,0,0,0,?)').bind(user.id,JSON.stringify(newMission()),alias).run();

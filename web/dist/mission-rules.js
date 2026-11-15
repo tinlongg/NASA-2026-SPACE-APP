@@ -23,7 +23,10 @@ export const MISSION_SHOP=[
  {id:'bowtie',name:'Starlight bow tie',cost:50,slot:'gear',icon:'⋈',description:'A little plum bow tied to the suit collar.'},
  {id:'star-brooch',name:'Star brooch',cost:45,slot:'gear',icon:'★',description:'A golden star pinned to the collar.'},
  {id:'medal',name:'Explorer medal',cost:85,slot:'gear',icon:'✪',description:'A small expedition medal on a blue ribbon.'},
- {id:'cigarette',name:'Cigarette',cost:65,slot:'gear',icon:'≈',description:'A small cigarette with animated drifting smoke.'},
+ {id:'cigarette',name:'Cigarette',cost:5000,slot:'gear',icon:'≈',description:'A rare accessory with animated drifting smoke.'},
+ {id:'dunce',name:'Dunce hat',cost:75,slot:'hat',icon:'△',description:'A little paper cone fitted inside the helmet.'},
+ {id:'fire-cape',name:'Cape of fire',cost:400,slot:'gear',icon:'♨',description:'A flowing cape with softly flickering illustrated flames.'},
+ {id:'propeller',name:'Propeller hat',cost:90,slot:'hat',icon:'✣',description:'A multicolored cap with a spinning blue propeller.'},
  {id:'garden',name:'Garden light',cost:75,slot:'buff',icon:'✿',description:'+1 garden growth on each completed daily routine. No change to health or game scoring.'}
 ];
 export const MISSION_GAMES=[{id:'dock',name:'Orbital docking',icon:'◎',description:'Tap when the beacon turns green. Three rounds of timing.',tags:['Reflexes','Timing','Consistency']},{id:'memory',name:'Planet memory',icon:'✦',description:'Match six pairs of planets. Take as many turns as you need.',tags:['Memory','Visual recognition']},{id:'minerals',name:'Sample collector',icon:'◇',description:'Collect minerals and leave hazards alone. Select samples in the salvage window.',tags:['Hazard identification','Attention','Visual search']},{id:'sequence',name:'Signal sequence',icon:'▦',description:'Watch the numbered beacons, then repeat their order. Three growing sequences.',tags:['Working memory','Sequencing','Attention']},{id:'navigator',name:'Orbit navigator',icon:'➤',description:'Plan a safe route to the station. Move one square at a time and avoid debris.',tags:['Spatial planning','Problem solving','Hazard avoidance']}];
@@ -91,7 +94,7 @@ export function applyMissionAction(original,action,now=Date.now(),{admin=false}=
    s.equipped[item.slot]=s.equipped[item.slot]===item.id?null:item.id;break;
  }
  case 'prestige':if(s.distance<1000)throw Error('Reach Mars first.');s.prestige++;s.distance=0;break;
- case 'listing':if(admin)throw Error('Admin simulations stay outside public rankings.');if(typeof action.listed!=='boolean')throw Error('Choose leaderboard visibility.');s.listed=action.listed;break;
+ case 'listing':throw Error('All registered accounts appear on the global leaderboard.');
  default:throw Error('Unknown mission action.');
  }
  if(admin)s.listed=false;
