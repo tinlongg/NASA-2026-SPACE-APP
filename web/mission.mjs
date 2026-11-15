@@ -9,8 +9,16 @@ export async function handleMission(request,env){
   const admin=user.id===missionAdminConfig(env)?.id;
   const db=env.DB.withSession?env.DB.withSession('first-primary'):env.DB;
   if(url.pathname==='/api/mission/leaderboard'&&request.method==='GET'){
-   const rows=(await db.prepare('SELECT alias,points FROM mission_profiles WHERE listed=1 ORDER BY points DESC, alias ASC LIMIT 50').bind().all()).results;
-   return reply({rows:rows.map((r,i)=>({...r,rank:i&&rows[i-1].points===r.points?rows.findIndex(x=>x.points===r.points)+1:i+1})),note:'Participation points only; no health details or game performance are published.'});
+   const own=await db.prepare('SELECT alias,points,listed,state FROM mission_profiles WHERE user_id=?').bind(user.id).first();
+   if(admin&&own&&JSON.parse(own.state).demoBots){
+    const names=['Comet','Nova','Orbit','Luna','Cosmo','Vega','Apollo','Stella','Meteor','Astro','Nebula','Pluto'];
+    const all=[...names.map((name,i)=>({alias:name+' · demo bot',points:520-i*30,bot:true})),{alias:own.alias,points:own.points,bot:false,self:true}].sort((a,b)=>b.points-a.points||a.alias.localeCompare(b.alias));
+    const ranked=all.map(r=>({...r,rank:1+all.filter(x=>x.points>r.points).length}));
+    return reply({rows:ranked.slice(0,10),self:ranked.find(r=>r.self),demo:true,note:'Admin simulation. Demo bots are fictional and never enter real rankings.'});
+   }
+   const rows=(await db.prepare('SELECT alias,points FROM mission_profiles WHERE listed=1 ORDER BY points DESC, alias ASC LIMIT 10').bind().all()).results;
+   let self=null;if(own?.listed){const above=await db.prepare('SELECT COUNT(*) AS count FROM mission_profiles WHERE listed=1 AND points>?').bind(own.points).first();self={alias:own.alias,points:own.points,rank:above.count+1};}
+   return reply({rows:rows.map((r,i)=>({...r,rank:rows.findIndex(x=>x.points===r.points)+1})),self,demo:false,note:'Participation points only; no health details or game performance are published.'});
   }
   const alias='Bird-'+user.id.replaceAll('-','').slice(0,8);
   await db.prepare('INSERT OR IGNORE INTO mission_profiles (user_id,state,revision,points,listed,alias) VALUES (?,?,0,0,0,?)').bind(user.id,JSON.stringify(newMission()),alias).run();
@@ -23,7 +31,7 @@ export async function handleMission(request,env){
   let size=0;const chunks=[];while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>4096){await reader.cancel();return reply({error:'Action too large.'},413);}chunks.push(value);}
   const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
   const action=JSON.parse(new TextDecoder().decode(bytes));
-  if(Object.keys(action).some(k=>!['id','type','task','participated','game','run','score','metrics','item','listed','stage','growth'].includes(k)))return reply({error:'Unexpected mission data.'},400);
+  if(Object.keys(action).some(k=>!['id','type','task','participated','game','run','score','metrics','item','listed','stage','growth','bots'].includes(k)))return reply({error:'Unexpected mission data.'},400);
   if(action.type==='admin'&&!admin)return reply({error:'Admin access required.'},403);
   for(let retry=0;retry<8;retry++){
    const row=await db.prepare('SELECT state,revision FROM mission_profiles WHERE user_id=?').bind(user.id).first();
