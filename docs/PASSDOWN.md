@@ -219,3 +219,8 @@ Plan: `docs/ROADMAP_PLAN.md` (in worktree `crewsafety-roadmap-9c2217`, not yet c
 - **Suit check controls:** the global `input:not([type=checkbox])` style gave radios full width. They are now a segmented Pass / Fail / Not checked control.
 - **Journal calendar (web):** month grid above the entries; days with entries are marked, a ring marks a photo; account users see one selected day, guests can click a day to filter and "Show all". Not built on iOS.
 - **iOS restyle:** `Theme.swift` now uses the website's graphite palette with indicator green, amber for the Simulated badge, 12 px cards, dark-only (`preferredColorScheme(.dark)`), and a graphite tab bar. The Space Apps blue/yellow palette is gone. Checked on the Dashboard only; other screens were not reviewed visually. iOS suite 56/56.
+
+### iOS: MUSE chat removed, journal calendar added (2026-11-15)
+
+- Removed the MUSE chat tab and everything behind it: `Features/MuseChat`, `MuseService`, the MUSE settings section, `MUSE_BASE_URL`, the bundled fallback answers and their tests. The FastAPI `/chat` route is untouched but nothing in the iOS app calls it now. `docs/EXECUTION_PLAN.md` and `docs/IOS_WEB_CONNECTION.md` still describe the chat in their bodies.
+- Added a month calendar to the iOS Journal tab (`JournalCalendarView.swift`): days with entries are marked, tapping one filters History to that day, "Show all" clears it. iOS suite is now 43 tests (the removed MUSE tests were 16, the new calendar tests 3), all passing. Checked in the simulator that the calendar renders with the marked day; tapping a day to filter was not confirmed visually.

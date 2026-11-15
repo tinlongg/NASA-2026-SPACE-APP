@@ -6,7 +6,13 @@ struct WellnessJournalView: View {
     @State private var store = JournalStore()
     @State private var draft = ""
     @State private var isSaving = false
+    @State private var selectedDay: Date?
     @FocusState private var editorFocused: Bool
+
+    private var visibleEntries: [JournalEntry] {
+        guard let selectedDay else { return store.entries }
+        return JournalCalendar.entries(on: selectedDay, in: store.entries)
+    }
 
     private var trimmedDraft: String { draft.trimmingCharacters(in: .whitespacesAndNewlines) }
 
@@ -27,7 +33,7 @@ struct WellnessJournalView: View {
                 } header: {
                     Text("New entry")
                 } footer: {
-                    Text("Entries stay on this device. They are never sent to MUSE or anywhere else.")
+                    Text("Entries stay on this device. They are never sent anywhere.")
                 }
 
                 if store.lastSaveFailed {
@@ -39,17 +45,31 @@ struct WellnessJournalView: View {
                     }
                 }
 
-                Section("History") {
+                if !store.entries.isEmpty {
+                    Section {
+                        JournalCalendarView(entries: store.entries, selectedDay: $selectedDay)
+                    } header: {
+                        Text("Calendar")
+                    }
+                }
+
+                Section {
                     if store.entries.isEmpty {
                         EmptyStateView(title: "No entries yet", systemImage: "book.closed",
                                        message: "Write a note above to start your journal.")
                     } else {
-                        ForEach(store.entries) { entry in
+                        ForEach(visibleEntries) { entry in
                             NavigationLink(value: entry.id) { JournalRow(entry: entry) }
                         }
                         .onDelete { offsets in
-                            offsets.map { store.entries[$0].id }.forEach(store.delete)
+                            offsets.map { visibleEntries[$0].id }.forEach(store.delete)
                         }
+                    }
+                } header: {
+                    HStack {
+                        Text(selectedDay.map { $0.formatted(date: .abbreviated, time: .omitted) } ?? "History")
+                        Spacer()
+                        if selectedDay != nil { Button("Show all") { selectedDay = nil }.textCase(nil) }
                     }
                 }
             }

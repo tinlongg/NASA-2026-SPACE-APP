@@ -3,13 +3,6 @@ import Foundation
 // Placeholder implementations used until each owner's real type is merged.
 // They are swapped out in App/ServiceFactory.swift and nowhere else.
 
-/// Always fails. The chat UI must show its "service unavailable" state, never invented text.
-struct PlaceholderMuseService: MuseService {
-    func ask(_ question: String, context: MuseContext) async throws -> MuseAnswer {
-        throw MuseError.serviceUnavailable
-    }
-}
-
 struct PlaceholderJournalAnalyzer: JournalAnalyzing {
     func summarize(_ body: String) async -> JournalSummary {
         JournalSummary(themes: [],
