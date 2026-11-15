@@ -278,3 +278,32 @@ Built without the live test (that still needs a person in front of the camera; s
 - The close-up is now an always-on second view beside the main camera, with a pop-out window ("Open on another screen"). Pose model now defaults to Full.
 - Not verified with a camera: walking in front of a real webcam, the pop-out window (browsers may block it), and the layout below 980 px width (stacked).
 - Open question for the product: Earth mode is the default because every test so far is on Earth; the space-station behaviour is the checkbox off.
+
+### Stations: phones as cameras (2026-11-15, branch `claude/stations-circle-push`)
+
+- Built: the Stations tab, `/camera` phone page, pairing by one-time code, status reports, a simulated deck plan, and live video signalling (WebRTC). Migration `0005_stations.sql` must be applied to hosted D1. Web tests 96/96 (server routes, pairing, isolation, signalling).
+- **Not verified:** a real phone running `/camera` (pose and face models on a phone, check-in, audio), and WebRTC video end to end (only the signalling is tested; the browser pane could not run a second device). No TURN server, so video may fail on some networks. A phone needs HTTPS for camera access (localhost is fine only on the same machine): use the hosted site or a tunnel for real phones.
+- Still to build on this branch: the notification circle and real push, and phone calls.
+
+### Crew circle and push (2026-11-15, branch `claude/stations-circle-push`)
+
+- Built: circles with one-time invites (`web/circle.mjs`, Circle tab), alert feed for open pages, Web Push sender (`web/webpush.mjs`: VAPID ES256 + aes128gcm, verified by decrypting in tests), push subscription routes, a service-worker push handler, `scripts/generate-vapid.mjs`, and hooks so live monitor alerts and station alerts notify the circle. Migration `0006_circle.sql` (and `0005_stations.sql`) must be applied to hosted D1. Web suite 104/104.
+- **Not verified:** a real push delivery (needs VAPID secrets on a hosted HTTPS site and a real subscribed browser or iPhone Home Screen app), and the Circle tab with two real accounts on two devices.
+- **Phone calls are not built.** They need a voice provider account (e.g. Twilio), a number, secrets, contacts' phone numbers (personal data sent to the provider) and a per-call cost. Waiting on the user's decision and credentials.
+- The ElevenLabs conversational agent is also not wired in: agent ID `agent_7501m7f8gfk6e7taqqf0c27mwyxt` (CrewSafety Check-in). It would need an opt-in, the user's wording on audio sent to ElevenLabs, and a live connection.
+
+### Stations: 3D ISS model; suit checklist from NASA's page (2026-11-15)
+
+- The Stations page now uses a rotatable 3D ISS model (`web/dist/iss-3d.js`) instead of a room dropdown: click a module to place a camera. Cameras can go in Zvezda, Zarya, Unity, Destiny, Columbus, Kibo, Tranquility, Cupola and Quest; Harmony (crew quarters) is private and refused. The server's accepted rooms are exactly those (`STN_ROOMS`, tested against the model). "Galley" is gone: the real ISS has no separate galley module. The module positions are a simplified schematic from general knowledge, **not** traced from the ResearchGate figure the user linked (it could not be used), and have not been checked against a NASA drawing.
+- The suit checklist now follows NASA's "Spacewalk Spacesuit Basics" page (read in full; independent human review still pending). The page says "up to 16 layers" and does not give an exact count, so the earlier "14" is dropped. The removed "pressure leak check" was not on the page. See `docs/SOURCES.md`.
+- Web suite 109/109. Not verified: dragging and clicking the 3D model with a mouse or touch, and performance on a phone.
+
+### Merge with main (2026-11-15)
+
+- Merged `origin/main` (Pip mission and pet work, NASA suit checks) into the stations/circle/push branch. Conflicts were in `suit-layers.js`, `index.html` and `styles.css`. The teammate's suit checklist (six NASA layer groups plus separate equipment checks, defensive "record the approved result" wording) replaced my version because their app code already depends on it; my extra part-by-part items (gloves, helmet, fan, and so on) were dropped. Web suite 112/112, iOS 43/43, and every tab loads with a clean console.
+
+### Phone calls for serious alerts (2026-11-15)
+
+- Built `web/calls.mjs` (opt-in own number, consent, masked display, cooldown and daily cap, test call) and the Circle tab block. Serious alerts from station cameras and the live monitor call opted-in members through ElevenLabs' Twilio outbound-call API (`POST /v1/convai/twilio/outbound-call`, body shape taken from ElevenLabs' API reference). Migration `0007_calls.sql`; secrets `ELEVENLABS_API_KEY`, `ELEVENLABS_ALERT_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID`. Web suite 117/117 with a fake ElevenLabs.
+- Account state found with the user's key on 2026-11-15: the CrewSafety Alert agent exists with the Twilio number assigned (outbound supported), but its prompt and first message are still the dashboard defaults with no variables. The script is in `docs/ALERT_CALL_AGENT.md`; the user must paste it.
+- **Not verified: any real call.** The request body was checked against the docs only; the API-key permission needed is not stated by ElevenLabs.
