@@ -29,3 +29,25 @@ test('concurrent acknowledgement and upload never lose acknowledgement',async()=
  await Promise.all([call('state','PUT',pairingCode,input),call(`events/${event}/acknowledge`,'POST',pairingCode)]);
  assert.equal((await (await call('state','GET',pairingCode)).json()).snapshot.events[0].acknowledged,true);
 });
+test('Apple Watch readings, check-in requests and answers travel through the session',async()=>{
+ const {call}=setup(); const {pairingCode:code}=await (await call('sessions','POST')).json(); const input=fixture();
+ const reading=(extra={})=>({deviceID:input.deviceID,sentAt:1_000_000,monitoring:true,heartRateBPM:72,heartRateAt:999_000,movedAt:998_000,activityLevel:0.4,...extra});
+ assert.equal((await call('wearable','PUT',code,reading())).status,409); // the iPhone sends its state first
+ await call('state','PUT',code,input);
+ assert.equal((await call('wearable','PUT',code,reading())).status,200);
+ let got=await (await call('wearable','GET',code)).json();
+ assert.equal(got.wearable.heartRateBPM,72); assert.equal(got.wearable.monitoring,true);
+ assert.ok(Math.abs((got.wearable.receivedAt-got.wearable.movedAt)-2000)<5,'times are moved into server time by their age');
+ assert.equal(got.checkInRequest,null);
+ assert.equal((await call('checkin','POST',code,{id:'check-1',seconds:30})).status,200);
+ const reply=await (await call('wearable','PUT',code,reading())).json(); assert.equal(reply.checkInRequest.id,'check-1');
+ const state=await (await call('state','PUT',code,input)).json(); assert.equal(state.snapshot.checkInRequest.id,'check-1','a full upload keeps the request');
+ assert.equal((await call('wearable','PUT',code,reading({answer:{checkInID:'check-1',kind:'ok',at:999_500}}))).status,200);
+ await call('wearable','PUT',code,reading()); // a later reading without an answer keeps the last answer
+ got=await (await call('wearable','GET',code)).json(); assert.equal(got.wearable.answer.kind,'ok'); assert.equal(got.wearable.answer.checkInID,'check-1');
+ await call('checkin','POST',code,{id:'check-1',cancel:true}); assert.equal((await (await call('wearable','GET',code)).json()).checkInRequest,null);
+ assert.equal((await call('wearable','PUT',code,reading({answer:{checkInID:'check-1',kind:'maybe',at:1}}))).status,422);
+ assert.equal((await call('wearable','PUT',code,reading({video:'x'}))).status,422);
+ assert.equal((await call('wearable','PUT',code,reading({deviceID:crypto.randomUUID()}))).status,409);
+ assert.equal((await call('checkin','POST',code,{id:'x',seconds:999})).status,422);
+});

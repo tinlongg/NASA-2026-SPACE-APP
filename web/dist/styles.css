@@ -301,7 +301,6 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .checkin-card .count { font: 500 32px var(--mono); }
 .checkin-card .answers { display: flex; gap: 8px; flex-wrap: wrap; }
 .checkin-card .answers .help { border-color: var(--danger); color: var(--danger); }
-.views { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; margin-bottom: 16px; }
 .views .closeup-panel { margin: 0; }
 .views .closeup-body { grid-template-columns: 1fr; }
 .views .closeup-read { display: flex; gap: 24px; }
@@ -349,3 +348,56 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 [data-theme=light] #mission{--m-ink:#253047;--m-muted:#58667a;--m-line:#cbd3df;--m-accent:#72549a}
 [data-theme=light] .mission-hero{background:#eeeaf6;border-color:#c9c2db}[data-theme=light] .mission-description{color:#50596e}[data-theme=light] .mission-kicker{color:#70518e}[data-theme=light] .mission-task{background:#fff;border-color:#cbd3df}[data-theme=light] .mission-task p,[data-theme=light] .mission-journey,[data-theme=light] .mission-footnote{color:#566178}[data-theme=light] .mission-tabs button{color:#536078}[data-theme=light] .mission-tabs button.selected{background:#dfd5ed;color:#443358}[data-theme=light] .mission-wallet span{color:#866124}[data-theme=light] .mission-journey small{color:#58667a}[data-theme=light] .mission-link{color:#634281}[data-theme=light] .mission-admin{background:#ece7f4;color:#293448;border-color:#b9abc9}[data-theme=light] .mission-message{color:#31624a}
 [data-theme=light] .mission-dialog,[data-theme=light] #account-dialog{background:#f8f9fc;color:#263147;border-color:#b2bed1}[data-theme=light] .mission-dialog input,[data-theme=light] .mission-dialog select,[data-theme=light] .mission-dialog textarea{background:#fff;color:#263147;border-color:#b2bed1}[data-theme=light] .mission-dialog .mission-muted{color:#536078!important}[data-theme=light] .dialog-corner-bar{background:inherit}[data-theme=light] .personal-rank{background:#e8e0f1;color:#352b45}[data-theme=light] .game-score{color:#69448d}[data-theme=light] .mission-reward{color:#2e6d49}[data-theme=light] .mission-ranking td,[data-theme=light] .mission-ranking th{border-color:#cbd3df}
+.views { margin-bottom: 16px; }
+/* Close-up of the face, inset in the camera view */
+.pip { position: absolute; top: 12px; right: 12px; width: clamp(128px, 28%, 280px); border: 1px solid var(--line-strong); border-radius: var(--r-control); overflow: hidden; background: var(--field); box-shadow: 0 6px 20px rgba(0, 0, 0, .45); z-index: 2; }
+.pip canvas { position: static; display: block; width: 100%; height: auto; aspect-ratio: 4/3; }
+.pip .closeup-placeholder { bottom: 30px; }
+.pip-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 4px 4px 4px 10px; font: 12px var(--mono); color: var(--text-2); background: rgba(14, 15, 16, .85); }
+.pip-bar span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pip .popout { padding: 2px 8px; font-size: 11px; }
+.pip.watching { border-color: var(--accent); }
+.pip.moving { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+/* MUSE live analysis, under the camera */
+.muse-live { border-top: 1px solid var(--line); padding: 14px 16px 16px; display: grid; gap: 12px; }
+.muse-live-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.muse-live-head .status { gap: 8px; }
+.muse-live .dot.busy { background: var(--warn); }
+.muse-read { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin: 0; }
+.muse-read div { background: var(--field); border-radius: var(--r-control); padding: 8px 10px; }
+.muse-read dt { font-size: 12px; color: var(--text-3); }
+.muse-read dd { margin: 2px 0 0; font-size: 15px; font-weight: 500; }
+.muse-read dd.yes { color: var(--accent); }
+.muse-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; }
+.muse-notes p { margin: 2px 0 0; font-size: 13px; color: var(--text); }
+.muse-thinking { grid-column: 1 / -1; border-left: 2px solid var(--accent); padding-left: 10px; }
+.muse-thinking p { color: var(--text-2); }
+.muse-thinking details { margin-top: 6px; font-size: 12px; color: var(--text-3); }
+.muse-thinking details p { white-space: pre-wrap; font: 12px var(--mono); max-height: 160px; overflow: auto; }
+.muse-label { font-size: 12px; color: var(--text-3); }
+.muse-log-actions { display: flex; align-items: center; gap: 8px; }
+.muse-log-actions button { padding: 4px 10px; font-size: 12px; }
+.muse-log-empty { padding: 16px; margin: 0; font-size: 13px; }
+.muse-log { list-style: none; margin: 0; padding: 0; max-height: 420px; overflow: auto; }
+.muse-entry { padding: 12px 16px; border-top: 1px solid var(--line); display: grid; gap: 4px; }
+.muse-entry:first-child { border-top: 0; }
+.muse-entry-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
+.muse-entry-head time { font-family: var(--mono); color: var(--text-3); }
+.muse-entry-thinking { margin: 0; font-size: 13px; color: var(--text); border-left: 2px solid var(--line-strong); padding-left: 10px; }
+.muse-entry.moving .muse-entry-thinking { border-left-color: var(--accent); }
+.muse-entry.error .muse-entry-thinking { border-left-color: var(--warn); color: var(--text-2); }
+.muse-entry-seen { margin: 0; font-size: 12px; color: var(--text-3); }
+.muse-entry details { font-size: 12px; color: var(--text-3); }
+.muse-entry details p { margin: 4px 0 0; white-space: pre-wrap; font: 12px var(--mono); }
+.chip.moving { color: var(--accent); }
+.chip.error { color: var(--warn); }
+@media (max-width: 720px) { .muse-read { grid-template-columns: repeat(2, minmax(0, 1fr)); } .muse-notes { grid-template-columns: 1fr; } }
+/* Session setup, shown before the camera starts */
+.setup-dialog { width: min(560px, calc(100vw - 32px)); }
+.setup-dialog fieldset { border: 1px solid var(--line); border-radius: var(--r-card); padding: 4px 14px 8px; margin: 12px 0 0; }
+.setup-dialog legend { font-size: 12px; color: var(--text-3); padding: 0 6px; }
+.setup-dialog .toggle { align-items: flex-start; margin: 10px 0; }
+.setup-dialog .toggle input { margin-top: 2px; flex-shrink: 0; }
+.watch-status { font-size: 13px; color: var(--text-2); margin: 10px 0 0; }
+.watch-status.streaming { color: var(--accent); }
+.thought .wear-button { margin-top: 6px; padding: 4px 10px; font-size: 12px; }

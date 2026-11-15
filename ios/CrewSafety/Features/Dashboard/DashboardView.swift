@@ -11,6 +11,7 @@ struct DashboardView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xl) {
                     alertSummary
                     crewSection
+                    watchSection
                     telemetrySection
                     eventsSection
                     Text("Prototype for a simulated crew. Not a medical device.")
@@ -74,6 +75,13 @@ struct DashboardView: View {
                              activeAlertCount: eventStore.activeAlerts(for: member.id).count)
                 }
             }
+        }
+    }
+
+    private var watchSection: some View {
+        VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+            sectionHeader("Apple Watch", badge: nil)
+            WatchCard()
         }
     }
 
@@ -192,5 +200,51 @@ private struct EventRow: View {
             }
         }
         .accessibilityElement(children: .combine)
+    }
+}
+
+/// Apple Watch status and the one control people need before monitoring: start the Watch session.
+/// Heart rate and wrist movement both depend on it; the website shows the same status before its camera starts.
+private struct WatchCard: View {
+    private let link = WatchLink.shared
+    @State private var isStarting = false
+
+    var body: some View {
+        Card {
+            VStack(alignment: .leading, spacing: Theme.Spacing.s) {
+                TimelineView(.periodic(from: .now, by: 1)) { context in
+                    HStack(alignment: .firstTextBaseline) {
+                        Image(systemName: "applewatch")
+                            .foregroundStyle(link.isStreaming ? Theme.accent : Theme.secondaryText)
+                        VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
+                            Text(link.isStreaming ? heartText : "Not monitoring").font(.headline)
+                            Text(link.isStreaming ? wristText(now: context.date) : link.status)
+                                .font(.subheadline)
+                                .foregroundStyle(Theme.secondaryText)
+                        }
+                    }
+                }
+                if !link.isStreaming {
+                    Button {
+                        isStarting = true
+                        Task { await link.startWatchMonitoring(); isStarting = false }
+                    } label: {
+                        Text(isStarting ? "Starting…" : "Start Watch monitoring").frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isStarting || !link.isPaired)
+                }
+                Text("Wrist movement restarts the stillness timer and the Watch vibrates for \"Are you OK?\". Heart rate is context only and never decides an alert. Share with the website in Settings to use it there.")
+                    .font(.footnote)
+                    .foregroundStyle(Theme.secondaryText)
+            }
+        }
+    }
+
+    private var heartText: String { link.heartRate.map { "\(Int($0.rounded())) BPM" } ?? "Waiting for heart rate" }
+
+    private func wristText(now: Date) -> String {
+        guard let moved = link.movedAt else { return "Monitoring · no wrist movement yet" }
+        return "Monitoring · wrist moved \(max(0, Int(now.timeIntervalSince(moved)))) s ago"
     }
 }

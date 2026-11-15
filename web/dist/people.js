@@ -66,6 +66,45 @@ export class MouthActivity {
   }
 }
 
+/** Inner-lip gap divided by mouth width, from face-mesh landmarks: about 0 when closed, larger when open.
+ * The ratio does not change with distance from the camera. null when the lips are not in the mesh. */
+export function lipAperture(landmarks) {
+  const upper = landmarks?.[13], lower = landmarks?.[14], left = landmarks?.[61], right = landmarks?.[291];
+  if (!upper || !lower || !left || !right) return null;
+  const width = Math.hypot(left.x - right.x, left.y - right.y);
+  return width < 1e-4 ? null : Math.hypot(upper.x - lower.x, upper.y - lower.y) / width;
+}
+
+/** Mouth movement from two on-device measures, sampled several times a second:
+ *  - how much the lip gap opens and closes over a short window (talking, chewing, mouthing words);
+ *  - how much the pixels around the lips change compared with a patch of the nose, so that moving the
+ *    head or a lighting change, which affect both patches, are not counted.
+ * Either one is enough. Readings describe the camera image only. */
+export class MouthMotion {
+  constructor({ seconds = 1.5, spread = 0.035, recent = 8, hits = 3, ratio = 2.5, floor = 0.01 } = {}) {
+    Object.assign(this, { seconds, spreadThreshold: spread, recent, hits, ratio, floor }); this.reset();
+  }
+  reset() { this.samples = []; this.baseline = null; }
+  /** aperture from lipAperture (or null); patchDiff = lip-patch change minus nose-patch change, 0..1 (or null). */
+  update(time, aperture, patchDiff) {
+    if (aperture == null && patchDiff == null) { this.samples = []; return { state: 'unknown', spread: null, hits: 0 }; }
+    let elevated = false;
+    if (patchDiff != null) {
+      if (this.baseline == null) this.baseline = patchDiff;
+      elevated = patchDiff > this.baseline * this.ratio + this.floor;
+      // Learn the resting level only from calm samples, so a long sentence does not raise it.
+      if (!elevated) this.baseline += (patchDiff - this.baseline) * 0.1;
+    }
+    this.samples.push({ time, aperture, elevated });
+    while (this.samples.length && time - this.samples[0].time > this.seconds) this.samples.shift();
+    if (this.samples.length < 4) return { state: 'unknown', spread: null, hits: 0 };
+    const apertures = this.samples.map(sample => sample.aperture).filter(value => value != null);
+    const spread = apertures.length >= 4 ? Math.max(...apertures) - Math.min(...apertures) : null;
+    const hits = this.samples.slice(-this.recent).filter(sample => sample.elevated).length;
+    return { state: (spread != null && spread >= this.spreadThreshold) || hits >= this.hits ? 'moving' : 'still', spread, hits };
+  }
+}
+
 /** Counts a blink when the eyes go open, then closed, then open again (scores sampled a few times a second). */
 export class BlinkDetector {
   constructor({ closed = 0.5, open = 0.3 } = {}) { this.closed = closed; this.open = open; this.state = 'unknown'; }
@@ -100,7 +139,7 @@ export function cropRect(box, videoWidth, videoHeight, aspect = 4 / 3) {
 }
 
 /** Plain-language readings for one person, from the rule-based detector and the face blendshapes. */
-export function describePerson({ tracked, upper, motion, threshold, stillFor, stillSeconds, alerted, eyes, mouth, replay, faceActiveAgo }) {
+export function describePerson({ tracked, upper, motion, threshold, stillFor, stillSeconds, alerted, eyes, mouth, museMouth, replay, faceActiveAgo, activeReason, watch }) {
   const lines = [];
   if (!tracked) return ['Not tracked right now. Shoulders need to be visible.'];
   lines.push(upper ? 'Tracking the upper body only (hips are not visible).' : 'Tracking the full body.');
@@ -110,8 +149,10 @@ export function describePerson({ tracked, upper, motion, threshold, stillFor, st
   if (replay) lines.push('Face readings are not available in synthetic replays.');
   else {
     lines.push(eyes?.state === 'open' ? 'Eyes look open.' : eyes?.state === 'closed' ? 'Eyes look closed.' : eyes?.state === 'unclear' ? 'The eyes give mixed readings.' : 'No clear view of the eyes.');
-    lines.push(mouth?.state === 'moving' ? 'The mouth is moving.' : mouth?.state === 'still' ? 'The mouth is still.' : 'Mouth movement is not known yet.');
-    if (faceActiveAgo != null && faceActiveAgo < stillSeconds) lines.push(`Facial activity (talking or blinking) seen ${Math.max(0, Math.round(faceActiveAgo))} s ago. It counts as activity and restarts the stillness timer.`);
+    lines.push(mouth?.state === 'moving' ? 'The mouth is moving (on device).' : mouth?.state === 'still' ? 'The mouth is still (on device).' : 'Mouth movement is not known yet.');
+    if (watch) lines.push(`Apple Watch: ${watch.bpm != null ? `${Math.round(watch.bpm)} BPM` : 'no heart rate yet'}${watch.wristAgo != null ? `, wrist moved ${Math.round(watch.wristAgo)} s ago` : ''}.`);
+    if (museMouth) lines.push(museMouth.state === 'moving' ? 'MUSE saw the mouth move.' : 'MUSE saw no mouth movement.');
+    if (faceActiveAgo != null && faceActiveAgo < stillSeconds) lines.push(`${activeReason ?? 'Facial activity'} ${Math.max(0, Math.round(faceActiveAgo))} s ago. It counts as activity and restarts the stillness timer.`);
   }
   return lines;
 }
