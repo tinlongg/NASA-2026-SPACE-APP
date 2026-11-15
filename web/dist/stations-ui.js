@@ -112,6 +112,10 @@ export function initStations({ api, onAlert }) {
     catch (error) { el('stations-message').textContent = error.message; }
   };
   iss = createIssView(el('iss-view'), { onSelect: chooseRoom, getStatuses: moduleStatuses });
+  el('iss-reset-view').onclick = () => {
+    iss.reset();
+    el('iss-view-message').textContent = 'Default view restored. Cameras unchanged.';
+  };
   render();
 
   return { userChanged(next) { user = next; clearInterval(timer); for (const id of [...watching.keys()]) stopWatching(id); lastAlertAt.clear(); el('station-form').hidden = !next; el('station-add').disabled = !next || !selectedRoom; if (next) { refresh(); timer = setInterval(refresh, 1000); } else { stations = []; render(); } } };
