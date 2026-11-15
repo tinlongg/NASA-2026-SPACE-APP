@@ -58,6 +58,7 @@ test('provisioned admin authenticates by hashed password and ID; client flags ca
  assert.equal(DB.sqlite.prepare('SELECT hash FROM users WHERE id=?').get(config.id).hash,config.hash);
  await a('/api/mission/action',action('admin',{bots:true}));
  const demo=await(await a('/api/mission/leaderboard')).json();assert.equal(demo.demo,true);assert.equal(demo.rows.length,10);assert.ok(demo.rows.every(r=>r.bot));assert.equal(demo.self.rank,13);
+ const visitor=client(),publicBoard=await(await visitor('/api/mission/leaderboard')).json();assert.equal(publicBoard.demo,false);assert.equal(publicBoard.self,null);assert.equal(publicBoard.rows.length,2);assert.ok(publicBoard.rows.every(r=>!r.bot&&typeof r.owner==='string'));
  assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,2);
  assert.equal((await regular('/api/mission/action',action('admin',{bots:true}))).status,403);
  const edit=action('admin',{points:600});
