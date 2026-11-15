@@ -1,51 +1,77 @@
-export class FallDetector {
-  constructor() { this.reset(); }
-  reset() { this.history = []; this.hold = null; this.lastDetection = -Infinity; this.lastTime = -Infinity; }
+// Possible-unresponsive heuristic for crew in microgravity. A floating crew member cannot
+// fall, so the signal is the absence of body movement while they are tracked in view.
+//
+// Movement is measured on the body's own shape: each joint relative to the torso centre,
+// rotated so the torso is upright and scaled by torso length. Drifting across the frame or
+// tumbling of a limp body is therefore not mistaken for activity. A tracked person whose
+// joints all stay within MOVE_THRESHOLD of the last moving pose for STILL_SECONDS raises one possible-unresponsive
+// event. They must move again before another event can fire. Starting thresholds only,
+// not validated on people. Sleep, focused reading or a crew member holding still on purpose
+// can trigger it.
+export const STILL_SECONDS = 15;
+export const MOVE_THRESHOLD = 0.25; // largest single-joint displacement, in torso lengths
+export const POSE_LOSS_SECONDS = 2;
+const TORSO = [11, 12, 23, 24];
+export const LIMBS = [0, 13, 14, 15, 16, 25, 26, 27, 28];
+
+export function bodyShape(points) {
+  if (!points || !TORSO.every(index => points[index])) return null;
+  const [ls, rs, lh, rh] = TORSO.map(index => points[index]);
+  const shoulder = [(ls[0] + rs[0]) / 2, (ls[1] + rs[1]) / 2], hip = [(lh[0] + rh[0]) / 2, (lh[1] + rh[1]) / 2];
+  const scale = Math.hypot(shoulder[0] - hip[0], shoulder[1] - hip[1]);
+  if (scale < 0.02) return null;
+  const centre = [(shoulder[0] + hip[0]) / 2, (shoulder[1] + hip[1]) / 2];
+  // Rotate so hip-to-shoulder points straight up; in microgravity there is no "up" to keep.
+  const turn = Math.atan2(shoulder[0] - hip[0], hip[1] - shoulder[1]), cos = Math.cos(-turn), sin = Math.sin(-turn);
+  const shape = {};
+  for (const [index, point] of Object.entries(points)) {
+    const x = (point[0] - centre[0]) / scale, y = (point[1] - centre[1]) / scale;
+    shape[index] = [x * cos - y * sin, x * sin + y * cos];
+  }
+  return shape;
+}
+
+/** Largest displacement of any joint visible in both shapes, in torso lengths. */
+export function shapeChange(a, b) {
+  let largest = 0;
+  for (const index of Object.keys(a)) if (b[index]) largest = Math.max(largest, Math.hypot(a[index][0] - b[index][0], a[index][1] - b[index][1]));
+  return largest;
+}
+
+export class InactivityDetector {
+  constructor({ stillSeconds = STILL_SECONDS, threshold = MOVE_THRESHOLD } = {}) { this.stillSeconds = stillSeconds; this.threshold = threshold; this.reset(); }
+  reset() { this.anchor = null; this.stillSince = null; this.lostSince = null; this.lastTime = -Infinity; this.alerted = false; this.motion = null; }
+  /** Seconds the tracked person has held still, or 0 when nobody is tracked. */
+  stillFor(time) { return this.stillSince == null ? 0 : Math.max(0, time - this.stillSince); }
   process(time, measurement) {
     if (time < this.lastTime) this.reset();
     this.lastTime = time;
-    this.history = this.history.filter(sample => time - sample.time <= 1);
-    if (!measurement) {
-      if (this.hold) {
-        this.hold.lostSince ??= time;
-        if (time - this.hold.lostSince > 1) this.hold = null;
-      }
+    const shape = measurement && bodyShape(measurement.points);
+    if (!shape) {
+      // Out of view is not unresponsive. A short gap keeps the timer; a longer one resets it.
+      this.lostSince ??= time; this.motion = null;
+      if (time - this.lostSince > POSE_LOSS_SECONDS) { this.anchor = null; this.stillSince = null; this.alerted = false; }
       return null;
     }
-    const { hipY, angle } = measurement;
-    if (this.hold) {
-      if (this.hold.lostSince !== null && time - this.hold.lostSince > 1) this.hold = null;
-    }
-    if (this.hold) {
-      this.hold.lostSince = null;
-      if (angle < 60 && hipY > this.hold.reference - this.hold.drop / 2) {
-        this.hold = null;
-      } else {
-        this.hold.angle = Math.max(this.hold.angle, angle);
-        if (time - this.hold.start < 2) return null;
-        const result = { drop: this.hold.drop, angle: this.hold.angle, duration: this.hold.duration, held: time - this.hold.start };
-        this.hold = null;
-        this.history = [];
-        this.lastDetection = time;
-        return result;
-      }
-    }
-    if (angle <= 35) this.history.push({ time, hipY });
-    if (angle < 60 || time - this.lastDetection < 15 || !this.history.length) return null;
-    const reference = this.history.reduce((best, sample) => sample.hipY > best.hipY ? sample : best);
-    const drop = reference.hipY - hipY;
-    if (drop < 0.2) return null;
-    this.hold = { start: time, reference: reference.hipY, drop, duration: time - reference.time, angle, lostSince: null };
-    return null;
+    this.lostSince = null;
+    if (!this.anchor) { this.anchor = shape; this.stillSince = time; this.motion = 0; return null; }
+    this.motion = shapeChange(shape, this.anchor);
+    if (this.motion > this.threshold) { this.anchor = shape; this.stillSince = time; this.alerted = false; return null; }
+    const still = time - this.stillSince;
+    if (this.alerted || still < this.stillSeconds) return null;
+    this.alerted = true;
+    return { stillFor: still, threshold: this.threshold };
   }
 }
 
+const KEEP = [...TORSO, ...LIMBS];
+/** MediaPipe landmarks to {index: [x, y]}, with x scaled by aspect so distances are isotropic. */
 export function measurePose(landmarks, aspect) {
-  if (!landmarks || ![11, 12, 23, 24].every(index => landmarks[index] && (landmarks[index].visibility ?? 0) >= 0.3)) return null;
-  const shoulder = { x: (landmarks[11].x + landmarks[12].x) / 2, y: (landmarks[11].y + landmarks[12].y) / 2 };
-  const hip = { x: (landmarks[23].x + landmarks[24].x) / 2, y: (landmarks[23].y + landmarks[24].y) / 2 };
-  const deltaX = (shoulder.x - hip.x) * aspect;
-  const deltaY = hip.y - shoulder.y;
-  if (Math.hypot(deltaX, deltaY) <= 0.02) return null;
-  return { hipY: 1 - hip.y, angle: Math.atan2(Math.abs(deltaX), deltaY) * 180 / Math.PI };
+  if (!landmarks || !TORSO.every(index => (landmarks[index]?.visibility ?? 0) >= 0.3)) return null;
+  const points = {};
+  for (const index of KEEP) {
+    const landmark = landmarks[index];
+    if (landmark && (landmark.visibility ?? 0) >= (TORSO.includes(index) ? 0.3 : 0.5)) points[index] = [landmark.x * aspect, landmark.y];
+  }
+  return bodyShape(points) ? { points } : null;
 }

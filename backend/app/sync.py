@@ -34,7 +34,7 @@ class CheckInTiming(WireModel):
 class Event(WireModel):
     id: UUID
     crewMemberID: UUID
-    type: Literal["possibleFall", "manualTest"]
+    type: Literal["possibleUnresponsive", "manualTest"]
     timestamp: float = Field(ge=0)
     severity: int = Field(ge=0, le=2)
     source: Literal["liveCamera", "replay", "simulated", "webCamera"]

@@ -82,16 +82,10 @@ In a second terminal, start a fresh service (`MUSE_LLM_ENABLED=0` for reproducib
 
 ```bash
 .venv/bin/python scripts/export_fallback.py --questions sources/demo-questions.txt
-.venv/bin/python scripts/export_web.py
-.venv/bin/python scripts/export_web.py --check
 .venv/bin/python -m pytest -q
 ```
 
-The exporter copies the same demo file into `web/dist/fallback.json` and writes `web/research-data.json`
-with chunks, scoring metadata, tokenizer stopwords, and the generation prompt. No credentials enter
-these snapshots. The browser deployment is a JavaScript adapter because Sites runs Workers; Python
-remains canonical. The parity test requires Node 20+ and skips with an explicit reason if unavailable.
-After regeneration, run the web tests/build and deploy the new snapshot. Do not hand-edit generated
+The website no longer has a research tab, so nothing here is exported to `web/`. Do not hand-edit generated
 snapshots or demo answers. Export scripts are run locally, never during a visitor's request.
 
 The exact `/chat` response remains `{answer,citations,disclaimer,grounded,answerMode}`. Citation entries

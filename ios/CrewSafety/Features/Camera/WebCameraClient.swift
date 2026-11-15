@@ -16,7 +16,7 @@ final class WebCameraClient {
 
     var onStatus: ((Status) -> Void)?
     var onPose: ((PoseFrame, Double) -> Void)?
-    var onAnswer: ((FallCheckIn.Response) -> Void)?
+    var onAnswer: ((CrewCheckIn.Response) -> Void)?
     /// Speech the page transcribed (ElevenLabs). The app classifies it like any other transcript.
     var onTranscript: ((String) -> Void)?
     /// Called when a different camera page takes over, so the detector can start fresh.

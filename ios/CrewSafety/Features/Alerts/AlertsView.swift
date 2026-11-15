@@ -9,7 +9,7 @@ struct AlertsView: View {
             Group {
                 if eventStore.events.isEmpty {
                     EmptyStateView(title: "No events", systemImage: "bell.slash",
-                                   message: "Possible-fall alerts appear here with their time and the reason they were raised.")
+                                   message: "No-movement alerts appear here with their time and the reason they were raised.")
                 } else {
                     List {
                         let active = eventStore.activeAlerts

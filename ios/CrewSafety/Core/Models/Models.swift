@@ -12,7 +12,7 @@ struct CrewMember: Identifiable, Codable, Hashable, Sendable {
 }
 
 // MARK: - Safety events
-enum SafetyEventType: String, Codable, Sendable { case possibleFall, manualTest }
+enum SafetyEventType: String, Codable, Sendable { case possibleUnresponsive, manualTest }
 
 enum EventSeverity: Int, Codable, Sendable, Comparable {
     case info = 0, warning = 1, critical = 2
@@ -22,7 +22,7 @@ enum EventSeverity: Int, Codable, Sendable, Comparable {
 /// Where the event came from. Shown in the UI so replayed/simulated events are never mistaken for live ones.
 enum EventSource: String, Codable, Sendable { case liveCamera, replay, simulated, webCamera }
 
-/// What happened when the app asked "Are you OK?" after a possible fall.
+/// What happened when the app asked "Are you OK?" after a no-movement alert.
 enum CheckInOutcome: Codable, Hashable, Sendable {
     case respondedOK(after: TimeInterval)
     case requestedHelp(after: TimeInterval)

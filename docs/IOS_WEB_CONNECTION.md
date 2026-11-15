@@ -33,7 +33,7 @@ These are the sync/extractive-MUSE dependencies. The optional generated MUSE mod
 4. Build and run the updated iOS project in Xcode. On the phone, open **Dashboard → gear → Website connection**.
 5. Enter the exact backend address `http://COMPUTER-IP:8000` (without `/dashboard/`) and pairing code. Turn on **Share with website dashboard**.
 6. Keep the app open. The website replaces its browser-demo cards with the iPhone's crew, telemetry and events. NASA research remains available underneath.
-7. Run **Monitor → Replay** in iOS. A possible-fall event should appear on the website within roughly six seconds under normal LAN conditions. Choose **Acknowledge on all devices** on the website; the app should acknowledge it on its next sync.
+7. Run **Monitor → Replay** in iOS. A possible-unresponsive event should appear on the website within roughly six seconds under normal LAN conditions. Choose **Acknowledge on all devices** on the website; the app should acknowledge it on its next sync.
 
 Do not enter `localhost` on the physical iPhone: it means the phone itself. Both devices must use the same Wi-Fi or hotspot. Guest/campus Wi-Fi may block device-to-device traffic. If prompted, allow iOS Local Network access and allow the backend through the computer's private-network firewall. No firewall rules are changed automatically. Use an appropriate trusted local network for this HTTP prototype; use HTTPS before hosting remotely.
 

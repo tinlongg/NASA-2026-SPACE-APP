@@ -51,23 +51,38 @@ export function journalToneElement(text) {
   details.append(evidence); section.append(heading,help,details); return section;
 }
 
-export function museJournalElement(text) {
+export function museJournalElement(text, {memory=false}={}) {
   const section=document.createElement('div'); section.className='journal-tone';
   const heading=document.createElement('strong'); heading.textContent='MUSE · optional AI reflection';
   const disclosure=document.createElement('p'); disclosure.className='micro';
-  disclosure.textContent='Clicking sends only this entry through our server to Meta (Muse Spark). Other entries and crew data are not included. AI reflections may be wrong and are not a health assessment.';
-  const button=document.createElement('button'); button.type='button'; button.textContent='Send this entry to MUSE';
+  const button=document.createElement('button'); button.type='button';
   const output=document.createElement('p'); output.setAttribute('role','status'); output.style.whiteSpace='pre-wrap';
+  // MUSE memory: signed-in users may let the server attach up to three related past
+  // entries from their own account. The browser never chooses or sends those entries.
+  let recall=null, toggle=null;
+  if(memory) {
+    toggle=document.createElement('label'); toggle.className='toggle'; recall=document.createElement('input'); recall.type='checkbox'; recall.checked=true;
+    toggle.append(recall,' Include up to 3 related past entries from my account');
+  }
+  const describe=()=>{
+    const withMemory=Boolean(recall?.checked);
+    button.textContent=withMemory?'Send to MUSE with related entries':'Send this entry to MUSE';
+    disclosure.textContent=(withMemory?'Clicking sends this entry, plus up to three of your own account entries with similar wording, through our server to Meta (Muse Spark). Crew data is not included.':'Clicking sends only this entry through our server to Meta (Muse Spark). Other entries and crew data are not included.')+' AI reflections may be wrong and are not a health assessment.';
+  };
+  describe(); if(recall) recall.onchange=describe;
   if(text.length>2000) {button.disabled=true; output.textContent='MUSE supports entries up to 2,000 characters. Local analysis is available for this longer entry.';}
   button.onclick=async()=>{
+    const withMemory=Boolean(recall?.checked);
     button.disabled=true; output.textContent='MUSE is reflecting…';
     try {
-      const response=await fetch('/api/journal/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:text,consent:true}),cache:'no-store',signal:AbortSignal.timeout(30000)});
+      const response=await fetch('/api/journal/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(withMemory?{entry:text,consent:true,memory:true}:{entry:text,consent:true}),cache:'no-store',signal:AbortSignal.timeout(30000)});
       const result=await response.json();
       if(!response.ok) throw Error(typeof result.error==='string'?result.error:'MUSE is unavailable. Try again later.');
-      output.textContent=`MUSE reflection (${result.model})\n${result.answer}`;
+      const used=Array.isArray(result.memory)?result.memory:[];
+      const context=!withMemory?'':used.length?`\n\nRelated entries sent with this one: ${used.map(m=>`${new Date(m.date).toLocaleDateString()} (similarity ${Number(m.score).toFixed(2)})`).join(', ')}.`:'\n\nNo related past entries were found, so only this entry was sent.';
+      output.textContent=`MUSE reflection (${result.model})\n${result.answer}${context}`;
     } catch(error) {output.textContent=error.name==='TimeoutError'?'MUSE took too long. Try again.':error.message;}
     finally {button.disabled=false;}
   };
-  section.append(heading,disclosure,button,output); return section;
+  section.append(heading,disclosure,...(toggle?[toggle]:[]),button,output); return section;
 }

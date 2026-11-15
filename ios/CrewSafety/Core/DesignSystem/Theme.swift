@@ -141,10 +141,10 @@ extension EventSeverity {
 }
 
 extension SafetyEventType {
-    /// Detections are always worded as "Possible fall", never as a confirmed fall or injury.
+    /// Detections are always worded as "Possible unresponsive", never as a confirmed condition.
     var displayName: String {
         switch self {
-        case .possibleFall: "Possible fall"
+        case .possibleUnresponsive: "Possible unresponsive"
         case .manualTest: "Test event"
         }
     }
