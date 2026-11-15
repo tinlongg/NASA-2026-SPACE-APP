@@ -46,7 +46,7 @@ export function parseOutputRate(format) {
  *  The page follows it, so when the agent tells someone "I'm alerting the crew now" the alert really goes out. */
 export function agentOutcome(text) {
   const said = String(text || '').toLowerCase();
-  if (/alerting the crew|help is on the way|getting (you )?help|sending (someone|help)/.test(said)) return 'help';
+  if (/alerting the crew|letting the crew know|help is on the way|getting (you )?help|sending (someone|help)/.test(said)) return 'help';
   if (/glad you'?re (okay|ok|alright|all right)/.test(said)) return 'ok';
   return null;
 }

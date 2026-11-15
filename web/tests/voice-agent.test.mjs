@@ -57,6 +57,7 @@ test('the page follows what the check-in agent decided', async () => {
   const { agentOutcome } = await import('../dist/voice-agent.js');
   assert.equal(agentOutcome("[apologetic] Okay, I'm alerting the crew now. Stay where you are, help is on the way."), 'help');
   assert.equal(agentOutcome("[warmly] Thanks, glad you're okay. I'll let the crew know."), 'ok');
+  assert.equal(agentOutcome("I haven't heard from you, so I'm letting the crew know."), 'help');
   assert.equal(agentOutcome('Hey, are you okay?'), null);
 });
 
