@@ -11,7 +11,7 @@ import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
 import { initAccount, api } from './account.js';
 import { downscaleJpeg, webcamStill, groupByDay, dayKey } from './journal-photo.js';
-import { GROUPS, ITEMS, SOURCE_NOTE, overallState, STATE_LABEL } from './suit-layers.js';
+import { GROUPS, ITEMS, LAYER_ITEMS, SOURCE_NOTE, SUIT_SOURCE_URL, LEGACY_ITEM_NAMES, overallState, STATE_LABEL } from './suit-layers.js';
 
 const researchStyles = document.createElement('link');
 researchStyles.rel = 'stylesheet'; researchStyles.href = './research.css';
@@ -834,10 +834,10 @@ const suitStatus = id => (suit[id]?.status) || 'unchecked';
 const persistSuit = () => { try { localStorage.setItem(suitStore, JSON.stringify(suit)); } catch {} };
 function renderSuitState() {
   const state = overallState(ITEMS.map(item => suitStatus(item.id)));
-  const label = element('suit-state'); label.textContent = STATE_LABEL[state]; label.dataset.state = state;
+  const label = element('suit-state'); label.textContent = STATE_LABEL[state]; label.dataset.state = state;const checked=LAYER_ITEMS.filter(item=>suitStatus(item.id)!=='unchecked').length;element('suit-layer-count').textContent=checked+' / '+LAYER_ITEMS.length+' layer groups recorded';
 }
 function renderSuit() {
-  element('suit-source').textContent = SOURCE_NOTE;
+  element('suit-source').textContent = SOURCE_NOTE;const source=document.createElement('a');source.href=SUIT_SOURCE_URL;source.target='_blank';source.rel='noopener';source.textContent=' NASA: how spacesuits work';element('suit-source').append(source);
   const host = element('suit-groups'); host.replaceChildren();
   for (const group of GROUPS) {
     const section = document.createElement('section'); section.className = 'suit-group';
@@ -868,7 +868,7 @@ function renderSuitHistory(checks) {
     const row = document.createElement('article'); row.className = 'entry';
     const time = document.createElement('time'); time.textContent = new Date(check.date).toLocaleString();
     const title = document.createElement('strong'); title.textContent = STATE_LABEL[check.overall] || check.overall;
-    const failed = check.items.filter(item => item.status === 'fail').map(item => ITEMS.find(known => known.id === item.id)?.name || item.id);
+    const failed = check.items.filter(item => item.status === 'fail').map(item => ITEMS.find(known => known.id === item.id)?.name || LEGACY_ITEM_NAMES[item.id] || item.id);
     const detail = document.createElement('p'); detail.textContent = failed.length ? `Failed: ${failed.join(', ')}` : `${check.items.filter(item => item.status === 'pass').length} of ${check.items.length} passed`;
     row.append(title, time, detail); host.append(row);
   }
@@ -885,7 +885,7 @@ element('suit-save').onclick = async () => {
     if (account) await api('/api/suit/checks', 'POST', { items });
     else { suitHistory = [{ id: crypto.randomUUID(), date: now, overall, items }, ...suitHistory].slice(0, 5); try { localStorage.setItem(suitHistoryStore, JSON.stringify(suitHistory)); } catch {} }
   } catch (error) { message.textContent = error.status === 401 ? 'Your session ended. Sign in again to save to your account.' : 'Could not save the inspection.'; return; }
-  if (items.every(item => item.status !== 'unchecked')) window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'suit'}));
+  if (LAYER_ITEMS.every(item => suitStatus(item.id) !== 'unchecked')) window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'suit'}));
   // A failed item shows beside camera events, labelled as manually entered.
   for (const item of items.filter(entry => entry.status === 'fail')) {
     const known = ITEMS.find(candidate => candidate.id === item.id);
