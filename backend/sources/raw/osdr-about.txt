@@ -1,0 +1,3 @@
+# About OSDR
+
+The NASA Open Science Data Repository (OSDR) holds multi-modal, multi-hierarchical space life science data: omics, phenotypic, physiological, behavioral, biomedical, bioimaging, environmental telemetry, hardware; tabular, text, code, imaging, video; raw and processed; from humans, animals, model organisms, tissue chips, plants, and microbes. These data and metadata support reuse for fundamental biology, applied science, and operational outcomes across space exploration and discovery.

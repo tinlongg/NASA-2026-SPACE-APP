@@ -19,7 +19,7 @@ are simulated and labelled. Journal summaries list themes you wrote about; they 
 | `docs/EXECUTION_PLAN.md` | Architecture, shared contracts, team plan |
 | `docs/INTEGRATION_CHECKLIST.md` | What to check on the demo iPhone |
 | `docs/DEMO_SCRIPT.md` | 2–3 minute demo with fallbacks |
-| `docs/SOURCES.md` | NASA source list (empty until the team adds documents) |
+| `docs/SOURCES.md` | NASA source list, provenance, and review status |
 
 ## Run the app
 
@@ -45,16 +45,25 @@ In the app: Dashboard → gear → MUSE mode **Live**, and set the backend addre
 
 ## Status
 
-Built and verified in the iOS Simulator and by unit tests: dashboard, alerts, replayed possible-fall
-detection, simulated telemetry chart, MUSE chat against a local backend, journal with on-device summary.
+This revision aligns the native MVP and web companion with the documented research and camera scope.
+The SwiftUI app is primary; the web companion is the user-requested
+Windows/Mac testing extension. It uses MediaPipe, not Apple's Vision model.
 
-Not yet done or not yet verified:
+Current verification: 27 backend tests and 29 web tests pass. The backend suite includes ranking parity
+between Python and the hosted Worker adapter. Previous handoff reported 40 iOS simulator tests; those
+were not rerun during this pass. The current Mac's Xcode installation cannot launch successfully.
 
-- **Live camera detection has never been run on a real iPhone.** The capture and Vision code compiles
-  but the Simulator has no camera. The fall thresholds are untuned starting values.
-- **No NASA documents are included.** `backend/sources/manifest.json` is empty, so MUSE answers
-  "no supporting material" until the team adds verified sources and runs `scripts/build_index.py`.
-- **Demo mode has no answers** until `scripts/export_fallback.py` is run against the real corpus.
-- **LLM-generated answers are untested.** Without `ANTHROPIC_API_KEY` the backend quotes retrieved
-  passages instead (extractive mode), which is what was tested.
-- The Replay menu only has generated stick-figure sequences, not recordings of a person.
+MUSE Research now uses five opened NASA sources, including OSDR and study OSD-946, with eight indexed
+passages and six exported, cited demo answers. The user selected this source set; independent human
+source review is still pending. Optional Camera Coach explains numerical pose summaries through Meta
+and is clearly separate from MUSE Research. Secrets remain server-side.
+
+Remaining acceptance work:
+
+- Live camera/permission/orientation and sustained monitoring tests on a real iPhone and Windows webcam.
+- Physical-device offline tests. The browser caches its shell and offers an explicit camera-model
+  download; browser cache storage is not guaranteed to persist.
+- Record and review real pose fixtures. All current replay sequences are synthetic.
+- Complete independent source verification in `docs/SOURCES.md` and rehearse `docs/DEMO_SCRIPT.md`.
+
+See `docs/HANDOFF.md` for exact scope, verification, and known limits.
