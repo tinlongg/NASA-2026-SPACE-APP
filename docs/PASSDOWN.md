@@ -301,3 +301,9 @@ Built without the live test (that still needs a person in front of the camera; s
 ### Merge with main (2026-11-15)
 
 - Merged `origin/main` (Pip mission and pet work, NASA suit checks) into the stations/circle/push branch. Conflicts were in `suit-layers.js`, `index.html` and `styles.css`. The teammate's suit checklist (six NASA layer groups plus separate equipment checks, defensive "record the approved result" wording) replaced my version because their app code already depends on it; my extra part-by-part items (gloves, helmet, fan, and so on) were dropped. Web suite 112/112, iOS 43/43, and every tab loads with a clean console.
+
+### Phone calls for serious alerts (2026-11-15)
+
+- Built `web/calls.mjs` (opt-in own number, consent, masked display, cooldown and daily cap, test call) and the Circle tab block. Serious alerts from station cameras and the live monitor call opted-in members through ElevenLabs' Twilio outbound-call API (`POST /v1/convai/twilio/outbound-call`, body shape taken from ElevenLabs' API reference). Migration `0007_calls.sql`; secrets `ELEVENLABS_API_KEY`, `ELEVENLABS_ALERT_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID`. Web suite 117/117 with a fake ElevenLabs.
+- Account state found with the user's key on 2026-11-15: the CrewSafety Alert agent exists with the Twilio number assigned (outbound supported), but its prompt and first message are still the dashboard defaults with no variables. The script is in `docs/ALERT_CALL_AGENT.md`; the user must paste it.
+- **Not verified: any real call.** The request body was checked against the docs only; the API-key permission needed is not stated by ElevenLabs.

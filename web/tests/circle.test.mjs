@@ -77,7 +77,7 @@ test('notifyCircle pushes to the owner and members, drops dead subscriptions, an
   await request('/api/push/subscribe', { method: 'POST', cookie: other, body: await subscription(endpoints.stranger) });
   const ownerId = DB.sqlite.prepare('SELECT id FROM users WHERE username = ?').get('crc-n1').id, calls = [];
   const result = await notifyCircle({ DB, ...keys }, ownerId, { title: 'Alert: Lab', body: 'Person 1 did not answer' }, async (url, init) => { calls.push(url); return new Response('', { status: url === endpoints.gone ? 410 : 201 }); });
-  assert.deepEqual(result, { recorded: true, sent: 2 });
+  assert.deepEqual(result, { recorded: true, sent: 2, called: 0 });
   assert.deepEqual(calls.sort(), [endpoints.friend, endpoints.gone, endpoints.owner].sort());
   assert.equal(DB.sqlite.prepare('SELECT COUNT(*) AS n FROM push_subscriptions WHERE endpoint = ?').get(endpoints.gone).n, 0, 'a gone subscription is removed');
   assert.deepEqual(await notifyCircle({ DB }, 'nobody', { title: 'x', body: 'y' }), { recorded: false, sent: 0 });

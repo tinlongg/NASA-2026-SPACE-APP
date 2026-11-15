@@ -118,6 +118,10 @@ Push needs keys on the server: run `node scripts/generate-vapid.mjs`, set `VAPID
 
 **Phone calls are not built.** Calling a phone number needs a voice provider account (for example Twilio) with a purchased number, its credentials as server secrets, and each contact's phone number sent to that provider, which also costs money per call. Add those and a clear opt-in before building it.
 
+### Phone calls
+
+Serious alerts also ring circle members who opted in: someone asks for help, does not answer the "Are you OK?" check-in, or (with the check-in off) has not moved for a while. Each person adds only their own number on the Circle tab (E.164, like +15551234567), ticks a consent box, and can send themselves a test call. ElevenLabs places the call through the Twilio number imported into ElevenLabs, using the agent in `ELEVENLABS_ALERT_AGENT_ID`, and the server fills `person`, `room`, `camera` and `what_happened`. Secrets: `ELEVENLABS_API_KEY`, `ELEVENLABS_ALERT_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID`; table `call_contacts` and `call_log` (`drizzle/0007_calls.sql`). At most one call per person per 10 minutes and five a day. The agent script, variables and setup steps are in `docs/ALERT_CALL_AGENT.md`. Numbers are stored unencrypted and shared with ElevenLabs and Twilio.
+
 ### Walking, whole-body movement and the second view
 
 The detector was designed for microgravity, where a limp body drifts and tumbles, so it ignored the whole body moving and only counted limbs moving relative to the torso. On Earth that makes walking past the camera with only the torso visible look like "no movement". A checkbox on the Monitor tab, "Whole-body movement counts" (on by default), makes the torso travelling more than the usual threshold, or turning about 20 degrees, count as movement. Turn it off to get the microgravity behaviour. The synthetic replays keep the microgravity behaviour except "Walking past, torso only".
