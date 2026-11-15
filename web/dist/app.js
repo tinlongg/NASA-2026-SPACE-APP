@@ -5,6 +5,8 @@ import { VISION_MODULE, VISION_WASM, POSE_MODEL } from './offline-config.js';
 import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
 import { initAccount, api } from './account.js';
+import { downscaleJpeg, webcamStill, groupByDay, dayKey } from './journal-photo.js';
+import { GROUPS, ITEMS, SOURCE_NOTE, overallState, STATE_LABEL } from './suit-layers.js';
 
 const researchStyles = document.createElement('link');
 researchStyles.rel = 'stylesheet'; researchStyles.href = './research.css';
@@ -26,7 +28,7 @@ let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, dete
 let coachPending = false;
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
-const titles = { home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded or uploaded'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'] };
+const titles = { home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded or uploaded'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
 function showTab(tab) {
   if (!titles[tab]) return;
   if (tab !== 'monitor') stopSession();
@@ -83,7 +85,7 @@ async function startCamera() {
     if (session !== generation) return;
     mode = 'live'; lastVideoTime = -1; lastInference = 0;
     setCameraState('Live camera', true); element('source').textContent = 'Webcam, live';
-    element('camera-message').textContent = 'Monitoring locally. Keep your full body in frame. No video is recorded or uploaded.';
+    element('camera-message').textContent = 'Monitoring locally. Keep your full body in frame. No video is recorded. Frames stay on this device unless you turn on the MUSE second look.';
     stream.getVideoTracks()[0].addEventListener('ended', () => { if (session === generation) stopSession('Camera disconnected. Reconnect it and start again.'); });
     const tick = now => {
       if (session !== generation) return;
@@ -133,7 +135,8 @@ function handleMeasurement(time, measurement) {
   element('detector-state').textContent = !measurement ? 'Waiting for crew member' : detector.alerted ? 'Alert raised · waiting for movement' : stillFor >= STILL_SECONDS / 3 ? `No movement · alert at ${STILL_SECONDS} s` : 'Monitoring';
   if (!detection) return;
   const details = `No body movement for ${Math.round(detection.stillFor)} s while in view (no joint moved more than ${detection.threshold} torso lengths). Check in with the crew member.`;
-  events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', type: 'Possible unresponsive', details, snapshot: structuredClone(latestSnapshot), acknowledged: false });
+  events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', type: 'Possible unresponsive', details, snapshot: structuredClone(latestSnapshot), acknowledged: false, lookNote: null });
+  if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
   element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${events[0].source}. ${details}`;
   renderEvents();
 }
@@ -171,6 +174,23 @@ function replay(kind) {
   animation = requestAnimationFrame(tick);
 }
 
+// Opt-in second look: one downscaled frame from a live alert goes to MUSE. The reply is only a
+// note on the event; the deterministic detector alone decides alerts. Nothing is stored.
+async function secondLook(event) {
+  event.lookNote = { status: 'pending' }; renderEvents();
+  try {
+    if (video.readyState < 2) throw new Error('No camera frame.');
+    const scale = Math.min(1, 512 / Math.max(video.videoWidth, video.videoHeight)), frame = document.createElement('canvas');
+    frame.width = Math.round(video.videoWidth * scale); frame.height = Math.round(video.videoHeight * scale);
+    frame.getContext('2d').drawImage(video, 0, 0, frame.width, frame.height);
+    const jpeg = await new Promise(resolve => frame.toBlob(resolve, 'image/jpeg', 0.6)), bytes = new Uint8Array(await jpeg.arrayBuffer()); let binary = '';
+    for (let index = 0; index < bytes.length; index += 8192) binary += String.fromCharCode(...bytes.subarray(index, index + 8192));
+    const response = await fetch('/api/coach/look', { method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store', body: JSON.stringify({ source: 'live', frame: btoa(binary) }), signal: AbortSignal.timeout(35000) });
+    const data = await response.json().catch(() => ({}));
+    event.lookNote = response.ok ? { status: 'done', text: data.note, model: data.model, at: new Date().toISOString() } : { status: 'failed', text: data.error || 'MUSE could not describe the frame.' };
+  } catch { event.lookNote = { status: 'failed', text: 'MUSE could not be reached. The alert is unaffected.' }; }
+  renderEvents();
+}
 function renderEvents() {
   const pending = events.filter(event => !event.acknowledged).length;
   element('alert-count').textContent = pending; element('home-alerts').textContent = pending;
@@ -209,7 +229,9 @@ function renderEvents() {
       element('coach-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
       askCoach('Explain why this possible-unresponsive event triggered and what its limitations are.', event.snapshot);
     };
-    row.append(title,date,details,button,explain); element('events').append(row);
+    row.append(title,date,details);
+    if (event.lookNote) { const note = document.createElement('p'); note.className = 'tag'; note.textContent = event.lookNote.status === 'pending' ? 'MUSE second look: describing the frame…' : `MUSE second look (description only, does not change this alert): ${event.lookNote.text}`; row.append(note); }
+    row.append(button,...(event.manual ? [] : [explain])); element('events').append(row);
   }
 }
 
@@ -217,7 +239,7 @@ const themes = { sleep: ['sleep','slept','tired','rest','fatigue'], workload: ['
 function summarize(body) { const words = new Set(body.toLowerCase().match(/\b[a-z]+\b/g) || []); const found = Object.entries(themes).filter(([, terms]) => terms.some(term => words.has(term))).map(([theme]) => theme); return found.length ? `You wrote about: ${found.join(', ')}.` : 'No common themes were picked out of this entry.'; }
 // Guests keep entries in this browser. Signed-in users keep them in their account, where
 // each entry is embedded into the vector index that powers search and MUSE memory.
-let account = null, accountEntries = [], journalLoad = 0;
+let account = null, accountEntries = [], journalLoad = 0, pendingPhoto = null, selectedDay = null, calMonth = null;
 const journalNote = text => { element('journal-message').textContent = text; };
 function journalFailure(error, fallback) {
   if (error.status === 401) { accountControl.expire(); return 'Your session ended. Sign in again to reach your account journal.'; }
@@ -257,10 +279,22 @@ async function loadAccountJournal() {
 }
 function renderJournals() {
   renderStorage();
-  const list = account ? accountEntries : journals;
+  const all = account ? accountEntries : journals;
+  const days = groupByDay(all);
+  if (account && (!selectedDay || !days.some(day => day.day === selectedDay))) selectedDay = days[0]?.day ?? null; // Accounts show one day at a time.
+  if (selectedDay && !days.some(day => day.day === selectedDay)) selectedDay = null;
+  const list = selectedDay ? all.filter(entry => dayKey(entry.date) === selectedDay) : all;
+  const at = days.findIndex(day => day.day === selectedDay);
+  element('photo-privacy').hidden = !account; element('journal-days').hidden = !account || !days.length;
+  if (account && days.length) {
+    element('day-label').textContent = dayLabel(selectedDay);
+    element('day-prev').disabled = at >= days.length - 1; element('day-next').disabled = at <= 0;
+  }
+  renderCalendar(days);
+  renderPhotoField(); renderPhotoTrend();
   element('journal-search').hidden = !account;
   element('journal-entries').replaceChildren();
-  element('home-journal').textContent = account ? `${list.length} ${list.length === 1 ? 'entry' : 'entries'} in your account` : `${list.length} ${list.length === 1 ? 'entry' : 'entries'} in this browser`;
+  element('home-journal').textContent = account ? `${all.length} ${all.length === 1 ? 'entry' : 'entries'} in your account` : `${all.length} ${all.length === 1 ? 'entry' : 'entries'} in this browser`;
   if (!list.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = account ? 'No entries in your account yet' : 'Your entries will appear here'; element('journal-entries').append(p); }
   for (const entry of list) {
     const row = document.createElement('article'); row.className = 'entry';
@@ -277,23 +311,128 @@ function renderJournals() {
       head.append(remove);
     }
     const body = document.createElement('p'); body.textContent = entry.body;
+    let photoParts = [];
+    if (account && entry.hasPhoto) {
+      const image = document.createElement('img'); image.className = 'entry-photo'; image.alt = 'Journal photo from ' + new Date(entry.date).toLocaleDateString(); image.loading = 'lazy'; image.src = `/api/journal/entries/${entry.id}/photo`;
+      const dropPhoto = document.createElement('button'); dropPhoto.type = 'button'; dropPhoto.textContent = 'Remove photo';
+      dropPhoto.onclick = async () => {
+        dropPhoto.disabled = true;
+        try { await api(`/api/journal/entries/${entry.id}/photo`, 'DELETE'); journalNote('Photo removed.'); await loadAccountJournal(); }
+        catch (error) { dropPhoto.disabled = false; journalNote(journalFailure(error, 'Could not remove the photo.')); }
+      };
+      photoParts = [image, dropPhoto, compareControl(entry)];
+    }
+    const slept = document.createElement('p'); slept.className = 'tag'; slept.textContent = entry.sleepHours == null ? '' : `You logged ${entry.sleepHours} h of sleep.`; slept.hidden = entry.sleepHours == null;
     const summary = document.createElement('p'); summary.className = 'tag'; summary.textContent = `${summarize(entry.body)} Summary of your words, not an assessment.`;
-    row.append(head,body,summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); row.append(museJournalElement(entry.body, { memory: Boolean(account) })); element('journal-entries').append(row);
+    row.append(head,...(photoParts.length ? [photoParts[0], body, photoParts[1], photoParts[2]] : [body]),slept,summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); row.append(museJournalElement(entry.body, { memory: Boolean(account) })); element('journal-entries').append(row);
   }
 }
 element('journal-tone-enabled').onchange = renderJournals;
+function compareControl(entry) {
+  const box = document.createElement('div'); box.className = 'compare-box';
+  const label = document.createElement('label'); label.className = 'toggle';
+  const consent = document.createElement('input'); consent.type = 'checkbox';
+  label.append(consent, ' Send this photo and up to two earlier photos to Meta MUSE to describe visible differences');
+  const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Compare with earlier photos'; button.disabled = true;
+  const result = document.createElement('p'); result.className = 'compare-result'; result.setAttribute('role', 'status');
+  consent.onchange = () => { button.disabled = !consent.checked; };
+  button.onclick = async () => {
+    button.disabled = true; result.textContent = 'Comparing…';
+    try {
+      const data = await api('/api/journal/photos/compare', 'POST', { entryId: entry.id, consent: true });
+      result.textContent = `Photos compared: ${data.compared.join(', ')}. ${data.answer} ${data.notice}`;
+    } catch (error) { result.textContent = journalFailure(error, 'Comparison failed.'); }
+    button.disabled = !consent.checked;
+  };
+  box.append(label, button, result); return box;
+}
+const dayLabel = key => new Date(key + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+function stepDay(direction) {
+  const days = groupByDay(account ? accountEntries : journals), at = days.findIndex(day => day.day === selectedDay), next = days[at + direction];
+  if (next) { selectedDay = next.day; calMonth = null; renderJournals(); }
+}
+element('day-prev').onclick = () => stepDay(1);
+element('day-next').onclick = () => stepDay(-1);
+// Month grid: days with entries are marked (a ring for a photo). Click a day to read it.
+function renderCalendar(days) {
+  const box = element('journal-calendar'); box.replaceChildren(); box.hidden = !days.length; if (!days.length) return;
+  const byDay = new Map(days.map(day => [day.day, day.items]));
+  if (!calMonth) { const base = selectedDay ? new Date(selectedDay + 'T12:00:00') : new Date(); calMonth = new Date(base.getFullYear(), base.getMonth(), 1); }
+  const head = document.createElement('div'); head.className = 'cal-head';
+  const prev = document.createElement('button'), next = document.createElement('button'), title = document.createElement('strong');
+  prev.type = next.type = 'button'; prev.textContent = '‹'; next.textContent = '›'; prev.setAttribute('aria-label', 'Previous month'); next.setAttribute('aria-label', 'Next month');
+  title.textContent = calMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  prev.onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(days); };
+  next.onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(days); };
+  head.append(prev, title, next);
+  if (!account && selectedDay) { const all = document.createElement('button'); all.type = 'button'; all.className = 'link-button'; all.textContent = 'Show all'; all.onclick = () => { selectedDay = null; renderJournals(); }; head.append(all); }
+  const grid = document.createElement('div'); grid.className = 'cal-grid'; grid.setAttribute('role', 'grid');
+  for (const name of ['S', 'M', 'T', 'W', 'T', 'F', 'S']) { const cell = document.createElement('span'); cell.className = 'cal-dow'; cell.textContent = name; grid.append(cell); }
+  const first = calMonth.getDay(), count = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate(), today = dayKey(new Date().toISOString());
+  for (let blank = 0; blank < first; blank++) grid.append(document.createElement('span'));
+  for (let number = 1; number <= count; number++) {
+    const key = `${calMonth.getFullYear()}-${String(calMonth.getMonth() + 1).padStart(2, '0')}-${String(number).padStart(2, '0')}`, items = byDay.get(key);
+    const cell = document.createElement(items ? 'button' : 'span'); cell.textContent = number; cell.className = 'cal-day';
+    if (key === today) cell.classList.add('today');
+    if (items) {
+      cell.type = 'button'; cell.classList.add('has-entries'); if (items.some(entry => entry.hasPhoto)) cell.classList.add('has-photo');
+      if (key === selectedDay) { cell.classList.add('selected'); cell.setAttribute('aria-pressed', 'true'); }
+      cell.setAttribute('aria-label', `${dayLabel(key)}, ${items.length} ${items.length === 1 ? 'entry' : 'entries'}`);
+      cell.onclick = () => { selectedDay = !account && key === selectedDay ? null : key; renderJournals(); };
+    }
+    grid.append(cell);
+  }
+  box.append(head, grid);
+}
+function renderPhotoTrend() {
+  const recent = account ? accountEntries.filter(entry => entry.hasPhoto).slice(0, 8).reverse() : [], box = element('photo-trend'); // oldest to newest
+  element('photo-trend-box').hidden = !recent.length; box.replaceChildren();
+  for (const entry of recent) {
+    const figure = document.createElement('figure'), image = document.createElement('img'), caption = document.createElement('figcaption');
+    image.alt = 'Journal photo from ' + new Date(entry.date).toLocaleDateString(); image.loading = 'lazy'; image.src = `/api/journal/entries/${entry.id}/photo`;
+    caption.textContent = `${new Date(entry.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })} · ${entry.sleepHours == null ? 'sleep not logged' : `${entry.sleepHours} h sleep`}`;
+    figure.append(image, caption); box.append(figure);
+  }
+}
+function renderPhotoField() {
+  const signed = Boolean(account);
+  element('journal-photo-file').disabled = !signed; element('journal-photo-cam').disabled = !signed || !navigator.mediaDevices?.getUserMedia;
+  if (!signed) pendingPhoto = null;
+  element('journal-photo-note').textContent = signed ? (pendingPhoto ? 'Ready to save with this entry.' : 'Photos are resized to 768 px, saved to your account on the server and not encrypted. You can delete them.') : 'Sign in to add photos.';
+  element('journal-photo-clear').hidden = !pendingPhoto; element('journal-photo-preview').hidden = !pendingPhoto;
+}
+async function attachPhoto(source) {
+  try {
+    const prepared = await downscaleJpeg(source);
+    if (pendingPhoto) URL.revokeObjectURL(pendingPhoto.url);
+    pendingPhoto = { ...prepared, url: URL.createObjectURL(prepared.blob) }; element('journal-photo-preview').src = pendingPhoto.url;
+  } catch (error) { pendingPhoto = null; journalNote(error.message || 'Could not read that photo.'); }
+  renderPhotoField();
+}
+element('journal-photo-file').onchange = async event => { const file = event.target.files[0]; event.target.value = ''; if (file) await attachPhoto(file); };
+element('journal-photo-cam').onclick = async () => { try { await attachPhoto(await webcamStill()); } catch { journalNote('Could not use the camera. Check permission, or choose a photo instead.'); } };
+element('journal-photo-clear').onclick = () => { if (pendingPhoto) URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; renderPhotoField(); };
 element('journal-dataset').textContent = sentimentMetadata.terms.toLocaleString() + ' rated terms · VADER lexicon · MIT license';
+const sleepHours = () => { const raw = element('journal-sleep').value; const value = raw === '' ? NaN : Number(raw); return Number.isFinite(value) && value >= 0 && value <= 24 ? Math.round(value * 10) / 10 : null; };
 element('journal-form').onsubmit = async event => {
   event.preventDefault(); const body = element('journal-body').value.trim(); if (!body) return;
   if (account) {
     const submit = event.target.querySelector('button'); submit.disabled = true; journalNote('Saving to your account…');
-    try { await api('/api/journal/entries', 'POST', { body }); if (element('journal-body').value.trim() === body) element('journal-body').value = ''; journalNote('Saved to your account and added to the vector index.'); await loadAccountJournal(); }
+    try {
+      const saved = await api('/api/journal/entries', 'POST', { body, ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }); if (element('journal-body').value.trim() === body) element('journal-body').value = '';
+      let note = 'Saved to your account and added to the vector index.';
+      if (pendingPhoto) {
+        try { await api(`/api/journal/entries/${saved.entry.id}/photo`, 'PUT', { image: pendingPhoto.image, width: pendingPhoto.width, height: pendingPhoto.height }); URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; note += ' Photo attached.'; }
+        catch (error) { note += ` The entry was saved but the photo was not: ${journalFailure(error, 'upload failed.')}`; }
+      }
+      element('journal-sleep').value = ''; selectedDay = null; calMonth = null; journalNote(note); await loadAccountJournal();
+    }
     catch (error) { journalNote(`${journalFailure(error, 'Could not save.')} Your text has not been cleared.`); }
     finally { submit.disabled = false; }
     return;
   }
-  const updated = [{ body, date: new Date().toISOString() }, ...journals];
-  try { localStorage.setItem('crewsafety-journal', JSON.stringify(updated)); journals = updated; element('journal-body').value = ''; journalNote('Saved on this browser only.'); renderJournals(); } catch { journalNote('Browser storage is unavailable or full. Your text has not been cleared.'); }
+  const updated = [{ body, date: new Date().toISOString(), ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }, ...journals];
+  try { localStorage.setItem('crewsafety-journal', JSON.stringify(updated)); journals = updated; element('journal-body').value = ''; element('journal-sleep').value = ''; journalNote('Saved on this browser only.'); renderJournals(); } catch { journalNote('Browser storage is unavailable or full. Your text has not been cleared.'); }
 };
 element('clear-journal').onclick = async () => {
   if (account) {
@@ -323,11 +462,12 @@ element('journal-search').onsubmit = async event => {
   } catch (error) { results.textContent = journalFailure(error, 'Search failed.'); }
 };
 const accountControl = initAccount(user => {
-  account = user; accountEntries = []; journalLoad++;
+  account = user; accountEntries = []; journalLoad++; selectedDay = null; calMonth = null;
   element('home-account').textContent = user ? `@${user.username}` : 'Guest';
   element('hero-account').textContent = user ? 'Open journal' : 'Sign in';
   element('journal-matches').replaceChildren(); element('journal-index').textContent = '';
   renderJournals(); if (user) loadAccountJournal();
+  if (typeof loadSuitHistory === 'function') loadSuitHistory();
 });
 element('hero-account').onclick = () => account ? showTab('journal') : accountControl.open();
 const coachPanel = document.createElement('div'); coachPanel.className = 'panel instructions'; coachPanel.id = 'coach-panel';
@@ -418,3 +558,74 @@ async function offlineSetup() {
   } catch { element('side-offline').textContent = 'Unavailable'; element('offline-status').textContent = 'Offline caching unavailable. Reload online and check browser storage permissions.'; }
 }
 offlineSetup();
+
+// Suit readiness check: a manual record. Guests keep the current check and history in this browser;
+// signed-in users save inspections to their account.
+const suitStore = 'crewsafety-suit', suitHistoryStore = 'crewsafety-suit-history';
+let suit = {}, suitHistory = [];
+try { const saved = JSON.parse(localStorage.getItem(suitStore) || '{}'); if (saved && typeof saved === 'object') suit = saved; } catch {}
+try { const saved = JSON.parse(localStorage.getItem(suitHistoryStore) || '[]'); if (Array.isArray(saved)) suitHistory = saved.slice(0, 5); } catch {}
+const suitStatus = id => (suit[id]?.status) || 'unchecked';
+const persistSuit = () => { try { localStorage.setItem(suitStore, JSON.stringify(suit)); } catch {} };
+function renderSuitState() {
+  const state = overallState(ITEMS.map(item => suitStatus(item.id)));
+  const label = element('suit-state'); label.textContent = STATE_LABEL[state]; label.dataset.state = state;
+}
+function renderSuit() {
+  element('suit-source').textContent = SOURCE_NOTE;
+  const host = element('suit-groups'); host.replaceChildren();
+  for (const group of GROUPS) {
+    const section = document.createElement('section'); section.className = 'suit-group';
+    const heading = document.createElement('h3'); heading.textContent = group.name; section.append(heading);
+    for (const item of group.items) {
+      const row = document.createElement('div'); row.className = 'suit-item';
+      const name = document.createElement('strong'); name.textContent = item.name;
+      const hint = document.createElement('p'); hint.textContent = item.inspect;
+      const seg = document.createElement('div'); seg.className = 'seg'; seg.setAttribute('role', 'radiogroup'); seg.setAttribute('aria-label', item.name);
+      for (const [value, text] of [['pass', 'Pass'], ['fail', 'Fail'], ['unchecked', 'Not checked']]) {
+        const label = document.createElement('label'), input = document.createElement('input');
+        input.type = 'radio'; input.name = 'suit-' + item.id; input.value = value; input.checked = suitStatus(item.id) === value;
+        input.onchange = () => { suit[item.id] = { ...suit[item.id], status: value }; persistSuit(); renderSuitState(); };
+        label.append(input, text); seg.append(label);
+      }
+      const note = document.createElement('input'); note.type = 'text'; note.maxLength = 300; note.placeholder = 'Note, optional'; note.setAttribute('aria-label', 'Note for ' + item.name); note.value = suit[item.id]?.note || '';
+      note.oninput = () => { suit[item.id] = { ...suit[item.id], status: suitStatus(item.id), note: note.value }; persistSuit(); };
+      row.append(name, hint, seg, note); section.append(row);
+    }
+    host.append(section);
+  }
+  renderSuitState();
+}
+function renderSuitHistory(checks) {
+  const host = element('suit-history'); host.replaceChildren();
+  if (!checks.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No saved inspections yet'; host.append(empty); return; }
+  for (const check of checks) {
+    const row = document.createElement('article'); row.className = 'entry';
+    const time = document.createElement('time'); time.textContent = new Date(check.date).toLocaleString();
+    const title = document.createElement('strong'); title.textContent = STATE_LABEL[check.overall] || check.overall;
+    const failed = check.items.filter(item => item.status === 'fail').map(item => ITEMS.find(known => known.id === item.id)?.name || item.id);
+    const detail = document.createElement('p'); detail.textContent = failed.length ? `Failed: ${failed.join(', ')}` : `${check.items.filter(item => item.status === 'pass').length} of ${check.items.length} passed`;
+    row.append(title, time, detail); host.append(row);
+  }
+}
+async function loadSuitHistory() {
+  if (!account) return renderSuitHistory(suitHistory);
+  try { renderSuitHistory((await api('/api/suit/checks')).checks); } catch { renderSuitHistory([]); }
+}
+element('suit-save').onclick = async () => {
+  const items = ITEMS.map(item => ({ id: item.id, status: suitStatus(item.id), note: (suit[item.id]?.note || '').trim() }));
+  const overall = overallState(items.map(item => item.status)), message = element('suit-message');
+  const now = new Date().toISOString();
+  try {
+    if (account) await api('/api/suit/checks', 'POST', { items });
+    else { suitHistory = [{ id: crypto.randomUUID(), date: now, overall, items }, ...suitHistory].slice(0, 5); try { localStorage.setItem(suitHistoryStore, JSON.stringify(suitHistory)); } catch {} }
+  } catch (error) { message.textContent = error.status === 401 ? 'Your session ended. Sign in again to save to your account.' : 'Could not save the inspection.'; return; }
+  // A failed item shows beside camera events, labelled as manually entered.
+  for (const item of items.filter(entry => entry.status === 'fail')) {
+    const known = ITEMS.find(candidate => candidate.id === item.id);
+    events.unshift({ id: crypto.randomUUID(), date: now, source: 'Manual entry', type: 'Suit check failed', details: `${known.name}${item.note ? `: ${item.note}` : ''}`, snapshot: { source: 'none', capturedAt: null, measurement: null, detection: null }, acknowledged: false, manual: true });
+  }
+  renderEvents(); message.textContent = `Saved: ${STATE_LABEL[overall]}.`; loadSuitHistory();
+};
+element('suit-reset').onclick = () => { suit = {}; persistSuit(); renderSuit(); element('suit-message').textContent = 'Started a new check.'; };
+renderSuit(); loadSuitHistory();

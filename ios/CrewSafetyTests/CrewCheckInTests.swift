@@ -5,6 +5,18 @@ final class CrewCheckInTests: XCTestCase {
     private let start = Date(timeIntervalSinceReferenceDate: 1_000)
 
     @MainActor
+    func testCheckInPromptHasABundledClip() {
+        let url = CheckInVoice.clipURL(for: "No movement detected. Are you OK? Say I'm okay, or say help.")
+        XCTAssertEqual(url?.pathExtension, "mp3")
+    }
+
+    @MainActor
+    func testUnknownPhraseAndEmptyBundleFallBackToSystemVoice() {
+        XCTAssertNil(CheckInVoice.clipURL(for: "A phrase nobody recorded"))
+        XCTAssertNil(CheckInVoice.clipURL(for: "No movement detected. Are you OK? Say I'm okay, or say help.", in: Bundle(for: XCTestCase.self)))
+    }
+
+    @MainActor
     func testVoiceCleanupWithoutListeningIsSafeAndRepeatable() {
         // Reproduces answering a check-in with voice unavailable. Stopping must not
         // initialize audio input, which can abort the app on a simulator without audio I/O.

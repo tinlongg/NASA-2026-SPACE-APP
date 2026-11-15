@@ -59,29 +59,20 @@ final class CrewStore {
     }
 }
 
-enum MuseMode: String, Codable, Sendable { case live, demo }
-
 @MainActor @Observable
 final class AppSettings {
     var dashboardSyncEnabled = false
     var dashboardBaseURL = "https://crew-safety-connected.lustrousbush32.chatgpt.site"
     var dashboardPairingCode = ""
     var dashboardSyncKey: String { "\(dashboardSyncEnabled)|\(dashboardBaseURL)|\(dashboardPairingCode)" }
-    /// `.demo` uses bundled precomputed answers and must show a visible "Demo mode" badge.
-    var museMode: MuseMode
-    var museBaseURL: URL?
-    init(museMode: MuseMode = .demo, museBaseURL: URL? = nil) {
-        self.museMode = museMode; self.museBaseURL = museBaseURL
-    }
 }
 
 @MainActor @Observable
 final class AppServices {
-    var muse: any MuseService
     var journalAnalyzer: any JournalAnalyzing
     var telemetry: any TelemetryProviding
-    init(muse: any MuseService, journalAnalyzer: any JournalAnalyzing, telemetry: any TelemetryProviding) {
-        self.muse = muse; self.journalAnalyzer = journalAnalyzer; self.telemetry = telemetry
+    init(journalAnalyzer: any JournalAnalyzing, telemetry: any TelemetryProviding) {
+        self.journalAnalyzer = journalAnalyzer; self.telemetry = telemetry
     }
 }
 
