@@ -47,14 +47,31 @@ struct CrewSafetyApp: App {
                 .environment(settings)
                 .environment(services)
                 .environment(dashboardSync)
-                .task(id: "\(settings.dashboardSyncKey)|\(scenePhase == .active)") {
-                    if scenePhase == .active {
+                .task(id: "\(settings.dashboardSyncKey)|\(scenePhase == .background)") {
+                    if scenePhase != .background {
                         await dashboardSync.run(settings: settings, crew: crewStore, events: eventStore, services: services)
                     } else {
-                        dashboardSync.status = "Paused while app is in the background"
+                        await syncBriefly()
                     }
+                }
+                .onChange(of: settings.dashboardSyncEnabled && settings.keepScreenOnWhilePaired, initial: true) { _, keepAwake in
+                    UIApplication.shared.isIdleTimerDisabled = keepAwake
                 }
         }
     }
 
+    /// iOS gives a backgrounded app about 30 seconds. Keep syncing for most of that, so an alert raised
+    /// just after the phone is locked still arrives, then pause until the app is opened again.
+    @MainActor
+    private func syncBriefly() async {
+        let taskID = UIApplication.shared.beginBackgroundTask(withName: "Website alerts")
+        defer { if taskID != .invalid { UIApplication.shared.endBackgroundTask(taskID) } }
+        await withTaskGroup(of: Void.self) { group in
+            group.addTask { await dashboardSync.run(settings: settings, crew: crewStore, events: eventStore, services: services) }
+            group.addTask { try? await Task.sleep(for: .seconds(25)) }
+            await group.next()
+            group.cancelAll()
+        }
+        if settings.dashboardSyncEnabled { dashboardSync.status = "Paused in the background. Open the app to get alerts." }
+    }
 }

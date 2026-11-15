@@ -51,3 +51,17 @@ test('Apple Watch readings, check-in requests and answers travel through the ses
  assert.equal((await call('wearable','PUT',code,reading({deviceID:crypto.randomUUID()}))).status,409);
  assert.equal((await call('checkin','POST',code,{id:'x',seconds:999})).status,422);
 });
+test('website alerts reach the paired iPhone and survive a full upload',async()=>{
+ const {call}=setup(); const {pairingCode:code}=await (await call('sessions','POST')).json(); const input=fixture();
+ const alert=(id,kind='alert')=>({id,person:'Alex',kind,reason:'No movement for 15 s'});
+ assert.equal((await call('alert','POST',code,alert('a-1'))).status,409); // nobody paired yet
+ await call('state','PUT',code,input);
+ assert.equal((await call('alert','POST',code,alert('a-1'))).status,200);
+ assert.equal((await call('alert','POST',code,{...alert('a-2'),kind:'panic'})).status,422);
+ assert.equal((await call('alert','POST',code,{...alert('a-2'),extra:1})).status,422);
+ const synced=await (await call('state','PUT',code,input)).json();
+ assert.equal(synced.snapshot.websiteAlerts.length,1); assert.equal(synced.snapshot.websiteAlerts[0].person,'Alex'); assert.ok(synced.snapshot.websiteAlerts[0].at>0);
+ for(let i=0;i<25;i++) await call('alert','POST',code,alert('b-'+i,i%2?'resolved':'checkin'));
+ const got=await (await call('wearable','GET',code)).json();
+ assert.equal(got.websiteAlerts.length,20); assert.equal(got.websiteAlerts.at(-1).id,'b-24');
+});

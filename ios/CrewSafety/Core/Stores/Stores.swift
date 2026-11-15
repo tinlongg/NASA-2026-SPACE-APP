@@ -64,6 +64,8 @@ final class AppSettings {
     var dashboardSyncEnabled = false
     var dashboardBaseURL = "https://crew-safety-connected.lustrousbush32.chatgpt.site"
     var dashboardPairingCode = ""
+    /// Keeps the iPhone awake while paired, so website alerts keep arriving as notifications.
+    var keepScreenOnWhilePaired = false
     var dashboardSyncKey: String { "\(dashboardSyncEnabled)|\(dashboardBaseURL)|\(dashboardPairingCode)" }
 }
 

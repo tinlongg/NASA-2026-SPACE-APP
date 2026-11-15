@@ -8,7 +8,7 @@ import { onDeviceSupport, installLanguagePack, listenForAnswer, ANSWER_LABEL } f
 import { BlinkDetector, PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthMotion, lipAperture, faceBox, cropRect, describePerson } from './people.js';
 import { startVoiceActivity } from './voice-activity.js';
 import { initializeResearch } from './research.js';
-import { initializeCrewSync, onWearable, requestWatchCheckIn, cancelWatchCheckIn } from './crew-sync.js';
+import { initializeCrewSync, onWearable, requestWatchCheckIn, cancelWatchCheckIn, sendPhoneAlert } from './crew-sync.js';
 import { initAccount, api } from './account.js';
 import { downscaleJpeg, webcamStill, groupByDay, dayKey } from './journal-photo.js';
 import { GROUPS, ITEMS, SOURCE_NOTE, overallState, STATE_LABEL } from './suit-layers.js';
@@ -304,6 +304,7 @@ function raiseEvent(person, detection, snapshot, why = '') {
   let details = `${who}${why || `No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`}`;
   details += watchNote(person);
   events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', personId: mode === 'replay' ? null : person.id, type: 'Possible unresponsive', details, snapshot: structuredClone(snapshot), eyes: person.face?.eyes?.state ?? null, mouth: person.face?.mouth?.state ?? null, acknowledged: false, lookNote: null });
+  if (mode === 'live') phoneAlert(person, 'alert', why || `No movement for ${Math.round(detection.stillFor)} s.`);
   if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
   if (element('voice-answer-enabled').checked && mode === 'live' && !why) listenAfterAlert(events[0]); else speakAlert();
   element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${events[0].source}. ${details}`;
@@ -316,6 +317,7 @@ const checkIns = new CheckIns({ seconds: CHECKIN_SECONDS }), checkInTimers = new
 function startCheckIn(person, detection, snapshot) {
   if (!checkIns.start(person.id, { person, detection, snapshot }, Date.now())) return;
   watchCheckIn(person);
+  phoneAlert(person, 'checkin', `No movement for ${Math.round(detection.stillFor)} s. Asking "Are you OK?"`);
   checkInTimers.set(person.id, setInterval(() => { renderCheckIns(); for (const ended of checkIns.tick(Date.now(), id => Boolean(people.get(id)?.detector.alerted))) finishCheckIn(ended); }, 500));
   playClip('/voice/web-checkin.mp3', { respectToggle: false }).then(async () => {
     if (!checkIns.has(person.id) || !element('voice-answer-enabled').checked) return;
@@ -336,6 +338,7 @@ function finishCheckIn({ id, outcome, info }) {
     if (outcome === 'ok') person.detector.noteActivity(performance.now() / 1000 + GRACE_SECONDS); // the detector clock is performance.now() in seconds
     events.unshift({ id: crypto.randomUUID(), date: new Date(now).toISOString(), source: 'Live webcam', personId: id, type: 'Check-in answered', details: outcome === 'ok' ? `Person ${id} said they are okay.` : `Person ${id} moved or spoke during the check-in.`, snapshot: structuredClone(snapshot), acknowledged: true, manual: true, lookNote: null });
     renderEvents();
+    phoneAlert(person, 'resolved', outcome === 'ok' ? 'Said they are okay.' : 'Moved or spoke again.');
   }
   renderCheckIns();
 }
@@ -1129,6 +1132,7 @@ function watchText() {
 function renderWatch() {
   const [text, streaming] = watchText(), status = element('watch-status');
   status.textContent = text; status.classList.toggle('streaming', streaming);
+  element('phone-state').textContent = watch.paired ? 'On · iPhone app must be open' : 'Not paired';
   element('watch-state').textContent = !watch.paired ? 'Not paired' : !streaming ? 'Not monitoring' : text.replace(/^Streaming · /, '');
 }
 function watchReading(person) {
@@ -1160,6 +1164,14 @@ function watchCheckIn(person) {
   if (!watchStreaming() || !element('watch-activity-enabled').checked || watchWearer()?.id !== person.id) return;
   const id = `p${person.id}-${Date.now()}`; watchCheckIns.set(id, person.id); person.watchCheckInId = id;
   requestWatchCheckIn(id, checkIns.secondsLeft(person.id, Date.now()));
+}
+// The paired iPhone shows these as notifications. A check-in, its alert and its resolution share one group,
+// so the alert replaces the check-in notification and a resolution clears it.
+function phoneAlert(person, kind, reason) {
+  if (kind !== 'resolved' && (kind === 'checkin' || !person.phoneAlertGroup)) person.phoneAlertGroup = `p${person.id}-${Date.now()}`;
+  if (!person.phoneAlertGroup) return;
+  sendPhoneAlert({ id: `${person.phoneAlertGroup}-${kind}`, person: `Person ${person.id}`, kind, reason });
+  if (kind !== 'checkin') person.phoneAlertGroup = null;
 }
 function endWatchCheckIn(person) {
   if (!person?.watchCheckInId) return;
