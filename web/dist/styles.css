@@ -271,14 +271,10 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .cal-day.has-photo { box-shadow: inset 0 0 0 1px var(--accent); }
 .cal-day.selected { background: var(--accent); color: #0b0b0c; font-weight: 600; }
 .cal-day.selected::after { background: #0b0b0c; }
-.diag-panel dl, .rest-panel .rest-controls { padding: 0 20px; }
+.diag-panel dl { padding: 0 20px; }
 .diag-controls { padding: 0 20px 12px; }
 .diag-controls select { width: 100%; }
 .framing-hint { margin: 0 20px 16px; padding: 8px 12px; border-radius: var(--r-control); background: var(--raised); border-left: 2px solid var(--warn); color: var(--text); font-size: 13px; }
-.rest-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding-bottom: 8px; }
-.rest-controls select { flex: 1; min-width: 120px; }
-.rest-panel .micro:last-child { padding: 0 20px 16px; }
-.rest-status-on { color: var(--warn); }
 .closeup-body { display: grid; grid-template-columns: minmax(0, 1fr) 140px; gap: 16px; padding: 16px; align-items: start; }
 .closeup-frame { position: relative; aspect-ratio: 4/3; background: var(--field); border-radius: var(--r-control); overflow: hidden; }
 .closeup-frame canvas { width: 100%; height: 100%; display: block; }

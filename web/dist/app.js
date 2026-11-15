@@ -2,7 +2,7 @@ import { journalToneElement, museJournalElement, sentimentMetadata } from './jou
 import { InactivityDetector, measurePose, STILL_SECONDS } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
 import { VISION_MODULE, VISION_WASM, POSE_MODELS, FACE_MODEL } from './offline-config.js';
-import { visibilityGroups, FramingMonitor, RestPause, REST_OPTIONS, MODEL_CHOICES } from './camera-health.js';
+import { visibilityGroups, FramingMonitor, MODEL_CHOICES } from './camera-health.js';
 import { PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthActivity, faceBox, cropRect, describePerson } from './people.js';
 import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
@@ -29,7 +29,6 @@ const tracker = new PersonTracker(), people = new Map(), replayPerson = { id: 1,
 let selectedId = null, focusId = null, faceLandmarker = null, maxPeople = 4, landmarkerPeople = 0, lastFace = 0;
 const newPerson = id => ({ id, detector: new InactivityDetector(), mouth: new MouthActivity(), face: null, result: null, pose: null, seen: 0 });
 function resetPeople() { tracker.reset(); people.clear(); detector.reset(); replayPerson.mouth.reset(); replayPerson.face = null; replayPerson.result = null; focusId = null; selectedId = null; renderViews(true); }
-const resetDetectors = () => { detector.reset(); for (const person of people.values()) person.detector.reset(); };
 let stream, landmarker, animation, generation = 0, mode = 'idle', lastVideoTime = -1, lastInference = 0;
 const events = [];
 let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, detection: null };
@@ -69,7 +68,7 @@ function stopSession(message = 'Session stopped. Camera released.') {
 }
 
 let poseModel = 'lite', landmarkerModel = null, landmarkerDelegate = '—';
-const framing = new FramingMonitor(), rest = new RestPause();
+const framing = new FramingMonitor();
 const percent = value => value == null ? '—' : `${Math.round(value * 100)}%`;
 function updateDiagnostics(time, groups) {
   element('diag-video').textContent = `${video.videoWidth}×${video.videoHeight}`;
@@ -80,21 +79,10 @@ function resetDiagnostics() {
   framing.reset(); element('framing-hint').hidden = true; element('diag-video').textContent = '—';
   for (const name of ['shoulders', 'hips', 'arms']) element('diag-' + name).textContent = '—';
 }
-// Model choice and rest period controls.
+// Model choice control.
 for (const [value, choice] of Object.entries(MODEL_CHOICES)) element('model-select').add(new Option(`${choice.label} · ${choice.size}`, value));
 element('model-select').onchange = () => { poseModel = element('model-select').value; element('model-note').textContent = poseModel === 'heavy' ? 'Heavy is 31 MB and needs a connection the first time. Start the camera again to use it.' : 'Start the camera again to use this model.'; if (mode === 'live') stopSession(`Model changed to ${MODEL_CHOICES[poseModel].label}. Start the camera again.`); };
 element('people-max').onchange = () => { maxPeople = Number(element('people-max').value); if (mode === 'live') stopSession(`Now tracking up to ${maxPeople} ${maxPeople === 1 ? 'person' : 'people'}. Start the camera again.`); };
-for (const option of REST_OPTIONS) element('rest-length').add(new Option(option.label, option.minutes));
-function renderRest() {
-  const paused = rest.isPaused(Date.now());
-  element('rest-start').hidden = paused; element('rest-length').hidden = paused; element('rest-end').hidden = !paused;
-  const status = element('rest-status'); status.classList.toggle('rest-status-on', paused);
-  status.textContent = paused ? `Paused until ${new Date(rest.until).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Monitoring is on';
-  if (paused) { element('detector-state').textContent = 'Paused (rest period)'; }
-}
-element('rest-start').onclick = () => { rest.start(Date.now(), Number(element('rest-length').value)); resetDetectors(); renderRest(); };
-element('rest-end').onclick = () => { rest.clear(); resetDetectors(); renderRest(); };
-setInterval(renderRest, 1000);
 
 async function startCamera() {
   stopSession('Requesting camera access…');
@@ -207,9 +195,9 @@ function renderViews(force = false) {
     const result = person.result, card = document.createElement('article'); card.className = 'thought' + (person.id === focusId ? ' focus' : '') + (result?.alerted ? ' alert' : '');
     const head = document.createElement('div'); head.className = 'thought-head';
     const name = document.createElement('strong'); name.textContent = mode === 'replay' ? 'Synthetic person' : `Person ${person.id}`;
-    const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = result?.paused ? 'Paused' : result?.alerted ? 'Alert' : !result?.measurement ? 'Not tracked' : result.stillFor >= STILL_SECONDS / 3 ? 'Still' : 'Moving';
+    const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = result?.alerted ? 'Alert' : !result?.measurement ? 'Not tracked' : result.stillFor >= STILL_SECONDS / 3 ? 'Still' : 'Moving';
     head.append(name, chip); card.append(head);
-    const lines = describePerson({ tracked: Boolean(result?.measurement), upper: result?.upper, motion: result?.motion, threshold: result?.threshold, stillFor: result?.stillFor ?? 0, stillSeconds: STILL_SECONDS, alerted: result?.alerted, paused: result?.paused, eyes: person.face?.eyes, mouth: person.face?.mouth, replay: mode === 'replay' });
+    const lines = describePerson({ tracked: Boolean(result?.measurement), upper: result?.upper, motion: result?.motion, threshold: result?.threshold, stillFor: result?.stillFor ?? 0, stillSeconds: STILL_SECONDS, alerted: result?.alerted, eyes: person.face?.eyes, mouth: person.face?.mouth, replay: mode === 'replay' });
     for (const line of lines) { const item = document.createElement('p'); item.textContent = line; card.append(item); }
     const look = events.find(event => event.personId === person.id && event.lookNote?.status === 'done');
     if (look) { const note = document.createElement('p'); note.className = 'look'; note.textContent = `MUSE second look (a description, not a decision): ${look.lookNote.text}`; card.append(note); }
@@ -257,12 +245,11 @@ function drawPose(pose, colour = '#5ccf8e') {
 
 // One person's detector step. Raises an event when the detector fires; the display is separate.
 function evaluatePerson(person, time, measurement) {
-  if (rest.isPaused(Date.now())) { person.detector.reset(); person.result = { paused: true, measurement: null, stillFor: 0, alerted: false }; return; }
   const d = person.detector, detection = d.process(time, measurement), stillFor = d.stillFor(time);
   // Coach and events get two numbers, never joint positions.
   const summary = measurement ? { motion: Number(Math.min(d.motion ?? 0, 9.99).toFixed(3)), stillFor: Number(stillFor.toFixed(1)) } : null;
   const snapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: summary, detection: detection && { stillFor: Number(detection.stillFor.toFixed(1)), threshold: detection.threshold } };
-  person.result = { measurement, summary, stillFor, alerted: d.alerted, detection, snapshot, upper: Boolean(measurement?.upper), threshold: d.threshold, motion: d.motion, paused: false };
+  person.result = { measurement, summary, stillFor, alerted: d.alerted, detection, snapshot, upper: Boolean(measurement?.upper), threshold: d.threshold, motion: d.motion};
   if (!detection) return;
   const who = mode === 'replay' ? '' : `Person ${person.id}: `;
   const details = `${who}No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`;
@@ -276,7 +263,7 @@ function evaluatePerson(person, time, measurement) {
 // The person the session panel, close-up and coach follow: someone with an alert, else the person who
 // has been still longest (past a third of the alert time), else the one the user clicked.
 function chooseFocus() {
-  const list = [...people.values()].filter(person => person.result && !person.result.paused);
+  const list = [...people.values()].filter(person => person.result);
   const alerted = list.filter(person => person.result.alerted).sort((a, b) => b.result.stillFor - a.result.stillFor)[0];
   if (alerted) return alerted.id;
   const stillest = list.filter(person => person.pose).sort((a, b) => b.result.stillFor - a.result.stillFor)[0];
@@ -287,7 +274,6 @@ function chooseFocus() {
 
 function renderFocus(person, time) {
   const result = person?.result;
-  if (result?.paused) { latestSnapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: null, detection: null }; element('pose-status').textContent = 'Paused'; element('motion').textContent = '—'; element('still').textContent = '—'; renderViews(); return; }
   const measurement = result?.measurement ?? null, summary = result?.summary ?? null, stillFor = result?.stillFor ?? 0;
   latestSnapshot = result?.snapshot ?? { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: null, detection: null };
   updateCoachContext();

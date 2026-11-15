@@ -1,9 +1,8 @@
-// Camera diagnostics, framing guidance and the rest-period pause. Pure logic, no DOM, so it is testable.
+// Camera diagnostics and framing guidance. Pure logic, no DOM, so it is testable.
 
 // MediaPipe pose landmark indices.
 export const GROUPS = { shoulders: [11, 12], hips: [23, 24], arms: [13, 14, 15, 16], legs: [25, 26, 27, 28] };
 export const FRAMING_SECONDS = 2;
-export const REST_OPTIONS = [{ minutes: 15, label: '15 minutes' }, { minutes: 30, label: '30 minutes' }, { minutes: 60, label: '1 hour' }, { minutes: 120, label: '2 hours' }, { minutes: 240, label: '4 hours' }];
 
 /** Lowest visibility (0 to 1) in each body group, or null when there is no pose at all. */
 export function visibilityGroups(landmarks) {
@@ -30,15 +29,6 @@ export class FramingMonitor {
     if (time - this.since <= this.seconds) return null;
     return 'Move so your shoulders are visible';
   }
-}
-
-/** Manual rest period. While paused the monitor raises no events and shows when it ends. */
-export class RestPause {
-  constructor() { this.until = null; }
-  start(now, minutes) { this.until = now + minutes * 60000; }
-  clear() { this.until = null; }
-  isPaused(now) { if (this.until !== null && now >= this.until) this.until = null; return this.until !== null; }
-  remainingSeconds(now) { return this.isPaused(now) ? Math.ceil((this.until - now) / 1000) : 0; }
 }
 
 export const MODEL_CHOICES = {
