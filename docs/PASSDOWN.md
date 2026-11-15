@@ -284,3 +284,10 @@ Built without the live test (that still needs a person in front of the camera; s
 - Built: the Stations tab, `/camera` phone page, pairing by one-time code, status reports, a simulated deck plan, and live video signalling (WebRTC). Migration `0005_stations.sql` must be applied to hosted D1. Web tests 96/96 (server routes, pairing, isolation, signalling).
 - **Not verified:** a real phone running `/camera` (pose and face models on a phone, check-in, audio), and WebRTC video end to end (only the signalling is tested; the browser pane could not run a second device). No TURN server, so video may fail on some networks. A phone needs HTTPS for camera access (localhost is fine only on the same machine): use the hosted site or a tunnel for real phones.
 - Still to build on this branch: the notification circle and real push, and phone calls.
+
+### Crew circle and push (2026-11-15, branch `claude/stations-circle-push`)
+
+- Built: circles with one-time invites (`web/circle.mjs`, Circle tab), alert feed for open pages, Web Push sender (`web/webpush.mjs`: VAPID ES256 + aes128gcm, verified by decrypting in tests), push subscription routes, a service-worker push handler, `scripts/generate-vapid.mjs`, and hooks so live monitor alerts and station alerts notify the circle. Migration `0006_circle.sql` (and `0005_stations.sql`) must be applied to hosted D1. Web suite 104/104.
+- **Not verified:** a real push delivery (needs VAPID secrets on a hosted HTTPS site and a real subscribed browser or iPhone Home Screen app), and the Circle tab with two real accounts on two devices.
+- **Phone calls are not built.** They need a voice provider account (e.g. Twilio), a number, secrets, contacts' phone numbers (personal data sent to the provider) and a per-call cost. Waiting on the user's decision and credentials.
+- The ElevenLabs conversational agent is also not wired in: agent ID `agent_7501m7f8gfk6e7taqqf0c27mwyxt` (CrewSafety Check-in). It would need an opt-in, the user's wording on audio sent to ElevenLabs, and a live connection.

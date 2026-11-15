@@ -6,6 +6,7 @@ import { VISION_MODULE, VISION_WASM, POSE_MODELS, FACE_MODEL } from './offline-c
 import { visibilityGroups, FramingMonitor, MODEL_CHOICES } from './camera-health.js';
 import { CheckIns, CHECKIN_SECONDS, GRACE_SECONDS, RAISES_ALERT } from './checkin.js';
 import { initStations } from './stations-ui.js';
+import { initCircle } from './circle-ui.js';
 import { onDeviceSupport, installLanguagePack, listenForAnswer, ANSWER_LABEL } from './voice-answer.js';
 import { BlinkDetector, PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthActivity, faceBox, cropRect, describePerson } from './people.js';
 import { initializeResearch } from './research.js';
@@ -41,7 +42,7 @@ let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, dete
 let coachPending = false;
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
-const titles = { mission: ['Mission', 'Care for yourself and your astronaut companion'], home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], stations: ['Stations', 'Phones linked as cameras around a simulated station'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded or uploaded'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
+const titles = { mission: ['Mission', 'Care for yourself and your astronaut companion'], home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], circle: ['Circle', 'People who are told when an alert is raised'], stations: ['Stations', 'Phones linked as cameras around a simulated station'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded or uploaded'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
 function showTab(tab) {
   if (!titles[tab]) return;
   if (tab !== 'monitor') stopSession();
@@ -289,6 +290,7 @@ function raiseEvent(person, detection, snapshot, why = '') {
   if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
   if (element('voice-answer-enabled').checked && mode === 'live' && !why) listenAfterAlert(events[0]); else speakAlert();
   element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${events[0].source}. ${details}`;
+  if (mode === 'live' && account) { lastCirclePost = Date.now(); api('/api/circle/alert', 'POST', { title: 'Alert: live camera', body: `${person.id ? `Person ${person.id}: ` : ''}${why ? (why.includes('help') ? 'asked for help' : 'did not answer the check-in') : 'no movement for a while'}. Go to them now.` }).catch(() => {}); }
   renderEvents();
 }
 
@@ -726,12 +728,19 @@ element('journal-search').onsubmit = async event => {
     }
   } catch (error) { results.textContent = journalFailure(error, 'Search failed.'); }
 };
+let lastCirclePost = 0;
+const circleUi = initCircle({ api, onAlert: alert => {
+  if (Date.now() - lastCirclePost < 8000) return; // this page raised it, and already shows it
+  element('event-banner').hidden = false; element('event-banner').textContent = `${alert.title}. ${alert.body}`; speakAlert();
+  try { if ('Notification' in window && Notification.permission === 'granted' && document.hidden) new Notification(alert.title, { body: alert.body }); } catch {}
+} });
 const stationsUi = initStations({ api, onAlert: (station, alert) => {
   element('event-banner').hidden = false; element('event-banner').textContent = `Alert from ${station.name} (${station.room}): Person ${alert.personId} ${alert.kind === 'help' ? 'asked for help' : 'did not answer the check-in'}. Go to them now.`; speakAlert();
 } });
 const accountControl = initAccount(user => {
   window.dispatchEvent(new CustomEvent('crew-account-change', {detail:user}));
   stationsUi.userChanged(user);
+  circleUi.userChanged(user);
   account = user; accountEntries = []; journalLoad++; selectedDay = null; calMonth = null;
   element('home-account').textContent = user ? `@${user.username}` : 'Guest';
   element('hero-account').textContent = user ? 'Open journal' : 'Sign in';

@@ -38,3 +38,17 @@ self.addEventListener('message', event => {
     } catch { port.postMessage({ error: 'Offline preparation failed. Keep this page online and retry; storage may be full.' }); }
   })());
 });
+// Web Push: a message from the server becomes a notification, even with the site closed. The text
+// is only a station name, a person number and what happened.
+self.addEventListener('push', event => {
+  let data = {}; try { data = event.data ? event.data.json() : {}; } catch {}
+  event.waitUntil(self.registration.showNotification(data.title || 'CrewSafety alert', { body: data.body || 'Open CrewSafety to see what happened.', tag: data.tag || 'crewsafety-alert', requireInteraction: true, data: { url: data.url || '/' } }));
+});
+self.addEventListener('notificationclick', event => {
+  event.notification.close();
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of windows) if ('focus' in client) return client.focus();
+    return self.clients.openWindow(event.notification.data?.url || '/');
+  })());
+});
