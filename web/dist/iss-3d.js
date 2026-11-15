@@ -120,22 +120,26 @@ function shade(hex, brightness) {
 
 /** Binds the model to a canvas: drag to turn, click to pick, redraw only when the view or camera status changes. */
 export function createIssView(canvas, { onSelect, getStatuses }) {
-  const context = canvas.getContext('2d'), scene = buildScene(), view = { yaw: -0.55, pitch: 0.65, width: 600, height: 380 };
+  const context = canvas.getContext('2d'), scene = buildScene(), view = { yaw: -0.55, pitch: 0.65, width: 600, height: 380, zoom:1, panX:0, panY:0 };
   let selected = null, hovered = null, dragging = null, frame = 0, dirty = true, statusKey = '';
 
 
-  function resize() { const ratio = Math.min(window.devicePixelRatio || 1,1.5), width = canvas.clientWidth || 600, height = Math.round(width * 0.62); if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) { canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); } view.width = canvas.width; view.height = canvas.height; return ratio; }
+  const modulePolygons=Object.fromEntries(Object.keys(MODULES).map(id=>[id,scene.modules.filter(p=>p.module===id)])),fills=new Map();
+  function resize() { const ratio = (dragging?1:Math.min(window.devicePixelRatio || 1,1.5)), width = canvas.clientWidth || 600, height = Math.round(width * 0.62); if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) { canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); } view.width = canvas.width; view.height = canvas.height; return ratio; }
   function draw() {
     const ratio = resize(), statuses = getStatuses?.() ?? {};
     context.clearRect(0, 0, canvas.width, canvas.height);
-    const polygons = [];
-    const enqueue = (list, base, brightness, extra = {}) => { for (const polygon of list) { const points = polygon.points.map(point => project(rotate(point, view.yaw, view.pitch), view.width, view.height)); const normal = rotateDirection(polygon.normal, view.yaw, view.pitch), facing = normal[2] < 0.02 || polygon.double; if (!facing) continue; polygons.push({ points, depth: points.reduce((sum, point) => sum + point[2], 0) / points.length, fill: shade(polygon.color||base, brightness(polygon.normal)), ...extra, module: polygon.module, line:polygon.line, radius:polygon.r }); } };
+    const polygons = [],cy=Math.cos(view.yaw),sy=Math.sin(view.yaw),cp=Math.cos(view.pitch),sp=Math.sin(view.pitch);
+    const transform=(point,direction=false)=>{const x=point[0]-(direction?0:CENTRE[0]),y=point[1]-(direction?0:CENTRE[1]),z=point[2]-(direction?0:CENTRE[2]),rx=x*cy+z*sy,rz=-x*sy+z*cy;return [rx,y*cp-rz*sp,y*sp+rz*cp];};
+    const screen=point=>{const [x,y,z]=transform(point),depth=DISTANCE+z,scale=Math.min(view.width,view.height)*2.05/depth*view.zoom;return[view.width/2+x*scale+view.panX*ratio,view.height/2-y*scale+view.panY*ratio,depth,scale];};
+    const cachedFill=(polygon,base,brightness)=>{const key=(polygon.color||base)+polygon.normal.join(',');if(!fills.has(key))fills.set(key,shade(polygon.color||base,brightness(polygon.normal)));return fills.get(key);};
+    const enqueue = (list, base, brightness, extra = {}) => { for (const polygon of list) { const normal=transform(polygon.normal,true);if(normal[2]>=.02&&!polygon.double)continue;const points=polygon.points.map(screen); polygons.push({ points, depth: points.reduce((sum, point) => sum + point[2], 0) / points.length, fill: cachedFill(polygon,base,brightness), ...extra, module: polygon.module, line:polygon.line, radius:polygon.r }); } };
     enqueue(scene.arrays, '#3b66b0', normal => 0.8 + 0.3 * Math.abs(dot(norm(normal), LIGHT)), { stroke: 'rgba(160,190,235,.5)' });
-    enqueue(scene.details, '#cbd0d5', normal => 0.7 + 0.3 * Math.abs(dot(normal,LIGHT)), {stroke:'rgba(10,20,32,.16)'});
+    if(!dragging)enqueue(scene.details, '#cbd0d5', normal => 0.7 + 0.3 * Math.abs(dot(normal,LIGHT)), {stroke:'rgba(10,20,32,.16)'});
     enqueue(scene.structure, '#b4b9c1', normal => 0.6 + 0.5 * Math.max(0, dot(norm(normal), LIGHT)), { stroke: 'rgba(175,190,210,.25)', width:.45 });
     for (const [id] of Object.entries(MODULES)) {
       const status = statuses[id] ?? (MODULES[id].private ? 'offline' : 'none'), base = STATUS_COLOUR[status] ?? STATUS_COLOUR.none;
-      enqueue(scene.modules.filter(polygon => polygon.module === id), base, normal => 0.62 + 0.55 * Math.max(0, dot(norm(normal), LIGHT)), { stroke: id === selected ? '#ececef' : id === hovered ? 'rgba(236,237,239,.7)' : 'rgba(0,0,0,.35)', width: id === selected ? 2.5 : 1 });
+      enqueue(modulePolygons[id], base, normal => 0.62 + 0.55 * Math.max(0, dot(norm(normal), LIGHT)), { stroke: id === selected ? '#ececef' : id === hovered ? 'rgba(236,237,239,.7)' : 'rgba(0,0,0,.35)', width: id === selected ? 2.5 : 1 });
     }
     polygons.sort((p, q) => q.depth - p.depth);
     for (const polygon of polygons) {
@@ -145,7 +149,7 @@ export function createIssView(canvas, { onSelect, getStatuses }) {
     }
     context.font = `${Math.round(11 * ratio)}px system-ui, sans-serif`; context.textAlign = 'center';
     for (const [id, module] of Object.entries(MODULES)) {
-      const centre = project(rotate(mul(add(module.a, module.b), 0.5), view.yaw, view.pitch), view.width, view.height), label = module.name.split(' (')[0].split(':')[0];
+      const centre = screen(mul(add(module.a,module.b),.5)), label = module.name.split(' (')[0].split(':')[0];
       const hot = id === selected || id === hovered; if (!hot && !statuses[id]) continue;
       const width = context.measureText(label).width + 10 * ratio, top = centre[1] - module.r * centre[3] - 20 * ratio;
       context.fillStyle = 'rgba(18,19,20,.85)'; context.fillRect(centre[0] - width / 2, top, width, 18 * ratio); context.fillStyle = '#ececef'; context.fillText(label, centre[0], top + 13 * ratio);
@@ -161,16 +165,17 @@ export function createIssView(canvas, { onSelect, getStatuses }) {
     if(dirty){draw();dirty=false;}
   }
   const local = event => { const rect = canvas.getBoundingClientRect(), ratio = canvas.width / rect.width; return [(event.clientX - rect.left) * ratio, (event.clientY - rect.top) * ratio]; };
-  canvas.addEventListener('pointerdown', event => { dragging = { x: event.clientX, y: event.clientY, moved: false }; canvas.setPointerCapture(event.pointerId); dirty=true; });
+  canvas.addEventListener('pointerdown', event => { if(event.button!==undefined&&![0,2].includes(event.button))return;dragging = { x: event.clientX, y: event.clientY, moved: false, pan:event.button===2 }; canvas.setPointerCapture(event.pointerId); dirty=true; });
   canvas.addEventListener('pointermove', event => {
-    if (dragging) { const dx = event.clientX - dragging.x, dy = event.clientY - dragging.y; if (Math.abs(dx) + Math.abs(dy) > 3) dragging.moved = true; dirty=true;view.yaw += dx * 0.012; view.pitch = Math.max(-1.2, Math.min(1.2, view.pitch + dy * 0.009)); dragging.x = event.clientX; dragging.y = event.clientY; return; }
-    const [x, y] = local(event); const nextHover=pick(x,y,view);if(nextHover!==hovered)dirty=true;hovered=nextHover; canvas.style.cursor = hovered ? 'pointer' : 'grab';
+    if (dragging) { const dx = event.clientX - dragging.x, dy = event.clientY - dragging.y; if (Math.abs(dx) + Math.abs(dy) > 3) dragging.moved = true; dirty=true;if(dragging.pan){view.panX+=dx;view.panY+=dy;}else{view.yaw += dx * 0.012; view.pitch = Math.max(-1.2, Math.min(1.2, view.pitch + dy * 0.009));} dragging.x = event.clientX; dragging.y = event.clientY; return; }
+    const [x, y] = local(event); const nextHover=pick(view.width/2+(x-view.width/2-view.panX*(canvas.width/canvas.clientWidth))/view.zoom,view.height/2+(y-view.height/2-view.panY*(canvas.width/canvas.clientWidth))/view.zoom,view);if(nextHover!==hovered)dirty=true;hovered=nextHover; canvas.style.cursor = hovered ? 'pointer' : 'grab';
   });
-  canvas.addEventListener('pointerup', event => { const moved = dragging?.moved; dragging = null; if (!moved) { const [x, y] = local(event); const id = pick(x, y, view); if (id) { dirty=true;selected = id; onSelect?.(id); } } });
-  canvas.addEventListener('pointercancel',()=>{dragging=null;hovered=null;});
-  canvas.addEventListener('lostpointercapture',()=>{dragging=null;});
+  canvas.addEventListener('pointerup', event => { const moved = dragging?.moved; dragging = null; dirty=true; if (!moved&&event.button!==2) { const [x, y] = local(event); const id = pick(view.width/2+(x-view.width/2)/view.zoom,view.height/2+(y-view.height/2)/view.zoom,view); if (id) { dirty=true;selected = id; onSelect?.(id); } } });
+  canvas.addEventListener('pointercancel',()=>{dragging=null;hovered=null;dirty=true;});
+  canvas.addEventListener('lostpointercapture',()=>{dragging=null;dirty=true;});
   canvas.addEventListener('pointerleave', () => { hovered = null; dirty=true; });
-  canvas.addEventListener('wheel', event => { event.preventDefault(); }, { passive: false });
+  canvas.addEventListener('contextmenu',event=>event.preventDefault());
+  canvas.addEventListener('wheel', event => {event.preventDefault();const delta=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?canvas.clientWidth:1);view.zoom=Math.max(.65,Math.min(1.8,view.zoom*Math.exp(-delta*.0015)));dirty=true;}, { passive: false });
   frame = requestAnimationFrame(loop);
-  return { select(id) { selected = id; dirty=true; }, view, stop() { cancelAnimationFrame(frame); } };
+  return { reset(){dragging=null;hovered=null;view.yaw=-.55;view.pitch=.65;view.zoom=1;view.panX=0;view.panY=0;dirty=true;}, select(id) { selected = id; dirty=true; }, view, stop() { cancelAnimationFrame(frame); } };
 }
