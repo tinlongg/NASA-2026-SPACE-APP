@@ -204,5 +204,5 @@ Plan: `docs/ROADMAP_PLAN.md` (in worktree `crewsafety-roadmap-9c2217`, not yet c
 
 - `backend/scripts/generate_voice.py` reads `ios/CrewSafety/Resources/Voice/phrases.json` and writes one mp3 per phrase with ElevenLabs (default voice Sarah, `eleven_multilingual_v2`). The key comes from `ELEVENLABS_API_KEY` or the git-ignored `backend/.env`; only the clip is committed. Re-run with `--force` to change voice or wording.
 - `CheckInVoice.speak` plays the bundled clip for an exact phrase match with `AVAudioPlayer`, and falls back to `AVSpeechSynthesizer` for any other phrase or a playback failure. Listening is still on-device. The lazy-creation and repeated-`stop()` behaviour is unchanged.
-- iOS suite: 56/56 on iPhone 17 / iOS 26.5 (two new clip-lookup tests). Not verified: hearing the clip played by the app in the simulator or on a device, and the full prompt timing before listening starts.
+- iOS suite: 56/56 on iPhone 17 / iOS 26.5 (two new clip-lookup tests). Verified by ear in the iPhone 17 simulator (Synthetic Stops Moving): the ElevenLabs clip played and the 60-second countdown ran, with speech and notification permission declined. Not verified: a physical iPhone, or listening after the clip with speech permission granted.
 - The ElevenLabs key was pasted in chat; rotate it in the ElevenLabs dashboard and update `backend/.env`.
