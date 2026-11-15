@@ -33,3 +33,16 @@ that this camera detector works and are not personal health prescriptions.
 Six demo responses were exported from the running FastAPI service in extractive mode using
 `backend/sources/demo-questions.txt`. Do not hand-edit answers or citations. See `backend/README.md`
 for regeneration steps. Review each exported answer before the presentation.
+
+## Candidate sources for the suit readiness check (not in the MUSE corpus)
+
+Found by web search on 2026-11-15 for roadmap Phase 5. **Not yet read in full or verified**: only search-result
+summaries were seen, so no layer names may be taken from them until a person reads the primary pages. Review status: Pending.
+
+| Topic | Source | What the summary said |
+| --- | --- | --- |
+| EMU layer count | [NASA Out-of-School Learning, Living and Working in Space](https://www.nasa.gov/wp-content/uploads/2019/08/nosl-grc-ps-01984-living-working-module.pdf) | 14 layers (not 12) |
+| Layer groups | [NASA NIAC Phase I report (Dunbar)](https://www.nasa.gov/wp-content/uploads/2025/06/niac-2022-phi-dunbar-spacesuit-tagged.pdf) | Cooling garment 3 + pressure bladder/restraint 2 + thermal micrometeoroid garment 9; other NASA text says the thermal micrometeoroid garment has 7 layers |
+| Systems | [NASA OIG IG-17-018](https://oig.nasa.gov/docs/IG-17-018.pdf) | EMU = Pressure Garment System + Primary Life Support System |
+| Outer shell | [ICES-2025-56 Artemis suit material overview](https://ntrs.nasa.gov/api/citations/20250003726/downloads/ICES-2025-56%20Artemis%20Suit%20Material%20Overview%20FINAL.pdf) | Ortho-Fabric shell |
+| Pre-EVA checkout | [NTRS 20170009505](https://ntrs.nasa.gov/api/citations/20170009505/downloads/20170009505.pdf) | Table of contents lists Pre-EVA Checkout (manual, automatic) and a Leakage Check section 3.2.5.2 |
