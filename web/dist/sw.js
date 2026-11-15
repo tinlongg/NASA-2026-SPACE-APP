@@ -12,10 +12,18 @@ self.addEventListener('activate', event => event.waitUntil((async () => {
 self.addEventListener('fetch', event => {
   // Never store chat, coach, telemetry, journal entries, or arbitrary requests.
   if (event.request.method !== 'GET' || !cacheableAsset(event.request.url, self.location.origin)) return;
+  // Online: always the newest files, so a new deploy shows on the next load; the copy is refreshed.
+  // Offline or too slow (4 s): the saved copy. Large model files stay cache-first.
+  const isModel = MODEL_ASSETS.includes(event.request.url);
   event.respondWith((async () => {
     const cache = await caches.open(CACHE);
     const cached = await cache.match(event.request);
-    return cached || fetch(event.request);
+    if (isModel && cached) return cached;
+    try {
+      const response = await fetch(event.request, { cache: 'no-cache', signal: AbortSignal.timeout(cached ? 4000 : 60000) });
+      if (response.ok && response.type === 'basic') await cache.put(event.request, response.clone());
+      return response;
+    } catch (error) { if (cached) return cached; throw error; }
   })());
 });
 self.addEventListener('message', event => {
