@@ -81,7 +81,7 @@ export function lipAperture(landmarks) {
  *    head or a lighting change, which affect both patches, are not counted.
  * Either one is enough. Readings describe the camera image only. */
 export class MouthMotion {
-  constructor({ seconds = 1.5, spread = 0.035, recent = 8, hits = 3, ratio = 2.5, floor = 0.01 } = {}) {
+  constructor({ seconds = 1.5, spread = 0.05, recent = 8, hits = 5, ratio = 3.5, floor = 0.015 } = {}) {
     Object.assign(this, { seconds, spreadThreshold: spread, recent, hits, ratio, floor }); this.reset();
   }
   reset() { this.samples = []; this.baseline = null; }

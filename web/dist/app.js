@@ -266,8 +266,8 @@ function updateFaces(now, time, poses, ids) {
     const mouth = person.mouth.update(time, lipAperture(landmarks), mouthPatchDiff(person, landmarks));
     person.face = { eyes: eyeReading(scores), mouth, box: faceBox(landmarks), at: time }; matched.add(person.id);
     // Lip motion measured on this device: fast enough to restart the count while someone talks or mouths words.
-    if (mouth.state === 'moving') { person.mouthMovedAt = time; if (element('face-activity-enabled').checked) noteFaceActivity(person, time, 'Mouth moving (on device)'); }
-    if (person.blink.update(scores) && element('face-activity-enabled').checked) noteFaceActivity(person, time, 'Blinking');
+    if (mouth.state === 'moving') { person.mouthMovedAt = time; if (element('face-activity-enabled').checked) noteFaceActivity(person, time, 'Mouth moving (on device)', 'face'); }
+    if (person.blink.update(scores) && element('blink-activity-enabled').checked) noteFaceActivity(person, time, 'Blinking', 'face');
   });
   for (const person of people.values()) if (!matched.has(person.id) && person.face && time - person.face.at > 1) { person.face = null; person.mouth.reset(); person.patch = null; }
 }
@@ -296,7 +296,9 @@ function evaluatePerson(person, time, measurement) {
   const d = person.detector, limits = detectorLimits();
   d.stillSeconds = limits.stillSeconds; d.threshold = limits.threshold;
   d.wholeBody = mode === 'replay' ? Boolean(REPLAYS[replayKind]?.wholeBody) : element('whole-body-enabled').checked; // synthetic replays were written for microgravity unless they say otherwise
+  const anchorBefore = d.anchor;
   const detection = d.process(time, measurement);
+  if (mode === 'live' && anchorBefore && d.anchor !== anchorBefore && d.anchor && Boolean(anchorBefore.upper) === Boolean(d.anchor.upper)) showRestart('Body movement (pose tracker)');
   // Talking or blinking is activity: a person standing still while speaking is not unresponsive.
   if (mode !== 'replay' && person.activeAt != null && person.activeAt !== person.appliedAt) { d.noteActivity(person.activeAt); person.appliedAt = person.activeAt; }
   const stillFor = d.stillFor(time);
@@ -1010,10 +1012,14 @@ element('setup-cancel').onclick = () => element('setup-dialog').close();
 
 // Activity seen in the face (blinking on this device, or mouth/body movement seen by MUSE) restarts the
 // stillness count, the same way body movement does. Older observations than the current count are ignored.
-function noteFaceActivity(person, time, reason) {
+// Signs of activity other than body movement. With "Trigger quickly" only body and wrist movement count,
+// so a test isn't spoiled by a blink, a sound or a MUSE guess.
+function noteFaceActivity(person, time, reason, source = 'face') {
+  if (mode === 'live' && sensitivity.preset === 'quick' && source !== 'watch') return false;
   if (time <= (person.detector.stillSince ?? -Infinity) || time <= (person.activeAt ?? -Infinity)) return false;
-  person.activeAt = time; person.activeReason = reason; return true;
+  person.activeAt = time; person.activeReason = reason; showRestart(reason); return true;
 }
+function showRestart(reason) { element('restart-state').textContent = `${reason} · ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`; }
 
 // MUSE live watch: screenshots of the close-up every WATCH_SHOT_MS; every WATCH_EVERY_MS the last
 // WATCH_FACES of them plus one small body frame go to MUSE, one request at a time. MUSE compares them for
@@ -1056,8 +1062,12 @@ async function sendWatch(now, target) {
       entry = { kind: 'error', label: `Error ${response.status}`, thinking: data.error || 'MUSE could not analyse the screenshots. Local detection continues.' };
     } else {
       const person = people.get(id), moved = data.mouthMoving || data.headOrBodyMoving;
+      // MUSE often calls tiny differences between screenshots "movement". Its mouth reading restarts the count;
+      // its head or body reading only does when the pose tracker also measured at least half the movement threshold.
+      const poseAgrees = person?.result?.motion != null && person.result.threshold != null && person.result.motion >= person.result.threshold / 2;
+      const counts = data.mouthMoving || (data.headOrBodyMoving && poseAgrees);
       // Confirmed movement restarts the count from 0 now, not from the screenshot time (~6 s ago).
-      const restarted = Boolean(person && moved && noteFaceActivity(person, performance.now() / 1000, data.mouthMoving ? 'MUSE saw the mouth move' : 'MUSE saw head or body movement'));
+      const restarted = Boolean(person && counts && noteFaceActivity(person, performance.now() / 1000, data.mouthMoving ? 'MUSE saw the mouth move' : 'MUSE saw head or body movement', 'muse'));
       museWatch.reading = { ...data, personId: id, at: performance.now(), restarted, moved };
       if (person) person.muse = data;
       if (moved) museWatch.movedAt = performance.now();
@@ -1157,11 +1167,11 @@ function mouthPatchDiff(person, landmarks) {
 async function startMic() {
   const session = generation; micGeneration = session; micState = 'starting'; renderMic();
   try {
-    const handle = await startVoiceActivity({ isMuted: () => clipsPlaying > 0, onSpeech: time => {
+    const handle = await startVoiceActivity({ margin: 15, minSpeech: 0.5, isMuted: () => clipsPlaying > 0, onSpeech: time => {
       if (mode !== 'live') return;
       const inView = [...people.values()].filter(person => person.pose);
       const speakers = inView.length === 1 ? inView : inView.filter(person => person.mouthMovedAt != null && time - person.mouthMovedAt <= 1);
-      for (const person of speakers) noteFaceActivity(person, time, 'Talking (heard by microphone)');
+      for (const person of speakers) noteFaceActivity(person, time, 'Talking (heard by microphone)', 'mic');
     } });
     if (session !== generation) { handle.stop(); return; }
     mic = handle; micState = 'on'; micTimer = setInterval(renderMic, 500);
@@ -1200,7 +1210,7 @@ onWearable(state => {
   watchStreamingBefore = streaming;
   if (mode === 'live' && streaming && box.checked && w.movedAt != null && w.movedAt > watchMovedApplied) {
     watchMovedApplied = w.movedAt; const person = watchWearer();
-    if (person) noteFaceActivity(person, Math.min(perfSeconds(w.movedAt), performance.now() / 1000), 'Wrist movement (Apple Watch)');
+    if (person) noteFaceActivity(person, Math.min(perfSeconds(w.movedAt), performance.now() / 1000), 'Wrist movement (Apple Watch)', 'watch');
   }
   const answer = w?.answer, key = answer && `${answer.checkInID}:${answer.at}`;
   if (answer && !watchAnswers.has(key)) { watchAnswers.add(key); const personId = watchCheckIns.get(answer.checkInID); if (personId != null) answerCheckIn(personId, answer.kind); }
