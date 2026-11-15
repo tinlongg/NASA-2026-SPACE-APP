@@ -10,12 +10,12 @@ export const MODULES = {
   columbus:    { name: 'Columbus (European laboratory)', a: [2.65, 0, 0.72], b: [2.65, 0, 3.0], r: 0.55 },
   kibo:        { name: 'Kibo (Japanese laboratory)', a: [2.65, 0, -0.72], b: [2.65, 0, -3.5], r: 0.6 },
   tranquility: { name: 'Tranquility (Node 3, exercise)', a: [-2.2, 0, -0.72], b: [-2.2, 0, -2.4], r: 0.6 },
-  cupola:      { name: 'Cupola',                a: [-2.2, 0, -2.4], b: [-2.2, 0, -2.85], r: 0.36 },
+  cupola:      { name: 'Cupola',                a: [-2.2, -.5, -1.65], b: [-2.2, -1.1, -1.65], r: 0.36 },
   quest:       { name: 'Quest airlock',         a: [-2.2, 0, 0.72], b: [-2.2, 0, 1.75], r: 0.42 },
 };
 export const ROOM_IDS = Object.keys(MODULES).filter(id => !MODULES[id].private);
 
-const SEGMENTS = 14, FOCAL = 3.0, DISTANCE = 24;
+const SEGMENTS = 10, DISTANCE = 70;
 export const STATUS_COLOUR = { none: '#9aa0a9', idle: '#a9aeb7', moving: '#3f9c68', still: '#c8923e', checking: '#c8923e', alert: '#d3574b', offline: '#4d5057' };
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
@@ -25,12 +25,17 @@ const norm = a => { const length = Math.hypot(...a) || 1; return [a[0] / length,
 /** Rotates a world point by yaw (about y) then pitch (about x). */
 const CENTRE = [-2.8, 0.3, 0]; // the model turns about the middle of the station, not the origin
 export function rotate(point, yaw, pitch) {
-  const [x, y, z] = [point[0] - CENTRE[0], point[1] - CENTRE[1], point[2] - CENTRE[2]], cy = Math.cos(yaw), sy = Math.sin(yaw), x1 = x * cy + z * sy, z1 = -x * sy + z * cy, cp = Math.cos(pitch), sp = Math.sin(pitch);
-  return [x1, y * cp - z1 * sp, y * sp + z1 * cp];
+  return rotateDirection(sub(point,CENTRE),yaw,pitch);
 }
+/** Normals have direction but no position: never subtract the station centre. */
+export function rotateDirection([x,y,z],yaw,pitch){
+ const cy=Math.cos(yaw),sy=Math.sin(yaw),x1=x*cy+z*sy,z1=-x*sy+z*cy,cp=Math.cos(pitch),sp=Math.sin(pitch);
+ return [x1,y*cp-z1*sp,y*sp+z1*cp];
+}
+
 /** Perspective: returns [screenX, screenY, depth, scale] for a rotated point, in a width x height canvas. */
 export function project(point, width, height) {
-  const depth = DISTANCE + point[2], scale = (FOCAL * Math.min(width, height) * 0.5) / depth * (DISTANCE / 16);
+  const depth = DISTANCE + point[2], scale = (Math.min(width, height) * 2.05) / depth;
   return [width / 2 + point[0] * scale, height / 2 - point[1] * scale, depth, scale];
 }
 
@@ -55,21 +60,53 @@ const panel = (x0, x1, z0, z1, y) => ({ points: [[x0, y, z0], [x1, y, z0], [x1, 
 
 /** Everything to draw, in world space: station structure plus the modules (tagged with their id). */
 export function buildScene() {
-  const structure = [...box([-0.35, 1.15, -7.2], [0.35, 1.45, 7.2]), ...box([-0.3, 0.62, -0.3], [0.3, 1.2, 0.3])];
-  const arrays = [];
-  for (const side of [-1, 1]) for (const offset of [-1.25, 1.25]) arrays.push(panel(offset - 0.8, offset + 0.8, side * 7.4, side * 12, 1.3));
-  for (const side of [-1, 1]) arrays.push(panel(-9.0, -7.4, side * 1.0, side * 3.3, 0.2));
-  const modules = Object.entries(MODULES).flatMap(([id, module]) => cylinder(module.a, module.b, module.r).map(polygon => ({ ...polygon, module: id })));
-  return { structure, arrays, modules };
+  const structure=[],arrays=[],details=[];
+  const beam=(a,b,r=.045,color='#b8c1cb')=>structure.push({points:[a,b],normal:[0,1,0],double:true,line:true,r,color});
+  // Open lattice backbone, four photovoltaic mast assemblies, eight main wings.
+  for(let z=-12;z<12;z+=1.5){
+   for(const x of[-.38,.38])for(const y of[1.05,1.8])beam([x,y,z],[x,y,z+1.5]);
+   for(const x of[-.38,.38]){beam([x,1.05,z],[x,1.8,z+1.5],.025);beam([x,1.8,z],[x,1.05,z+1.5],.025);}
+   for(const y of[1.05,1.8])beam([-.38,y,z],[.38,y,z+1.5],.025);
+  }
+  beam([0,0,0],[0,1.4,0],.16);
+  for(const z of[-10.8,-7.3,7.3,10.8]){
+   beam([0,1.45,z],[0,2.05,z],.12,'#c5ad77');
+   for(const side of[-1,1]){
+    const x0=side>0?.55:-7.3,x1=side>0?7.3:-.55;
+    // Paired blankets, with a central mast and individual photovoltaic cells.
+    for(const dz of[-.8,.15]){
+     arrays.push({...panel(x0,x1,z+dz,z+dz+.65,2.05),color:'#91704c',wing:true});
+     for(let x=x0+.06;x<x1-.1;x+=.45)for(let k=0;k<2;k++)details.push({...panel(x,x+.37,z+dz+.035+k*.3,z+dz+.3+k*.3,2.065),color:'#364c78',double:true});
+    }
+    beam([x0,2.1,z],[x1,2.1,z],.035,'#dfc18a');
+   }
+  }
+  // Cell blankets are visible from either side of the thin panel backing.
+  details.push(...details.map(p=>({...p,points:p.points.map(([x,y,z])=>[x,y-.03,z])})));
+  // Russian segment arrays and the white thermal radiator banks.
+  for(const side of[-1,1]){
+   arrays.push({...panel(-9,-7.4,side*1.0,side*3.5,.2),color:'#3c587c'});
+   for(const z of[side*2.3,side*3.8])for(let i=0;i<5;i++)details.push({...panel(-3.6+i*.6,-3.04+i*.6,z,z+side*1.1,1.35),color:'#d9dedc'});
+  }
+  const modules=Object.entries(MODULES).flatMap(([id,m])=>cylinder(m.a,m.b,m.r).map(p=>({...p,module:id})));
+  // End collars and ribs catch sunlight on the insulated module hulls.
+  for(const m of Object.values(MODULES))for(const t of[.05,.25,.75,.95]){
+   const axis=sub(m.b,m.a),c=add(m.a,mul(axis,t));details.push(...cylinder(c,add(c,mul(norm(axis),.055)),m.r*1.025).map(p=>({...p,color:'#e0e4e6'})));
+  }
+  // Kibo exposed facility, logistics canister, docking adapter and Canadarm2.
+  details.push(...box([2.05,-.25,-4.6],[3.25,.05,-3.5]).map(p=>({...p,color:'#cbd0d4'})));
+  details.push(...cylinder([2.65,.4,-1.65],[2.65,1.55,-1.65],.43).map(p=>({...p,color:'#c3cbd3'})));
+  details.push(...cylinder([3.4,0,0],[4.4,0,0],.3).map(p=>({...p,color:'#9cabbc'})));
+  beam([0,1.8,1.3],[1.6,3.3,2.1],.09,'#e7e4dc');beam([1.6,3.3,2.1],[3.6,2.6,1.2],.09,'#e7e4dc');beam([3.6,2.6,1.2],[4.3,1.8,1.2],.09,'#e7e4dc');
+  return {structure,arrays,modules,details};
 }
-
 /** Which module is under a screen point, or null. Compares the point to each module's projected axis. */
 export function pick(x, y, view) {
   let best = null;
   for (const [id, module] of Object.entries(MODULES)) {
     const a = project(rotate(module.a, view.yaw, view.pitch), view.width, view.height), b = project(rotate(module.b, view.yaw, view.pitch), view.width, view.height);
     const dx = b[0] - a[0], dy = b[1] - a[1], span = dx * dx + dy * dy, t = span ? Math.max(0, Math.min(1, ((x - a[0]) * dx + (y - a[1]) * dy) / span)) : 0;
-    const distance = Math.hypot(x - (a[0] + t * dx), y - (a[1] + t * dy)), reach = Math.max(10, module.r * (a[3] + b[3]) / 2 * 1.05);
+    const distance = Math.hypot(x - (a[0] + t * dx), y - (a[1] + t * dy)), reach = Math.max(4, module.r * (a[3] + b[3]) / 2 * 1.05);
     if (distance <= reach && (!best || a[2] + t * (b[2] - a[2]) < best.depth)) best = { id, depth: a[2] + t * (b[2] - a[2]) };
   }
   return best?.id ?? null;
@@ -81,27 +118,29 @@ function shade(hex, brightness) {
   return `rgb(${Math.min(255, channel(1))}, ${Math.min(255, channel(3))}, ${Math.min(255, channel(5))})`;
 }
 
-/** Binds the model to a canvas: drag to turn, click to pick, slow spin when idle. */
+/** Binds the model to a canvas: drag to turn, click to pick, redraw only when the view or camera status changes. */
 export function createIssView(canvas, { onSelect, getStatuses }) {
-  const context = canvas.getContext('2d'), scene = buildScene(), view = { yaw: -0.65, pitch: 0.32, width: 600, height: 380 };
-  let selected = null, hovered = null, dragging = null, frame = 0, still = false, last = performance.now();
-  const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const context = canvas.getContext('2d'), scene = buildScene(), view = { yaw: -0.55, pitch: 0.65, width: 600, height: 380 };
+  let selected = null, hovered = null, dragging = null, frame = 0, dirty = true, statusKey = '';
 
-  function resize() { const ratio = window.devicePixelRatio || 1, width = canvas.clientWidth || 600, height = Math.round(width * 0.62); if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) { canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); } view.width = canvas.width; view.height = canvas.height; return ratio; }
+
+  function resize() { const ratio = Math.min(window.devicePixelRatio || 1,1.5), width = canvas.clientWidth || 600, height = Math.round(width * 0.62); if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) { canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); } view.width = canvas.width; view.height = canvas.height; return ratio; }
   function draw() {
     const ratio = resize(), statuses = getStatuses?.() ?? {};
     context.clearRect(0, 0, canvas.width, canvas.height);
     const polygons = [];
-    const add = (list, base, brightness, extra = {}) => { for (const polygon of list) { const points = polygon.points.map(point => project(rotate(point, view.yaw, view.pitch), view.width, view.height)); const normal = rotate(polygon.normal, view.yaw, view.pitch), facing = normal[2] < 0.02 || polygon.double; if (!facing) continue; polygons.push({ points, depth: points.reduce((sum, point) => sum + point[2], 0) / points.length, fill: shade(base, brightness(polygon.normal)), ...extra, module: polygon.module }); } };
-    add(scene.arrays, '#3b66b0', normal => 0.8 + 0.3 * Math.abs(dot(norm(normal), LIGHT)), { stroke: 'rgba(160,190,235,.5)' });
-    add(scene.structure, '#b4b9c1', normal => 0.6 + 0.5 * Math.max(0, dot(norm(rotateLight(normal)), LIGHT)), { stroke: 'rgba(0,0,0,.35)' });
+    const enqueue = (list, base, brightness, extra = {}) => { for (const polygon of list) { const points = polygon.points.map(point => project(rotate(point, view.yaw, view.pitch), view.width, view.height)); const normal = rotateDirection(polygon.normal, view.yaw, view.pitch), facing = normal[2] < 0.02 || polygon.double; if (!facing) continue; polygons.push({ points, depth: points.reduce((sum, point) => sum + point[2], 0) / points.length, fill: shade(polygon.color||base, brightness(polygon.normal)), ...extra, module: polygon.module, line:polygon.line, radius:polygon.r }); } };
+    enqueue(scene.arrays, '#3b66b0', normal => 0.8 + 0.3 * Math.abs(dot(norm(normal), LIGHT)), { stroke: 'rgba(160,190,235,.5)' });
+    enqueue(scene.details, '#cbd0d5', normal => 0.7 + 0.3 * Math.abs(dot(normal,LIGHT)), {stroke:'rgba(10,20,32,.16)'});
+    enqueue(scene.structure, '#b4b9c1', normal => 0.6 + 0.5 * Math.max(0, dot(norm(normal), LIGHT)), { stroke: 'rgba(175,190,210,.25)', width:.45 });
     for (const [id] of Object.entries(MODULES)) {
       const status = statuses[id] ?? (MODULES[id].private ? 'offline' : 'none'), base = STATUS_COLOUR[status] ?? STATUS_COLOUR.none;
-      add(scene.modules.filter(polygon => polygon.module === id), base, normal => 0.62 + 0.55 * Math.max(0, dot(norm(normal), LIGHT)), { stroke: id === selected ? '#ececef' : id === hovered ? 'rgba(236,237,239,.7)' : 'rgba(0,0,0,.35)', width: id === selected ? 2.5 : 1 });
+      enqueue(scene.modules.filter(polygon => polygon.module === id), base, normal => 0.62 + 0.55 * Math.max(0, dot(norm(normal), LIGHT)), { stroke: id === selected ? '#ececef' : id === hovered ? 'rgba(236,237,239,.7)' : 'rgba(0,0,0,.35)', width: id === selected ? 2.5 : 1 });
     }
     polygons.sort((p, q) => q.depth - p.depth);
     for (const polygon of polygons) {
-      context.beginPath(); polygon.points.forEach((point, index) => index ? context.lineTo(point[0], point[1]) : context.moveTo(point[0], point[1])); context.closePath();
+      context.beginPath(); polygon.points.forEach((point, index) => index ? context.lineTo(point[0], point[1]) : context.moveTo(point[0], point[1])); if(!polygon.line)context.closePath();
+      if(polygon.line){context.strokeStyle=polygon.fill;context.lineWidth=Math.max(.55*ratio,polygon.radius*2*polygon.points[0][3]);context.stroke();continue;}
       context.fillStyle = polygon.fill; context.fill(); context.strokeStyle = polygon.stroke ?? 'rgba(0,0,0,.3)'; context.lineWidth = (polygon.width ?? 1) * ratio; context.stroke();
     }
     context.font = `${Math.round(11 * ratio)}px system-ui, sans-serif`; context.textAlign = 'center';
@@ -112,22 +151,26 @@ export function createIssView(canvas, { onSelect, getStatuses }) {
       context.fillStyle = 'rgba(18,19,20,.85)'; context.fillRect(centre[0] - width / 2, top, width, 18 * ratio); context.fillStyle = '#ececef'; context.fillText(label, centre[0], top + 13 * ratio);
     }
   }
-  const rotateLight = normal => normal;
+
   function loop(now) {
     frame = requestAnimationFrame(loop);
-    if (!canvas.offsetParent) { last = now; return; } // hidden tab: draw nothing
-    if (!dragging && !reduced && !still && !hovered) view.yaw += (now - last) * 0.00006;
-    last = now; draw();
+    if (!canvas.offsetParent) { return; } // hidden tab: draw nothing
+
+    const nextStatus=JSON.stringify(getStatuses?.()??{}), size=canvas.clientWidth;
+    if(nextStatus!==statusKey||size!==view.clientWidth){dirty=true;statusKey=nextStatus;view.clientWidth=size;}
+    if(dirty){draw();dirty=false;}
   }
   const local = event => { const rect = canvas.getBoundingClientRect(), ratio = canvas.width / rect.width; return [(event.clientX - rect.left) * ratio, (event.clientY - rect.top) * ratio]; };
-  canvas.addEventListener('pointerdown', event => { dragging = { x: event.clientX, y: event.clientY, moved: false }; canvas.setPointerCapture(event.pointerId); still = true; });
+  canvas.addEventListener('pointerdown', event => { dragging = { x: event.clientX, y: event.clientY, moved: false }; canvas.setPointerCapture(event.pointerId); dirty=true; });
   canvas.addEventListener('pointermove', event => {
-    if (dragging) { const dx = event.clientX - dragging.x, dy = event.clientY - dragging.y; if (Math.abs(dx) + Math.abs(dy) > 3) dragging.moved = true; view.yaw += dx * 0.008; view.pitch = Math.max(-1.2, Math.min(1.2, view.pitch + dy * 0.006)); dragging.x = event.clientX; dragging.y = event.clientY; return; }
-    const [x, y] = local(event); hovered = pick(x, y, view); canvas.style.cursor = hovered ? 'pointer' : 'grab';
+    if (dragging) { const dx = event.clientX - dragging.x, dy = event.clientY - dragging.y; if (Math.abs(dx) + Math.abs(dy) > 3) dragging.moved = true; dirty=true;view.yaw += dx * 0.012; view.pitch = Math.max(-1.2, Math.min(1.2, view.pitch + dy * 0.009)); dragging.x = event.clientX; dragging.y = event.clientY; return; }
+    const [x, y] = local(event); const nextHover=pick(x,y,view);if(nextHover!==hovered)dirty=true;hovered=nextHover; canvas.style.cursor = hovered ? 'pointer' : 'grab';
   });
-  canvas.addEventListener('pointerup', event => { const moved = dragging?.moved; dragging = null; if (!moved) { const [x, y] = local(event); const id = pick(x, y, view); if (id) { selected = id; onSelect?.(id); } } });
-  canvas.addEventListener('pointerleave', () => { hovered = null; });
+  canvas.addEventListener('pointerup', event => { const moved = dragging?.moved; dragging = null; if (!moved) { const [x, y] = local(event); const id = pick(x, y, view); if (id) { dirty=true;selected = id; onSelect?.(id); } } });
+  canvas.addEventListener('pointercancel',()=>{dragging=null;hovered=null;});
+  canvas.addEventListener('lostpointercapture',()=>{dragging=null;});
+  canvas.addEventListener('pointerleave', () => { hovered = null; dirty=true; });
   canvas.addEventListener('wheel', event => { event.preventDefault(); }, { passive: false });
   frame = requestAnimationFrame(loop);
-  return { select(id) { selected = id; }, view, stop() { cancelAnimationFrame(frame); } };
+  return { select(id) { selected = id; dirty=true; }, view, stop() { cancelAnimationFrame(frame); } };
 }

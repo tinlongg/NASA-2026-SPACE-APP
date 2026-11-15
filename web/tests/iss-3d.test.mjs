@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { MODULES, ROOM_IDS, rotate, project, pick, buildScene } from '../dist/iss-3d.js';
+import { MODULES, ROOM_IDS, rotate, project, pick, buildScene, rotateDirection, createIssView } from '../dist/iss-3d.js';
 import { STN_ROOMS } from '../stations.mjs';
 
 const view = { yaw: 0, pitch: 0, width: 600, height: 372 };
@@ -32,5 +32,18 @@ test('turning the model moves the projected points, and picking follows', () => 
 test('the scene has the truss, solar arrays and every module', () => {
   const scene = buildScene(), ids = new Set(scene.modules.map(polygon => polygon.module));
   assert.equal(ids.size, Object.keys(MODULES).length);
-  assert.ok(scene.structure.length >= 6 && scene.arrays.length === 6);
+  assert.ok(scene.structure.length >= 6 && scene.arrays.filter(p=>p.wing).length === 16);
+});
+
+test('rotation preserves normal lengths at every viewing angle',()=>{for(let yaw=-Math.PI;yaw<=Math.PI;yaw+=.2)for(const pitch of[-1.2,0,1.2])for(const n of[[1,0,0],[0,1,0],[0,0,1]])assert.ok(Math.abs(Math.hypot(...rotateDirection(n,yaw,pitch))-1)<1e-12);});
+test('the entire model stays in front of the camera and inside the viewport while turning',()=>{const scene=buildScene(),points=[...scene.structure,...scene.arrays,...scene.modules,...scene.details].flatMap(p=>p.points);for(let yaw=-Math.PI;yaw<Math.PI;yaw+=.4)for(const pitch of[-1.2,0,.65,1.2])for(const point of points){const[x,y,depth]=project(rotate(point,yaw,pitch),600,372);assert.ok(depth>0);assert.ok(x>=0&&x<=600&&y>=0&&y<=372);}});
+
+test('idle frames do not redraw; dragging redraws once per frame and cancel releases rotation',()=>{
+ const handlers={},frames=[];let clears=0;const context=new Proxy({clearRect(){clears++;},measureText(){return{width:40};}},{get:(o,k)=>o[k]||(()=>{})});
+ const canvas={width:0,height:0,clientWidth:600,offsetParent:{},style:{},getContext:()=>context,addEventListener:(k,f)=>handlers[k]=f,setPointerCapture(){},getBoundingClientRect:()=>({left:0,top:0,width:600})};
+ globalThis.window={devicePixelRatio:2};globalThis.requestAnimationFrame=fn=>{frames.push(fn);return frames.length;};globalThis.cancelAnimationFrame=()=>{};
+ const model=createIssView(canvas,{}),tick=()=>frames.shift()(performance.now());tick();assert.equal(clears,1);tick();tick();assert.equal(clears,1);
+ const before=model.view.yaw;handlers.pointerdown({clientX:0,clientY:0,pointerId:1});handlers.pointermove({clientX:100,clientY:20});tick();assert.ok(model.view.yaw>before+1);assert.equal(clears,2);
+ handlers.pointercancel();handlers.pointermove({clientX:200,clientY:40});assert.equal(model.view.yaw,before+1.2);model.stop();
+ delete globalThis.window;delete globalThis.requestAnimationFrame;delete globalThis.cancelAnimationFrame;
 });
