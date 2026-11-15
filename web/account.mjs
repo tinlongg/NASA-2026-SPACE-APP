@@ -71,7 +71,7 @@ export async function accountUser(request, env) {
   const token = acctToken(request);
   if (!token || !env.DB) return null;
   const row = await acctDB(env).prepare('SELECT users.id AS id, users.username AS username FROM auth_sessions JOIN users ON users.id = auth_sessions.user_id WHERE auth_sessions.token = ? AND auth_sessions.expires > ?').bind(await acctDigest(token), Date.now()).first();
-  return row ? { id: row.id, username: row.username } : null;
+  return row ? { id: row.id, username: row.username, ...(row.id===missionAdminConfig(env)?.id?{role:'admin'}:{}) } : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -208,7 +208,7 @@ export function createAccounts() {
       db.prepare('DELETE FROM auth_sessions WHERE expires < ?').bind(now),
       db.prepare('INSERT INTO auth_sessions (token, user_id, expires) VALUES (?, ?, ?)').bind(await acctDigest(token), user.id, now + ACCT_SESSION_MS),
     ]);
-    return acctJSON({ user: { username: user.username } }, status, { 'Set-Cookie': acctCookie(request, token, ACCT_SESSION_MS / 1000) });
+    return acctJSON({ user: { username: user.username, ...(user.role?{role:user.role}:{}) } }, status, { 'Set-Cookie': acctCookie(request, token, ACCT_SESSION_MS / 1000) });
   }
   function credentials(body) {
     if (!acctOnlyKeys(body, ['username', 'password']) || typeof body.username !== 'string' || typeof body.password !== 'string') throw acctError(400, 'Send a username and password.');
@@ -225,7 +225,7 @@ export function createAccounts() {
     if (!path.startsWith('/api/auth/') && path !== '/api/journal/entries' && path !== '/api/journal/search' && path !== '/api/suit/checks' && !entryMatch && !photoMatch) return null;
     try {
       if (method !== 'GET' && request.headers.get('Origin') !== url.origin) throw acctError(403, 'Use accounts on this website.');
-      if (path === '/api/auth/me' && method === 'GET') return acctJSON({ available: Boolean(env.DB), user: await accountUser(request, env).then(user => user && { username: user.username }) });
+      if (path === '/api/auth/me' && method === 'GET') return acctJSON({ available: Boolean(env.DB), user: await accountUser(request, env).then(user => user && { username: user.username, ...(user.role?{role:user.role}:{}) }) });
       const db = acctDB(env);
 
       if (path === '/api/auth/register' && method === 'POST') {
@@ -250,7 +250,7 @@ export function createAccounts() {
         // Hash even for unknown names so timing does not reveal which usernames exist.
         const hash = await acctPasswordHash(password, row?.salt || '00000000000000000000000000000000');
         if (!row || !acctSameText(hash, row.hash)) throw acctError(401, 'Incorrect username or password.');
-        return startSession(request, db, row, 200);
+        return startSession(request, db, {...row,...(row.id===missionAdminConfig(env)?.id?{role:'admin'}:{})}, 200);
       }
       if (path === '/api/auth/logout' && method === 'POST') {
         const token = acctToken(request);

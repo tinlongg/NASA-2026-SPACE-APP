@@ -32,6 +32,7 @@ export function applyMissionAction(original,action,now=Date.now(),{admin=false}=
  switch(action.type){
  case 'admin': {
    if(!admin)throw Error('Admin access required.');
+   if(action.bots!==undefined){if(typeof action.bots!=='boolean')throw Error('Choose demo bot visibility.');s.demoBots=action.bots;}
    if(action.stage!==undefined){if(!['auto','healthy','tired','needs-care'].includes(action.stage))throw Error('Unknown bird stage.');s.birdStage=action.stage;}
    if(action.growth!==undefined){if(!Number.isInteger(action.growth)||action.growth<0||action.growth>100)throw Error('Choose garden growth from 0 to 100.');s.garden=action.growth;}
    break;
