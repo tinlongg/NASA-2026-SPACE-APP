@@ -6,7 +6,7 @@ exact text) and writes one mp3 per phrase next to it. Phrases named web-* go to 
     ELEVENLABS_API_KEY=... python backend/scripts/generate_voice.py [--force]
 
 The key is read from the environment or backend/.env (git-ignored). Optional: ELEVENLABS_VOICE_ID
-(default: Sarah, a calm reassuring premade voice) and ELEVENLABS_MODEL (default eleven_multilingual_v2).
+(default: Eric, the voice set on the CrewSafety Check-in agent) and ELEVENLABS_MODEL (default eleven_multilingual_v2).
 """
 import json
 import os
@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 VOICE_DIR = ROOT / "ios" / "CrewSafety" / "Resources" / "Voice"
 WEB_VOICE_DIR = ROOT / "web" / "dist" / "voice"  # phrases named web-* are for the website, not the app
-DEFAULT_VOICE = "EXAVITQu4vr4xnSDxMaL"  # Sarah - Mature, Reassuring, Confident
+DEFAULT_VOICE = "cjVigY5qzO86Huf0OWal"  # Eric - Smooth, Trustworthy: the voice of the CrewSafety Check-in agent
 
 
 def load_key() -> str:
@@ -46,7 +46,7 @@ def synthesize(key: str, voice: str, model: str, text: str) -> bytes:
     body = json.dumps({
         "text": text,
         "model_id": model,
-        "voice_settings": {"stability": 0.65, "similarity_boost": 0.75, "speed": 0.95},
+        "voice_settings": {"stability": 0.5, "similarity_boost": 0.8, "speed": 1.0},
     }).encode()
     request = urllib.request.Request(
         f"https://api.elevenlabs.io/v1/text-to-speech/{voice}?output_format=mp3_44100_128",
