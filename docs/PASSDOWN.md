@@ -291,3 +291,9 @@ Built without the live test (that still needs a person in front of the camera; s
 - **Not verified:** a real push delivery (needs VAPID secrets on a hosted HTTPS site and a real subscribed browser or iPhone Home Screen app), and the Circle tab with two real accounts on two devices.
 - **Phone calls are not built.** They need a voice provider account (e.g. Twilio), a number, secrets, contacts' phone numbers (personal data sent to the provider) and a per-call cost. Waiting on the user's decision and credentials.
 - The ElevenLabs conversational agent is also not wired in: agent ID `agent_7501m7f8gfk6e7taqqf0c27mwyxt` (CrewSafety Check-in). It would need an opt-in, the user's wording on audio sent to ElevenLabs, and a live connection.
+
+### Stations: 3D ISS model; suit checklist from NASA's page (2026-11-15)
+
+- The Stations page now uses a rotatable 3D ISS model (`web/dist/iss-3d.js`) instead of a room dropdown: click a module to place a camera. Cameras can go in Zvezda, Zarya, Unity, Destiny, Columbus, Kibo, Tranquility, Cupola and Quest; Harmony (crew quarters) is private and refused. The server's accepted rooms are exactly those (`STN_ROOMS`, tested against the model). "Galley" is gone: the real ISS has no separate galley module. The module positions are a simplified schematic from general knowledge, **not** traced from the ResearchGate figure the user linked (it could not be used), and have not been checked against a NASA drawing.
+- The suit checklist now follows NASA's "Spacewalk Spacesuit Basics" page (read in full; independent human review still pending). The page says "up to 16 layers" and does not give an exact count, so the earlier "14" is dropped. The removed "pressure leak check" was not on the page. See `docs/SOURCES.md`.
+- Web suite 109/109. Not verified: dragging and clicking the 3D model with a mouse or touch, and performance on a phone.

@@ -34,15 +34,13 @@ Six demo responses were exported from the running FastAPI service in extractive 
 `backend/sources/demo-questions.txt`. Do not hand-edit answers or citations. See `backend/README.md`
 for regeneration steps. Review each exported answer before the presentation.
 
-## Candidate sources for the suit readiness check (not in the MUSE corpus)
+## Spacesuit checklist source (not in the MUSE corpus)
 
-Found by web search on 2026-11-15 for roadmap Phase 5. **Not yet read in full or verified**: only search-result
-summaries were seen, so no layer names may be taken from them until a person reads the primary pages. Review status: Pending.
+The Suit check tab (`web/dist/suit-layers.js`) follows one NASA page, read in full on 2026-11-15 by Claude Code, not by an
+independent human reviewer: **Review status: Pending.**
 
-| Topic | Source | What the summary said |
+| Topic | Source | What it says |
 | --- | --- | --- |
-| EMU layer count | [NASA Out-of-School Learning, Living and Working in Space](https://www.nasa.gov/wp-content/uploads/2019/08/nosl-grc-ps-01984-living-working-module.pdf) | 14 layers (not 12) |
-| Layer groups | [NASA NIAC Phase I report (Dunbar)](https://www.nasa.gov/wp-content/uploads/2025/06/niac-2022-phi-dunbar-spacesuit-tagged.pdf) | Cooling garment 3 + pressure bladder/restraint 2 + thermal micrometeoroid garment 9; other NASA text says the thermal micrometeoroid garment has 7 layers |
-| Systems | [NASA OIG IG-17-018](https://oig.nasa.gov/docs/IG-17-018.pdf) | EMU = Pressure Garment System + Primary Life Support System |
-| Outer shell | [ICES-2025-56 Artemis suit material overview](https://ntrs.nasa.gov/api/citations/20250003726/downloads/ICES-2025-56%20Artemis%20Suit%20Material%20Overview%20FINAL.pdf) | Ortho-Fabric shell |
-| Pre-EVA checkout | [NTRS 20170009505](https://ntrs.nasa.gov/api/citations/20170009505/downloads/20170009505.pdf) | Table of contents lists Pre-EVA Checkout (manual, automatic) and a Leakage Check section 3.2.5.2 |
+| Layers and parts | [Spacewalk Spacesuit Basics, NASA](https://www.nasa.gov/centers-and-facilities/johnson/spacewalk-spacesuit-basics/) (published 2019-10-04, updated 2023-08-30) | The flexible parts have up to 16 layers. It gives no exact count and does not name every layer. Named, skin outwards: a cooling garment of spandex with water tubes (the first three layers), a bladder layer, a layer that holds the bladder in shape, a ripstop liner, several insulation layers, and a white outer layer of three kinds of thread. It also names the hard upper torso, lower torso with waist bearing, heated gloves, the helmet and visors, the audio system, and the life support backpack (oxygen and regulator, fan and carbon dioxide removal, power and radio, cooling water with chiller and pump). |
+
+An earlier search-result summary said 14 layers (and a NIAC report 3 + 2 + 9); the NASA page itself says up to 16, so the checklist does not claim a count. The inspection hints are generic, not a NASA procedure, and the earlier "pressure leak check" item was removed because the page does not mention one.

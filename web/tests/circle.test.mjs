@@ -88,11 +88,11 @@ test('a station alert notifies the owner’s circle', async () => {
   await request('/api/circle', { method: 'POST', cookie: owner, body: { name: 'Crew' } });
   const { code: invite } = await (await request('/api/circle/invite', { method: 'POST', cookie: owner })).json();
   await request('/api/circle/join', { method: 'POST', cookie: friend, body: { code: invite } });
-  const { code } = await (await request('/api/stations', { method: 'POST', cookie: owner, body: { name: 'Airlock phone', room: 'airlock' } })).json();
+  const { code } = await (await request('/api/stations', { method: 'POST', cookie: owner, body: { name: 'Quest phone', room: 'quest' } })).json();
   const { token } = await (await request('/api/stations/join', { method: 'POST', body: { code } })).json();
   const response = await createWorker({}, async () => { throw Error('x'); }).fetch(new Request(origin + '/api/stations/report', { method: 'POST', headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ people: [{ id: 3, status: 'alert', stillFor: 40 }], alert: { personId: 3, kind: 'help' } }) }), { DB });
   assert.equal(response.status, 200);
   const feed = await (await request('/api/circle/alerts?after=0', { cookie: friend })).json();
-  assert.equal(feed.alerts[0].title, 'Alert: Airlock phone');
-  assert.match(feed.alerts[0].body, /Airlock: Person 3 asked for help/);
+  assert.equal(feed.alerts[0].title, 'Alert: Quest phone');
+  assert.match(feed.alerts[0].body, /Quest airlock: Person 3 asked for help/);
 });
