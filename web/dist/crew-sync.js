@@ -35,6 +35,11 @@ export async function requestWatchCheckIn(id, seconds) {
   if (!paired) return false;
   try { await syncCall(paired, 'checkin', 'POST', { id, seconds: Math.max(1, Math.min(120, Math.round(seconds))) }); return true; } catch { return false; }
 }
+/** Sends an alert to the paired iPhone, which shows it as a notification. Does nothing when no iPhone is paired. */
+export function sendPhoneAlert({ id, person, kind, reason = '' }) {
+  if (!paired) return;
+  syncCall(paired, 'alert', 'POST', { id: String(id).replace(/[^\w-]/g, '-').slice(0, 64), person: String(person || 'Crew member').slice(0, 60), kind, reason: String(reason).slice(0, 160) }).catch(() => {});
+}
 export function cancelWatchCheckIn(id) { if (paired) syncCall(paired, 'checkin', 'POST', { id, cancel: true }).catch(() => {}); }
 
 

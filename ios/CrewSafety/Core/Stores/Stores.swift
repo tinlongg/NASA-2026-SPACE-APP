@@ -72,6 +72,8 @@ final class AppSettings {
     var voiceAgentEnabled = UserDefaults.standard.bool(forKey: "voiceAgentEnabled") {
         didSet { UserDefaults.standard.set(voiceAgentEnabled, forKey: "voiceAgentEnabled") }
     }
+    /// Keeps the iPhone awake while paired, so website alerts keep arriving as notifications.
+    var keepScreenOnWhilePaired = false
     var dashboardSyncKey: String { "\(dashboardSyncEnabled)|\(dashboardBaseURL)|\(dashboardPairingCode)" }
 }
 

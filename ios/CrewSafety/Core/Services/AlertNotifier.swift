@@ -37,3 +37,11 @@ final class AlertNotifier: NSObject, UNUserNotificationCenterDelegate {
         [.banner, .list, .sound]
     }
 }
+
+extension AlertNotifier {
+    /// Removes a notification that is already showing, for example once the person moved again.
+    func clearDelivered(id: String) {
+        UNUserNotificationCenter.current().removeDeliveredNotifications(withIdentifiers: [id])
+        cancel(id: id)
+    }
+}

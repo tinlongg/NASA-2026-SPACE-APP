@@ -8,6 +8,8 @@ final class DashboardSync {
     var status = "Not connected"
     var lastSynced: Date?
     private let deviceID: UUID
+    private static let seenAlertsKey = "crewSafetyWebsiteAlertsSeen"
+    private var inbox = WebsiteAlertInbox(seen: UserDefaults.standard.stringArray(forKey: seenAlertsKey) ?? [])
 
     init() {
         let key = "crewSafetyDashboardDeviceID"
@@ -29,7 +31,7 @@ final class DashboardSync {
         let health: HealthSummary?
     }
     private struct CheckInRequest: Decodable { let id: String; let expiresAt: Double }
-    private struct RemoteState: Decodable { let events: [SafetyEvent]; let checkInRequest: CheckInRequest? }
+    private struct RemoteState: Decodable { let events: [SafetyEvent]; let checkInRequest: CheckInRequest?; let websiteAlerts: [WebsiteAlert]?; let receivedAt: Double? }
     private struct WearableReply: Decodable { let checkInRequest: CheckInRequest? }
     /// Apple Watch readings for the website, in Unix milliseconds. Nil fields are left out.
     private struct WearablePayload: Encodable {
@@ -76,6 +78,7 @@ final class DashboardSync {
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .millisecondsSince1970
         let decoder = JSONDecoder(); decoder.dateDecodingStrategy = .millisecondsSince1970
         status = "Connecting…"
+        await AlertNotifier.shared.requestAuthorization()
         // The Watch channel runs beside the 3-second snapshot loop and stops with it.
         let wearable = Task { await self.wearableLoop(base: base, code: code) }
         defer { wearable.cancel() }
@@ -108,6 +111,7 @@ final class DashboardSync {
                 events.mergeSynced(reply.snapshot.events)
                 WatchLink.shared.syncWebsiteCheckIn(id: reply.snapshot.checkInRequest?.id,
                                                     expiresAt: reply.snapshot.checkInRequest.map { Date(timeIntervalSince1970: $0.expiresAt / 1000) })
+                deliver(reply.snapshot.websiteAlerts ?? [], serverNow: reply.snapshot.receivedAt ?? Date.now.timeIntervalSince1970 * 1000)
                 lastSynced = .now
                 status = "Connected · updates every 3 seconds"
             } catch {
@@ -115,6 +119,19 @@ final class DashboardSync {
                 status = "Disconnected · retrying. Local monitoring still works."
             }
             do { try await Task.sleep(for: .seconds(3)) } catch { return }
+        }
+    }
+
+    /// Shows the website camera's check-ins and alerts as notifications on this iPhone.
+    private func deliver(_ alerts: [WebsiteAlert], serverNow: Double) {
+        let actions = inbox.receive(alerts, serverNow: serverNow)
+        guard !actions.isEmpty else { return }
+        UserDefaults.standard.set(inbox.seen, forKey: Self.seenAlertsKey)
+        for action in actions {
+            switch action {
+            case let .show(id, title, body): AlertNotifier.shared.post(id: id, title: title, body: body)
+            case let .clear(id): AlertNotifier.shared.clearDelivered(id: id)
+            }
         }
     }
 

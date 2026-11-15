@@ -62,3 +62,17 @@ test('an opted-in Watch health summary is validated, stored, and dropped again w
  const bad=[{...health,ecg:'Sinus rhythm'},{...health,metrics:[{key:'ecg',value:1}]},{...health,metrics:[{key:'heartRate',value:-1}]},{...health,metrics:[{key:'heartRate'},{key:'heartRate'}]},{...health,metrics:[{key:'heartRate',standing:'good'}]},{...health,metrics:[{key:'heartRate',notes:'x'}]},{...health,simulated:'no'}];
  for(const item of bad) assert.equal((await call('state','PUT',code,{...fixture(),health:item})).status,422,JSON.stringify(item).slice(0,60));
 });
+test('website alerts reach the paired iPhone and survive a full upload',async()=>{
+ const {call}=setup(); const {pairingCode:code}=await (await call('sessions','POST')).json(); const input=fixture();
+ const alert=(id,kind='alert')=>({id,person:'Alex',kind,reason:'No movement for 15 s'});
+ assert.equal((await call('alert','POST',code,alert('a-1'))).status,409); // nobody paired yet
+ await call('state','PUT',code,input);
+ assert.equal((await call('alert','POST',code,alert('a-1'))).status,200);
+ assert.equal((await call('alert','POST',code,{...alert('a-2'),kind:'panic'})).status,422);
+ assert.equal((await call('alert','POST',code,{...alert('a-2'),extra:1})).status,422);
+ const synced=await (await call('state','PUT',code,input)).json();
+ assert.equal(synced.snapshot.websiteAlerts.length,1); assert.equal(synced.snapshot.websiteAlerts[0].person,'Alex'); assert.ok(synced.snapshot.websiteAlerts[0].at>0);
+ for(let i=0;i<25;i++) await call('alert','POST',code,alert('b-'+i,i%2?'resolved':'checkin'));
+ const got=await (await call('wearable','GET',code)).json();
+ assert.equal(got.websiteAlerts.length,20); assert.equal(got.websiteAlerts.at(-1).id,'b-24');
+});

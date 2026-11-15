@@ -62,6 +62,12 @@ function validateCheckInRequest(c, now = Date.now()) {
   if (!syncNumber(c.seconds,120) || c.seconds < 1) throw syncError(422,'Invalid check-in request');
   return { id: c.id, requestedAt: now, expiresAt: now + c.seconds * 1000 };
 }
+// Alerts the website's camera raises, relayed to the paired iPhone as notifications.
+export function validateWebsiteAlert(a, now = Date.now()) {
+  if (!syncFields(a,['id','person','kind','reason']) || !syncText(a.id,64,1) || !/^[\w-]+$/.test(a.id) || !syncText(a.person,60,1) || !['checkin','alert','resolved'].includes(a.kind) || (a.reason != null && !syncText(a.reason,160))) throw syncError(422,'Invalid alert');
+  return { id: a.id, person: a.person, kind: a.kind, reason: a.reason ?? '', at: now };
+}
+export const WEBSITE_ALERTS_KEPT = 20;
 async function syncReadJSON(request) {
   if (!(request.headers.get('Content-Type') || '').startsWith('application/json')) throw syncError(415,'Send JSON');
   if (!request.body) throw syncError(400,'Send JSON');
@@ -96,13 +102,15 @@ export async function handleCrewSync(request, env) {
     let wearable, checkIn;
     if (path==='/sync/wearable' && request.method==='PUT') wearable=validateWearable(await syncReadJSON(request));
     if (path==='/sync/checkin' && request.method==='POST') checkIn=validateCheckInRequest(await syncReadJSON(request));
+    let websiteAlert;
+    if (path==='/sync/alert' && request.method==='POST') websiteAlert=validateWebsiteAlert(await syncReadJSON(request));
     const ack=path.match(/^\/sync\/events\/([0-9a-f-]+)\/acknowledge$/i);
     for (let attempt=0;attempt<8;attempt++) {
       const row=await db.prepare('SELECT * FROM crew_sessions WHERE token = ? AND expires > ?').bind(key,Date.now()).first();
       if (!row) throw syncError(401,'Session expired or pairing code invalid');
       const previous=row.state ? JSON.parse(row.state) : null;
       if(path==='/sync/state' && request.method==='GET') return syncJSON({snapshot:previous});
-      if(path==='/sync/wearable' && request.method==='GET') return syncJSON({wearable:previous?.wearable ?? null, checkInRequest:activeCheckIn(previous), now:Date.now()});
+      if(path==='/sync/wearable' && request.method==='GET') return syncJSON({wearable:previous?.wearable ?? null, checkInRequest:activeCheckIn(previous), websiteAlerts:previous?.websiteAlerts ?? [], now:Date.now()});
       if(path==='/sync/session' && request.method==='DELETE') {await db.prepare('DELETE FROM crew_sessions WHERE token = ?').bind(key).run(); return new Response(null,{status:204,headers:{'Cache-Control':'no-store'}});}
       let state;
       if(incoming) {
@@ -110,7 +118,7 @@ export async function handleCrewSync(request, env) {
         const events=new Map((previous?.events||[]).map(e=>[e.id,e]));
         for(const e of incoming.events) { const old=events.get(e.id); if(!old) events.set(e.id,e); else if(e.acknowledged && !old.acknowledged) {old.acknowledged=true; old.acknowledgedAt=e.acknowledgedAt ?? Date.now();} }
         // The Watch channel and pending check-in live beside the snapshot; a full upload keeps them.
-        state={...incoming,events:[...events.values()].sort((a,b)=>b.timestamp-a.timestamp).slice(0,500),receivedAt:Date.now(),wearable:previous?.wearable ?? null,checkInRequest:activeCheckIn(previous)};
+        state={...incoming,events:[...events.values()].sort((a,b)=>b.timestamp-a.timestamp).slice(0,500),receivedAt:Date.now(),wearable:previous?.wearable ?? null,checkInRequest:activeCheckIn(previous),websiteAlerts:previous?.websiteAlerts ?? []};
       } else if(wearable) {
         if(!previous) throw syncError(409,'Send the iPhone state first');
         if(previous.deviceID!==wearable.deviceID) throw syncError(409,'This session is paired with another iPhone. Create a new session.');
@@ -120,6 +128,9 @@ export async function handleCrewSync(request, env) {
       } else if(checkIn) {
         if(!previous) throw syncError(409,'No iPhone is paired with this session yet');
         state={...previous,checkInRequest:checkIn.cancel ? (previous.checkInRequest?.id===checkIn.id ? null : activeCheckIn(previous)) : checkIn};
+      } else if(websiteAlert) {
+        if(!previous) throw syncError(409,'No iPhone is paired with this session yet');
+        state={...previous,websiteAlerts:[...(previous.websiteAlerts||[]),websiteAlert].slice(-WEBSITE_ALERTS_KEPT)};
       } else if(ack && request.method==='POST' && syncID(ack[1])) {
         state=previous; const event=state?.events.find(e=>e.id===ack[1].toLowerCase());
         if(!event) throw syncError(404,'Event not found');
@@ -127,7 +138,7 @@ export async function handleCrewSync(request, env) {
         event.acknowledged=true; event.acknowledgedAt=Date.now();
       } else throw syncError(405,'Unsupported sync operation');
       const saved=await db.prepare('UPDATE crew_sessions SET state = ?, revision = revision + 1 WHERE token = ? AND revision = ? AND expires > ?').bind(JSON.stringify(state),key,row.revision,Date.now()).run();
-      if(saved.meta.changes) return syncJSON(incoming ? {snapshot:state} : wearable ? {checkInRequest:state.checkInRequest} : checkIn ? {checkInRequest:state.checkInRequest} : {acknowledged:true});
+      if(saved.meta.changes) return syncJSON(incoming ? {snapshot:state} : wearable ? {checkInRequest:state.checkInRequest} : checkIn ? {checkInRequest:state.checkInRequest} : websiteAlert ? {delivered:true} : {acknowledged:true});
     }
     throw syncError(409,'Concurrent update; retry shortly');
   } catch(error) { return syncJSON({detail:error.status ? error.message : 'Sync is temporarily unavailable'},error.status||503); }
