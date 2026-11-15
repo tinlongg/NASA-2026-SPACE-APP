@@ -11,6 +11,9 @@ struct CheckInView: View {
             VStack(spacing: Theme.Spacing.xl) {
                 Spacer(minLength: 0)
                 VStack(spacing: Theme.Spacing.s) {
+                    if let source = model.lastDetectionSource, source != .liveCamera {
+                        SimulatedBadge(text: source.displayName)
+                    }
                     Text("No movement detected")
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.alert)

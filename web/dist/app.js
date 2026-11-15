@@ -26,7 +26,7 @@ let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, dete
 let coachPending = false;
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
-const titles = { home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded or uploaded'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-fall detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'] };
+const titles = { home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded or uploaded'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'] };
 function showTab(tab) {
   if (!titles[tab]) return;
   if (tab !== 'monitor') stopSession();

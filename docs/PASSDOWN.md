@@ -1,18 +1,55 @@
-# Passdown — 2026-11-14
+# Passdown — 2026-11-15
 
-Branch `claude/design-auth-vector-db-75f976`, on top of `0bf205e`. **Nothing from this session is
-committed yet.** Read this first, then `README.md` → *Setting and detection*. `docs/HANDOFF.md` is the
-older, longer status file.
+Starting point for this follow-up: `main` at `19906a1`, which merged PR #4 and commit `e7c5db7`. The station detector,
+accounts and journal recall are already merged; do not open another PR for that old branch.
+This file is the current operational handoff. Read it first, then `README.md` → *Setting and detection*.
+`docs/HANDOFF.md` records an older revision; its test counts, hosted `/chat` advice and export commands
+are historical. The briefs and execution plan retain the original design beneath their override notes.
+
+This handoff accompanies the QA fixes being committed to `main` at the user's request. The code and
+documentation are the deliverable; the hosted website has not been redeployed. Teammates must pull
+`main` and rebuild the iOS app or restart their local web server to use these changes.
+
+## What Codex did in this follow-up
+
+| Files | Change and reason |
+| --- | --- |
+| `ios/CrewSafety/Features/Camera/CheckInVoice.swift` | Fixed a simulator crash when answering a check-in with speech permission denied. Audio objects are created when needed; stopping only cleans up an input tap/session that was actually started. |
+| `ios/CrewSafetyTests/CrewCheckInTests.swift` | Added `testVoiceCleanupWithoutListeningIsSafeAndRepeatable`, exercising two stops before any listening begins. The complete native suite now has 54 tests. |
+| `ios/CrewSafety/Features/Camera/CheckInView.swift` | Kept the Replay/Web camera source badge visible on the full-screen check-in. |
+| `ios/CrewSafety/Features/Camera/CameraMonitorView.swift` | Renamed the test menu section to **Replay a pose sequence**, since the current fixtures are generated joint positions rather than recordings. |
+| `web/dist/app.js` | Corrected the Safety events caption to possible-unresponsive detection. |
+| README, handoff, checklist, demo, connection and data notes | Reconciled current behavior, run requirements, account-journal privacy, removed browser research features and outstanding acceptance work. Older plan/handoff content is explicitly historical. |
+
+All 15 project Markdown files were reviewed. The QA results below come from the November 14 test
+session; the November 15 handoff update adds the file summary and body-tracking clarification. No
+detector thresholds, account schema, MUSE provider configuration or source-review signoffs changed.
+Existing untracked duplicate files and generated Xcode workspace data are outside this changeset.
+
+## What "pose" means here
+
+Users do not perform or copy named poses. **Pose estimation is automatic body tracking**: Apple Vision
+on iPhone and MediaPipe in the browser estimate shoulder, hip and limb positions from each frame.
+The detector compares those positions relative to the torso to measure stillness while ignoring
+whole-body drifting/rotation. This design was already in the merged repository before the QA work.
+
+The optional skeleton overlay only draws the tracked points; the synthetic replays feed generated
+points into the same detector. **No reliable pose** means there are not enough reliable body points
+to measure movement, not that the user failed to perform an action. Camera Coach receives an explicitly
+submitted numerical summary, not video, and does not decide when alerts fire. Replacing body tracking
+would require a different movement detector; it was not removed during this follow-up.
 
 ## Where the product is now
 
 CrewSafety is for crew **aboard a space station**. Fall detection is gone, because nobody falls in
 microgravity. The camera now raises a *possible unresponsive* alert when a tracked crew member shows no
-limb movement for 15 seconds, then asks "Are you OK?". The website has accounts, a journal with a vector
+limb movement for 15 seconds. iOS then asks "Are you OK?" and gives 60 seconds for a response; the
+standalone website immediately records an event asking a crewmate to check in, without the iOS countdown.
+The website has accounts, a journal with a vector
 index, and MUSE reflections that can draw on related past entries. The MUSE research tab and the
 simulated heart-rate data are removed from the website.
 
-## What changed this session
+## Merged product changes
 
 | Area | Change |
 | --- | --- |
@@ -25,10 +62,41 @@ simulated heart-rate data are removed from the website.
 | Journal vector DB | Signed-in entries are stored in D1 with a 512-dimension embedding (`hashed-lexical-v1`: hashed words, word pairs, trigrams and 11 wellness-theme dimensions). Search is an exact cosine scan of that user's rows, 500 entries at most. **This embedder is not a neural model**; swap `embedText` and bump `VEC_MODEL` to change it, and old rows are re-embedded on the next recall. |
 | MUSE memory (RAG) | "Send to MUSE" has a checkbox (on by default when signed in). The server attaches up to 3 of that user's related past entries (similarity ≥ 0.2) to the Meta request. The browser never supplies the history. |
 | Removed from the website | The MUSE research tab, Worker `/chat`, `research.mjs`, `research-data.json`, `fallback.json`, `research-ui.js`, the research tests, and the backend `export_web.py` and parity test. **The FastAPI `/chat` still exists for the iOS app.** Also removed: the simulated heart-rate cards and chart, and the demo crew member. |
-| Design | Follows the unslop guide (`design.md`, in another worktree): graphite surfaces, one green accent, sentence case, 400–600 weights, lucide line icons, 8 px / 12 px radii. The sidebar has groups, quick actions, a live status panel (camera, iPhone, MUSE, offline cache) and recent events. On narrow screens the nav becomes a top bar where items share the width. The design direction is at the top of `web/dist/styles.css`. |
+| Design | Graphite surfaces, one green accent, sentence case, 400–600 weights, lucide line icons, 8 px / 12 px radii. The sidebar has groups, quick actions, a live status panel and recent events. On narrow screens the nav becomes a top bar. The checked-in design direction is at the top of `web/dist/styles.css`; the earlier `design.md` reference belongs to another worktree and is not a file in this repo. |
 | Docs | `README.md` has a *Setting and detection* section. The brief, plan and handoff open with a direction-change note. The demo script, integration checklist, connection guide, web README and webcam README are reworded. |
 
+## QA evidence — 2026-11-14
+
+- Web: **39/39 tests pass** with Node **22.23.5**. Node 20.11.0 cannot load `node:sqlite`; this is a
+  runtime requirement, not an account-test regression. The system Node installation was not replaced.
+- Backend: **31/31 tests pass** in the existing virtual environment.
+- iOS: **54/54 tests pass** on Xcode 26.6, iPhone 17 / iOS 26.5, including the new repeated idle-voice
+  cleanup regression. The baseline had 53 tests; the interactive run found the missing crash case.
+- Browser UI: **Stops moving** completed its 20-second synthetic sequence, recorded exactly one
+  `Possible unresponsive · Synthetic replay` event after 15 seconds of stillness, and acknowledgement
+  reduced the open-event count to zero. A hidden tab stopped an earlier replay as designed.
+- Live Mac webcam: user-authorized startup reached **8–13 fps** in the in-app browser, but no reliable
+  shoulder/hip pose was acquired during the attempt. No live stillness alert was verified. Stop released
+  the camera. No live camera screenshots, video recordings or provider submissions were made.
+- Native UI exposed a crash after tapping **I'm OK** with speech permission denied. The crash stack
+  enters `CheckInVoice.stop()` → `AVAudioEngine.inputNode` → audio I/O initialization. Cleanup must not
+  create an input node. The fix creates the synthesizer/engine only when speaking/listening starts,
+  retains the node with an installed tap, and releases only resources that were used. A regression exercises stopping
+  before listening, twice. Apple's [input-node documentation](https://developer.apple.com/documentation/avfaudio/avaudioengine/inputnode)
+  confirms that accessing this property creates the node on demand.
+- Copy fixes: web Safety events now says possible-unresponsive; iOS Test says **Replay a pose sequence**,
+  and the full-screen check-in retains the Replay/Web camera source badge.
+- Final iOS interactive recheck: **Synthetic Stops Moving → I'm OK** returned to Monitor, displayed
+  the recorded OK response and raised no active alert. **Synthetic Limp And Tumbling → I need help**
+  produced a critical event with a Replay-labelled banner; Acknowledge cleared the banner. Both prompts
+  retained the Replay badge, and neither response crashed. The 60-second timeout remains unit-tested,
+  not interactively timed in this pass.
+- The web Worker build succeeds. After the preview restart, one reload updated the service worker and
+  a second loaded the corrected event caption; account data was not cleared to refresh the assets.
+
 ## Run it
+
+The web server and account/sync tests require **Node 22.13+** (`node --version`).
 
 ```bash
 cd web && npm test
@@ -39,51 +107,78 @@ cd web && npm start
 ```
 
 `npm start` serves http://127.0.0.1:4173 and loads `web/.env`. Accounts persist in the ignored file
-`web/.data/local.sqlite`.
+`web/.data/local.sqlite`, including pairing sessions. The QA preview used port 4174 and a separate
+database outside the repository, so it did not alter the normal local accounts.
+
+If the Mac still has Node 20, use a scoped Node 22 runtime without changing the global installation:
+
+```bash
+cd web
+npx --yes --package=node@22 node --test tests/*.test.mjs
+npx --yes --package=node@22 node --env-file-if-exists=.env scripts/serve.mjs
+```
 
 ```bash
 cd backend && .venv/bin/python -m pytest -q
 ```
 
-iOS: in the Simulator destination list Xcode shows only a placeholder, so target a simulator by id:
+iOS: Xcode 26.6 and the iOS 26.5 runtime are installed on this Mac. List available destinations with
+`xcrun simctl list devices available`; substitute an installed name/OS if different. From the repo root:
 
 ```bash
-cd ios && xcodebuild test -project CrewSafety.xcodeproj -scheme CrewSafety -destination 'id=C19397A3-26BB-44AB-849D-CB87C0588C66' CODE_SIGNING_ALLOWED=NO
+xcodebuild test -project ios/CrewSafety.xcodeproj -scheme CrewSafety \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' \
+  -jobs 2 -parallel-testing-enabled NO ONLY_ACTIVE_ARCH=YES CODE_SIGNING_ALLOWED=NO
 ```
 
-Last results: **web 39/39, backend 31/31, iOS 53/53** (iPhone 17 Pro, iOS 26.5 simulator).
+Use **Monitor → Test → Synthetic Stops Moving** for the native replay. The Simulator cannot validate
+Apple Vision on a physical iPhone camera. Keep the browser preview visible during web replay or webcam
+tests; hiding it releases the camera and stops the session.
 
 ## Secrets
 
-- The Meta key is in `web/.env` (git-ignored) as `META_API_KEY`, with `META_MODEL=muse-spark-1.3`. It was
-  pasted in a chat session, so **rotate it** in Meta's dashboard.
-- A real MUSE journal reflection with memory was confirmed locally with this key.
+- Local configuration uses ignored `web/.env`: `META_API_KEY` and optional `META_MODEL=muse-spark-1.3`.
+  Hosted credentials belong in runtime secrets. Never copy `.env` into a source bundle or print its value.
+- The earlier pass reported a real MUSE journal reflection with memory. This QA pass used mocked provider
+  calls in tests and did not make a live Meta request or rotate credentials.
 
 ## Before deploying the hosted site
 
-1. Apply `web/drizzle/0001_accounts.sql` to the hosted D1 database. Sign-in fails without it.
+1. Confirm both `web/drizzle/0000_crew_sync.sql` and `0001_accounts.sql` are applied to the hosted D1
+   database. Sign-in fails without the account tables.
 2. Set `META_API_KEY` (and optionally `META_MODEL`) as runtime secrets in Sites, then redeploy.
 3. `npm run build` and publish `web/` as described in `web/README.md` → Hosting.
-4. Delete the throwaway test accounts in your local `web/.data/local.sqlite` if you plan to copy it anywhere.
+4. Exclude `.env`, `.data`, local SQLite files and test accounts from the deployment source. Publish
+   schema migrations, not a copy of the development database. No deployment was performed in this pass.
 
 ## Not done / not verified
 
-- **The web replays were not watched in the browser** after the detector change. They are covered by
-  unit tests at 10, 15, 30 and 60 fps. Run **Camera monitor → Stops moving** once and confirm one event
-  after about 15 s.
-- **iOS was not run interactively** (only unit tests). The iOS app was paused on purpose to save usage;
-  its code is finished and consistent with the website and backend.
-- No real person has been tested. 15 s and 0.25 torso lengths are starting values. Sleep, reading or
+- Real-person detection remains unverified despite the webcam-startup check. 15 s and 0.25 torso
+  lengths are starting values. Sleep, reading or
   deliberate stillness will trigger the alert, and hidden arms reduce visible movement.
 - No email, password reset or account deletion. Login throttling is per isolate, best effort.
 - Account journal entries are stored on the server in plain text; guest entries stay in localStorage.
 - `docs/EXECUTION_PLAN.md` and the briefs still describe the fall design in their bodies; the note at the
   top of each overrides it.
 - The FastAPI `/dashboard/` copy of the website has no account routes, so it is guest-only.
+- iOS permission descriptions in `ios/CrewSafety.xcodeproj/project.pbxproj` still say "possible fall"
+  for camera, microphone and speech in Debug and Release. The app lead owns that project file under
+  `docs/EXECUTION_PLAN.md` §3; update those six strings before a permission-flow demo. The project file
+  was not changed in this QA pass.
+- Notification delivery, on-device speech, the real-iPhone checklist, Windows webcam testing and
+  prepared offline camera inference remain unverified. Simulator notification and speech prompts were
+  declined during the button-based checks.
+- NASA sources still need an independent human reviewer; preserve the pending signoff in `SOURCES.md`.
 
 ## Suggested next steps
 
-1. Commit this branch and open a PR to `main`.
-2. Watch one web replay and one live webcam session to confirm the 15 s alert feels right.
-3. Decide whether sleep periods should pause monitoring (the most likely false alarm on a station).
-4. Optionally replace `hashed-lexical-v1` with a real embedding API for better journal recall.
+1. Pull `main` and rebuild iOS / restart the web preview using the commands above. Review the changes
+   listed in this handoff; the earlier PR #4 merge is already complete. The 39 web, 31 backend and 54
+   iOS test results cover this code; the remaining items below are not implied to be complete.
+2. Repeat the live webcam test with shoulders, hips and arms reliably tracked, then run the physical
+   iPhone checklist. Record observed false alerts/misses without describing synthetic tests as validation.
+3. Decide with the team whether sleep periods should pause monitoring; no automatic sleep suppression
+   was added. Use Stop for a deliberate pause in the current prototype.
+4. Apply and verify hosted migrations/secrets before a separate deployment; a GitHub pull does not
+   update the hosted site or the installed simulator app.
+5. A neural embedding API is optional follow-up, not a dependency of the present journal recall.

@@ -9,13 +9,13 @@ remains pending; use the synthetic replays rather than relying on a live stillne
 | --- | --- | --- |
 | 0:00 | Problem slide | “On a space station nobody falls, but a crew member can stop responding. This prototype notices when someone in view stops moving and checks in. It is not a medical device.” |
 | 0:20 | Dashboard | “This is a simulated crew. The heart-rate values are generated, not wearable readings.” |
-| 0:35 | Monitor → Synthetic replay *Limp and tumbling* (web: *Stops moving* or *Limp and tumbling*) | “This is a generated floating figure, not a recording of a person. It keeps drifting, but its limbs stop, which is what the detector measures.” |
-| 0:55 | Event banner → Safety events | “After 15 seconds without limb movement it raised a possible-unresponsive event and asked ‘Are you OK?’. Sleep or holding still can trigger it, so it is a prompt to check in, not a diagnosis.” |
-| 1:10 | Acknowledge | “Acknowledging clears this event. Synthetic sit and slow-descent tests do not alert; real-device behavior still needs validation.” |
-| 1:25 | MUSE Research → a prepared question | “MUSE retrieves passages from our small NASA corpus. Camera Coach is a separate optional explanation of numerical camera data.” |
+| 0:35 | Monitor → Test → *Synthetic Limp And Tumbling* (web: *Stops moving* or *Limp and tumbling*) | “This is a generated floating figure, not a recording of a person. It keeps drifting, but its limbs stop, which is what the detector measures.” |
+| 0:55 | Native check-in → **I need help** (synthetic demo) → Alerts | “After 15 seconds without limb movement, iOS asks ‘Are you OK?’. Asking for help or not answering for 60 seconds creates a critical event. The browser records an immediate event instead of this countdown. Sleep or holding still can trigger either path; this is not a diagnosis.” |
+| 1:10 | Acknowledge | “Acknowledging clears the active event. Working, resting with small movements, and leaving-view replays do not alert. Real-person detection still needs validation.” |
+| 1:25 | Native MUSE → a prepared question | “The iPhone research assistant retrieves passages from our small NASA corpus. The website has Camera Coach and optional journal reflections instead of this research tab.” |
 | 1:45 | Source links | “These links identify the documents and sections. OSDR study OSD-946 is a ground bed-rest study; this app does not analyze its raw data. Independent source review is pending.” |
 | 2:00 | Journal → save a sample note | “The journal stays on this device. Its summary describes written themes without scoring mood or diagnosing.” |
-| 2:20 | Limitations slide | “The camera heuristic assumes one person, gravity and fixed framing. Telemetry is simulated, the corpus is small, and real-world camera/offline tests remain to be completed.” |
+| 2:20 | Limitations slide | “The camera heuristic assumes one person and fixed framing with visible shoulders, hips and limbs. It ignores drifting and tumbling. Sleep and deliberate stillness can trigger it. Native telemetry is simulated, and real-person detection and offline camera tests remain incomplete.” |
 
 ## Fallbacks
 
@@ -23,7 +23,7 @@ remains pending; use the synthetic replays rather than relying on a live stillne
 | --- | --- | --- |
 | Webcam/phone camera unavailable | Use generated replay | “This is synthetic input through the same detector.” |
 | Model fails | Show extractive answer | “Generation is unavailable, so these are unedited retrieved passages.” |
-| Backend unreachable | Native: settings → MUSE Demo; web: Demo mode and a prepared question | “This is a saved answer exported from the same research service, labelled Demo mode.” |
+| Backend unreachable | Native: settings → MUSE Demo and a prepared question | “This is a saved answer exported from the research service, labelled Demo mode. The browser has no research-answer fallback.” |
 | App or phone fails | Open the web companion online | “This is the browser testing companion, using MediaPipe instead of Apple Vision.” |
 | Network unavailable | Use a previously prepared browser cache or native demo | “These features are local; external source pages and live AI may be unavailable.” |
 

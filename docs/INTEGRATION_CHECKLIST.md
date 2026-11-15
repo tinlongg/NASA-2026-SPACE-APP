@@ -1,55 +1,69 @@
 # Integration checklist
 
-Run on the demo iPhone before every checkpoint. “Sim” records results reported by the earlier handoff,
-not rerun during this alignment pass. No item has been checked on a physical iPhone. Current Xcode
-launch problems block new native runs; the browser extension does not satisfy iPhone acceptance.
+Updated 2026-11-14 against `main` at `19906a1` plus the local QA fixes described in
+[PASSDOWN](PASSDOWN.md). Checked items below were verified in this pass. Physical iPhone and Windows
+acceptance remain pending; synthetic replays do not validate real-person detection.
 
-## Automated
-- [x] iOS unit tests pass (Sim) — command in `README.md`
-- [x] Backend tests pass (27, including Python/JS ranking parity) — `cd backend && .venv/bin/python -m pytest -q`
+## Automated and build checks
 
-## On device
-- [ ] App launches from a cold start
-- [x] Dashboard shows crew, derived status and recent events (Sim)
-- [ ] First camera use prompts for permission; denying shows the Settings link
-- [ ] On a physical iPhone, holding still in view for 15 s produces exactly one `Possible unresponsive` check-in (pending)
-- [ ] Replay → Synthetic stops moving / limp and tumbling each produce one alert labelled `Replay` (unit-tested; recheck in the Simulator)
-- [ ] Replay → Synthetic Sit Down and Lie Down Slowly produce no alert
-- [ ] Really sitting down and lying down slowly produce no alert (3 tries each)
-- [ ] Staying still after an alert does not raise a second one until the crew member moves
-- [x] Banner shows source and time; Acknowledge clears it; status returns to Nominal (Sim)
-- [x] MUSE Live returns an answer with a tappable source (Sim, artificial test corpus only)
-- [ ] MUSE Live with the real corpus: every citation opens the claimed document
-- [ ] Irrelevant question shows "No supporting source found"
-- [ ] Backend stopped: chat shows the "can't reach" state and does not crash
-- [ ] Demo mode shows the "Demo mode" badge on every answer
-- [x] Journal entry saves and shows an on-device summary (Sim)
-- [ ] Journal entry is still there after quitting and reopening the app
-- [ ] Airplane mode: dashboard, camera, alerts, journal and telemetry all work
-- [x] Heart-rate card shows `Simulated` (Sim)
-- [ ] Ten minutes of monitoring: no crash, phone does not lock or overheat
-- [ ] Full demo script runs twice in a row
+- [x] Web: 39 tests pass on Node 22.23.5, including detector fixtures, account isolation, journal recall,
+  provider mocks, offline-cache simulations and pairing/sync. Node 20 cannot load `node:sqlite`.
+- [x] Backend: 31 tests pass — `cd backend && .venv/bin/python -m pytest -q`.
+- [x] iOS: 54 tests pass on Xcode 26.6, iPhone 17 / iOS 26.5 Simulator, including repeated voice cleanup
+  before listening. The 60-second check-in timeout is unit-tested.
+- [x] Web Worker build succeeds. Commands and runtime requirements are in [PASSDOWN](PASSDOWN.md).
 
-## Known limits to say out loud
-The no-movement heuristic assumes one person, a fixed camera and decent light. Sleep, reading or
-holding still on purpose will trigger it, and hidden arms reduce visible movement. There is no heuristic score, so nothing is presented as a
-probability. Telemetry is simulated. MUSE only knows the documents the team gave it.
+## Interactive checks completed
 
+- [x] Browser: Stops moving runs to completion, creates exactly one `Possible unresponsive · Synthetic
+  replay` event after 15 seconds of stillness, and acknowledgement clears the open-event count.
+- [x] Browser: Safety events caption uses possible-unresponsive wording after asset refresh.
+- [x] Mac webcam starts at 8–13 fps; Stop releases it. **No reliable pose was acquired**, so this does
+  not verify the live detector or a live stillness alert.
+- [x] iOS: Monitor → Test → Synthetic Stops Moving opens a Replay-labelled check-in. **I'm OK** logs
+  the response, returns to Monitor without an active alert, and does not crash.
+- [x] iOS: Synthetic Limp And Tumbling → **I need help** raises a critical Replay-labelled banner.
+  Acknowledge clears it. The source badge is visible on both full-screen check-in prompts.
 
-## Browser companion — 2026-11-14 alignment pass
+Notification and speech permissions were declined during the simulator button checks. On-device voice
+and notification delivery were not tested. Provider calls in automated tests were mocked; this pass
+did not reverify a live Meta response or the hosted deployment.
 
-- [x] 29 Node tests pass: seven replay scenarios at four frame rates, low-confidence/lost pose,
-  invalid input, provider failures, rate limits, citation provenance, and demo fallback.
-- [ ] Local UI: generated stillness → one labelled event (web replays unit-tested); research question → OSDR citations.
-- [x] Browser shell reloaded with local server stopped; saved OSDR answer showed Demo mode and
-  citations. Camera-model cache reported complete; camera inference without networking is untested.
-- [x] Offline-cache simulation: shell/model retrieval with mocked networking disabled; failed model
-  download does not report readiness. This is not a physical offline test.
-- [x] Research wire fields and shared native Core types remain unchanged.
-- [x] Published version 3: Meta generated a cited OSD-946 answer with correct ground-study scope.
-- [ ] Different teammate verifies all five source records and six saved answers, signs SOURCES/manifest.
-- [ ] Chrome/Edge on Windows: allow/deny permission, busy camera, unplug, hide page, return, restart.
-- [ ] Actual webcam: upright/walk/sit/slow descent, loss/recovery, low light and framing limitations.
-- [ ] Prepared offline reload: local camera, replay, alerts, journal, telemetry and saved MUSE questions.
-- [ ] Long session on the actual test device: heat, frame rate, memory and no duplicate alerts.
-- [ ] Real recorded pose fixtures and false-alert/missed-event results documented.
+## Physical iPhone acceptance — pending
+
+- [ ] Cold launch, camera permission allow/deny, recovery via Settings, and camera release on Stop.
+- [ ] Update the six camera/microphone/speech permission descriptions in `project.pbxproj` from the
+  historical fall wording before the permission-flow demo (app-lead ownership in EXECUTION_PLAN §3).
+- [ ] With shoulders, hips and arms reliably visible, holding still for 15 seconds opens one check-in.
+- [ ] Ordinary limb movement does not trigger; body drift/rotation alone does not count as limb movement.
+- [ ] Pose loss for over two seconds resets the timer; reacquisition starts a fresh observation window.
+- [ ] Continued stillness does not cause duplicate alerts; movement rearms detection.
+- [ ] Repeat both response-button paths on device; wait through the complete 60-second timeout.
+- [ ] Verify speech allow/deny, spoken response handling, notification allow/deny and actual delivery.
+- [ ] Native MUSE citations open the claimed real documents; irrelevant questions and backend loss
+  show the documented fallback states with Demo mode labelled where applicable.
+- [ ] Native journal survives relaunch; local dashboard, monitoring, alerts and journal work offline.
+- [ ] Ten minutes of monitoring: acceptable frame rate, heat, memory, no crash or unexpected lock.
+- [ ] Run the complete demo script twice.
+
+## Browser and deployment acceptance — pending
+
+- [ ] Repeat the Mac live-person test with reliable framing: movement, 15-second stillness, pose
+  loss/recovery, low light, acknowledgement and rearming. Record false alerts and missed events.
+- [ ] Chrome/Edge on Windows: permission allow/deny, busy camera, unplug, hide/return and restart.
+- [ ] Prepared offline reload: browser replay, events, guest journal and camera inference. Mocked
+  cache tests do not establish that MediaPipe inference works without networking on the demo device.
+- [ ] Long session on the actual laptop: frame rate, heat, memory and no duplicate alerts.
+- [ ] Apply and verify both hosted D1 migrations, account login/storage and runtime Meta credentials
+  before publishing. No deployment was performed in this pass.
+- [ ] A different teammate verifies the NASA source records and saved native answers, then signs the
+  pending review fields in `SOURCES.md` and the source manifest.
+
+## Limits to explain during the demo
+
+This is a one-person, camera-dependent no-movement heuristic, not a diagnosis or a probability of
+unresponsiveness. Sleep, reading and deliberate stillness can trigger it; hidden arms reduce visible
+movement. The native app offers a 60-second check-in, while the standalone browser immediately records
+an event asking a crewmate to check in. Paired telemetry is simulated. Account journals are server-stored;
+guest journals stay in browser storage. MUSE reflections send selected text and optional related account
+entries to Meta. The website no longer has the native research chat or saved research-answer fallback.

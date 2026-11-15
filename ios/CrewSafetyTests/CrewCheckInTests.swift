@@ -4,6 +4,15 @@ import XCTest
 final class CrewCheckInTests: XCTestCase {
     private let start = Date(timeIntervalSinceReferenceDate: 1_000)
 
+    @MainActor
+    func testVoiceCleanupWithoutListeningIsSafeAndRepeatable() {
+        // Reproduces answering a check-in with voice unavailable. Stopping must not
+        // initialize audio input, which can abort the app on a simulator without audio I/O.
+        let voice = CheckInVoice()
+        voice.stop()
+        voice.stop()
+    }
+
     private func started(duration: TimeInterval = 60) -> CrewCheckIn {
         var checkIn = CrewCheckIn(duration: duration)
         checkIn.start(at: start)

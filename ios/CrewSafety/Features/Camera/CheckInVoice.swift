@@ -7,20 +7,20 @@ import Speech
 /// prompt ("Say I'm okay") as an answer. Audio is not stored or sent.
 @MainActor
 final class CheckInVoice: NSObject, AVSpeechSynthesizerDelegate {
-    private let synthesizer = AVSpeechSynthesizer()
-    private let engine = AVAudioEngine()
+    private var synthesizer: AVSpeechSynthesizer?
+    private var engine: AVAudioEngine?
+    private var tappedInput: AVAudioInputNode?
+    private var sessionActive = false
     private var request: SFSpeechAudioBufferRecognitionRequest?
     private var task: SFSpeechRecognitionTask?
     private var speechFinished: CheckedContinuation<Void, Never>?
 
-    override init() {
-        super.init()
-        synthesizer.delegate = self
-    }
-
     /// Speaks `text` and returns when it has finished (or was stopped).
     func speak(_ text: String) async {
         configureSession()
+        let synthesizer = synthesizer ?? AVSpeechSynthesizer()
+        self.synthesizer = synthesizer
+        synthesizer.delegate = self
         await withCheckedContinuation { continuation in
             speechFinished = continuation
             let utterance = AVSpeechUtterance(string: text)
@@ -51,18 +51,26 @@ final class CheckInVoice: NSObject, AVSpeechSynthesizerDelegate {
         request.requiresOnDeviceRecognition = true
 
         configureSession()
+        let engine = AVAudioEngine()
+        self.engine = engine
         let input = engine.inputNode
         let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else { return false }
+        guard format.sampleRate > 0, format.channelCount > 0 else {
+            self.engine = nil
+            return false
+        }
         input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 1024, format: format) { buffer, _ in
             request.append(buffer)
         }
+        tappedInput = input
         engine.prepare()
         do {
             try engine.start()
         } catch {
             input.removeTap(onBus: 0)
+            tappedInput = nil
+            self.engine = nil
             return false
         }
 
@@ -76,23 +84,35 @@ final class CheckInVoice: NSObject, AVSpeechSynthesizerDelegate {
 
     /// Stops speaking and listening and releases the microphone.
     func stop() {
-        if synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
+        if let synthesizer, synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
         resumeSpeech()
-        if engine.isRunning { engine.stop() }
-        engine.inputNode.removeTap(onBus: 0)
+        if let engine, engine.isRunning { engine.stop() }
+        // Accessing engine.inputNode creates audio I/O. Cleanup must not open a microphone
+        // when recognition never started (for example, after permission was denied).
+        tappedInput?.removeTap(onBus: 0)
+        tappedInput = nil
+        engine = nil
         request?.endAudio()
         request = nil
         task?.cancel()
         task = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        if sessionActive {
+            try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+            sessionActive = false
+        }
     }
 
     // MARK: Private
 
     private func configureSession() {
         let session = AVAudioSession.sharedInstance()
-        try? session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .duckOthers])
-        try? session.setActive(true)
+        do {
+            try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker, .duckOthers])
+            try session.setActive(true)
+            sessionActive = true
+        } catch {
+            // Buttons remain available when audio cannot be activated.
+        }
     }
 
     private func resumeSpeech() {

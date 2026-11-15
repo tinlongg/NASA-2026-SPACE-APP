@@ -186,7 +186,7 @@ struct CameraMonitorView: View {
                     } label: {
                         Label("Web camera on this Mac", systemImage: "web.camera")
                     }
-                    Section("Replay a recording") {
+                    Section("Replay a pose sequence") {
                         ForEach(model.fixtures) { fixture in
                             Button(fixture.displayName) { Task { await model.startReplay(fixture) } }
                         }
