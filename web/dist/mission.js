@@ -99,7 +99,7 @@ export function initializeMission(){
   main.append(journey);
   if(admin)renderAdmin(main);
   const nav=node('div',null,'mission-tabs');nav.setAttribute('aria-label','Mission sections');for(const [id,label]of tabs){const b=control(label,()=>{section=id;render();});b.classList.toggle('selected',section===id);b.setAttribute('aria-pressed',String(section===id));nav.append(b);}main.append(nav);
-  const content=node('div',null,'mission-section');main.append(content);if(section!=='care'){const back=control('×',()=>{section='care';render();},'mission-section-close');back.setAttribute('aria-label','Close '+tabs.find(t=>t[0]===section)[1]);content.append(back);}
+  const content=node('div',null,'mission-section');main.append(content);
   if(section==='care')renderCare(content,info);if(section==='games')renderGames(content,info);if(section==='garden')renderGarden(content);if(section==='shop')renderShop(content);if(section==='board')renderBoard(content);
   main.append(node('p','Participation powers the mission. No points depend on a positive mood, a perfect suit inspection, physical ability, or a high game score.','mission-footnote'));
  }
