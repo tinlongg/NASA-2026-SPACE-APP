@@ -20,8 +20,6 @@ struct RootTabView: View {
             AlertsView()
                 .tabItem { Label("Alerts", systemImage: "bell.fill") }
                 .badge(eventStore.activeAlerts.count)
-            MuseChatView()
-                .tabItem { Label("MUSE", systemImage: "bubble.left.and.text.bubble.right.fill") }
             WellnessJournalView()
                 .tabItem { Label("Journal", systemImage: "book.closed.fill") }
         }

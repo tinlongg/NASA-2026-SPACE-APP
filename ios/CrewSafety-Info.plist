@@ -4,8 +4,6 @@
 <dict>
     <key>NSLocalNetworkUsageDescription</key>
     <string>Connect to your computer's CrewSafety dashboard to share crew status and safety alerts.</string>
-	<key>MUSE_BASE_URL</key>
-	<string>http://localhost:8000</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
