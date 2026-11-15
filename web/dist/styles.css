@@ -294,3 +294,4 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .thought.alert .chip { color: var(--danger); }
 #overlay { cursor: pointer; }
 @media (max-width: 720px) { .closeup-body { grid-template-columns: 1fr; } }
+.voice-answer-status { margin: 0 0 8px; }
