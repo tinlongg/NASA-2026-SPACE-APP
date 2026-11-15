@@ -35,6 +35,7 @@ export function applyMissionAction(original,action,now=Date.now(),{admin=false}=
  }
  case 'admin': {
    if(!admin)throw Error('Admin access required.');
+   if(action.points!==undefined){if(!Number.isInteger(action.points)||action.points<0||action.points>1000000000)throw Error('Choose whole leaderboard points from 0 to 1,000,000,000.');s.rankPoints=action.points;}
    if(action.distance!==undefined){if(!Number.isInteger(action.distance)||action.distance<0||action.distance>1000)throw Error('Choose journey distance from 0 to 1000.');s.distance=action.distance;}
    if(action.prestige!==undefined){if(!Number.isInteger(action.prestige)||action.prestige<0||action.prestige>10000)throw Error('Choose expedition level from 1 to 10001.');s.prestige=action.prestige;}
    if(action.bots!==undefined){if(typeof action.bots!=='boolean')throw Error('Choose demo bot visibility.');s.demoBots=action.bots;}

@@ -31,7 +31,7 @@ export async function handleMission(request,env){
   let size=0;const chunks=[];while(true){const {done,value}=await reader.read();if(done)break;size+=value.length;if(size>4096){await reader.cancel();return reply({error:'Action too large.'},413);}chunks.push(value);}
   const bytes=new Uint8Array(size);let offset=0;for(const chunk of chunks){bytes.set(chunk,offset);offset+=chunk.length;}
   const action=JSON.parse(new TextDecoder().decode(bytes));
-  if(Object.keys(action).some(k=>!['id','type','task','participated','game','run','score','metrics','item','listed','stage','growth','bots','distance','prestige','name'].includes(k)))return reply({error:'Unexpected mission data.'},400);
+  if(Object.keys(action).some(k=>!['id','type','task','participated','game','run','score','metrics','item','listed','stage','growth','bots','distance','prestige','name','points'].includes(k)))return reply({error:'Unexpected mission data.'},400);
   if(action.type==='admin'&&!admin)return reply({error:'Admin access required.'},403);
   for(let retry=0;retry<8;retry++){
    const row=await db.prepare('SELECT state,revision FROM mission_profiles WHERE user_id=?').bind(user.id).first();

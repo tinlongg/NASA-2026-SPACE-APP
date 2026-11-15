@@ -15,7 +15,7 @@ export const MODULES = {
 };
 export const ROOM_IDS = Object.keys(MODULES).filter(id => !MODULES[id].private);
 
-const SEGMENTS = 10, DISTANCE = 70;
+const SEGMENTS = 10, DISTANCE = 70, DEFAULT_ZOOM = 1.3;
 export const STATUS_COLOUR = { none: '#9aa0a9', idle: '#a9aeb7', moving: '#3f9c68', still: '#c8923e', checking: '#c8923e', alert: '#d3574b', offline: '#4d5057' };
 
 const sub = (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], add = (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], mul = (a, k) => [a[0] * k, a[1] * k, a[2] * k];
@@ -97,7 +97,13 @@ export function buildScene() {
   details.push(...box([2.05,-.25,-4.6],[3.25,.05,-3.5]).map(p=>({...p,color:'#cbd0d4'})));
   details.push(...cylinder([2.65,.4,-1.65],[2.65,1.55,-1.65],.43).map(p=>({...p,color:'#c3cbd3'})));
   details.push(...cylinder([3.4,0,0],[4.4,0,0],.3).map(p=>({...p,color:'#9cabbc'})));
-  beam([0,1.8,1.3],[1.6,3.3,2.1],.09,'#e7e4dc');beam([1.6,3.3,2.1],[3.6,2.6,1.2],.09,'#e7e4dc');beam([3.6,2.6,1.2],[4.3,1.8,1.2],.09,'#e7e4dc');
+  // Park the arm on a Harmony grapple fixture, with both ends visibly mounted.
+  // Keep its solid geometry in structure so the joints remain visible while rotating.
+  const armPoints=[[0,1.95,1.3],[1.6,3.3,2.1],[2.65,2.5,.3],[2.65,.92,0]];
+  for(let i=1;i<armPoints.length;i++)structure.push(...cylinder(armPoints[i-1],armPoints[i],.09).map(p=>({...p,color:'#e7e4dc'})));
+  for(const point of armPoints)structure.push(...cylinder(add(point,[0,-.12,0]),add(point,[0,.12,0]),.16).map(p=>({...p,color:'#aab3bd'})));
+  structure.push(...box([-.24,1.7,1.06],[.24,1.9,1.54]).map(p=>({...p,color:'#aab3bd'})));
+  structure.push(...box([2.43,.62,-.22],[2.87,.86,.22]).map(p=>({...p,color:'#aab3bd'})));
   return {structure,arrays,modules,details};
 }
 /** Which module is under a screen point, or null. Compares the point to each module's projected axis. */
@@ -120,7 +126,7 @@ function shade(hex, brightness) {
 
 /** Binds the model to a canvas: drag to turn, click to pick, redraw only when the view or camera status changes. */
 export function createIssView(canvas, { onSelect, getStatuses, autoRotate=true }) {
-  const context = canvas.getContext('2d'), scene = buildScene(), view = { yaw: -0.55, pitch: -0.7, width: 600, height: 380, zoom:1, panX:0, panY:0 };
+  const context = canvas.getContext('2d'), scene = buildScene(), view = { yaw: -0.55, pitch: -0.7, width: 600, height: 380, zoom:DEFAULT_ZOOM, panX:0, panY:0 };
   let selected = null, hovered = null, dragging = null, frame = 0, dirty = true, statusKey = '', lastTime=null,lastAutoDraw=0,pauseUntil=0,rotating=false;
   const motionAllowed=autoRotate&&!(typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
   const pauseRotation=()=>{pauseUntil=performance.now()+2500;};
@@ -182,5 +188,5 @@ export function createIssView(canvas, { onSelect, getStatuses, autoRotate=true }
   canvas.addEventListener('contextmenu',event=>event.preventDefault());
   canvas.addEventListener('wheel', event => {pauseRotation();event.preventDefault();const delta=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?canvas.clientWidth:1);view.zoom=Math.max(.65,Math.min(1.8,view.zoom*Math.exp(-delta*.0015)));dirty=true;}, { passive: false });
   frame = requestAnimationFrame(loop);
-  return { reset(){dragging=null;hovered=null;pauseUntil=0;view.yaw=-.55;view.pitch=-0.7;view.zoom=1;view.panX=0;view.panY=0;dirty=true;}, select(id) { selected = id; dirty=true; }, view, stop() { cancelAnimationFrame(frame); } };
+  return { reset(){dragging=null;hovered=null;pauseUntil=0;view.yaw=-.55;view.pitch=-0.7;view.zoom=DEFAULT_ZOOM;view.panX=0;view.panY=0;dirty=true;}, select(id) { selected = id; dirty=true; }, view, stop() { cancelAnimationFrame(frame); } };
 }
