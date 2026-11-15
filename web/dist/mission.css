@@ -31,3 +31,30 @@
 @media(prefers-reduced-motion:reduce){.approaching .orbital-station{animation:none}.orbital-station{transition:none}.sample-object{transition:none}}
 
 .mission-tabs a{display:inline-block;text-decoration:none;white-space:nowrap;}
+/* Games fit the viewport; only the boards flex as the window changes. */
+.mission-game-dialog{box-sizing:border-box;width:min(780px,calc(100vw - 24px));height:min(760px,calc(100dvh - 24px));max-height:calc(100dvh - 24px);padding:18px;overflow:hidden}
+.mission-game-dialog[open]{display:flex;flex-direction:column;gap:8px}
+.mission-game-dialog>.dialog-corner-bar{position:absolute;top:8px;right:10px;margin:0}
+.mission-game-dialog>h2{margin:0;padding-right:44px;font-size:22px;line-height:1.25;flex:none}
+.mission-game-dialog>.game-participation{font-size:11px;line-height:1.3;margin:0;flex:none}
+.mission-game-dialog>.game-stage{display:flex;flex-direction:column;gap:8px;flex:1;min-height:0;padding:4px 0;text-align:center}
+.mission-game-dialog .game-stage>p{margin:0;font-size:12px;line-height:1.35;flex:none}
+.mission-game-dialog button{box-sizing:border-box;margin:0;flex:none}
+.mission-game-dialog>.game-stage>button,.mission-game-dialog>button{min-height:40px;padding:7px 12px;font-size:12px;line-height:1.2}
+.mission-game-dialog .planet-grid{flex:1;min-height:0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));grid-template-rows:repeat(3,minmax(0,1fr));gap:8px}
+.mission-game-dialog .planet-card{aspect-ratio:auto;min-width:0;min-height:0;padding:4px;gap:2px;overflow:hidden}
+.mission-game-dialog .planet-card svg{flex:1;min-height:0;width:75%;max-height:100px}
+.mission-game-dialog .planet-card>span:not(.card-constellation){font-size:11px;line-height:1.15;flex:none}
+.mission-game-dialog .card-constellation{font-size:clamp(16px,3vw,30px);letter-spacing:2px}
+.mission-game-dialog .sample-legend{margin:0;gap:10px;flex:none}
+.mission-game-dialog .sample-legend svg{width:22px;height:22px}
+.mission-game-dialog .sample-legend>span{font-size:11px}
+.mission-game-dialog .salvage-window{display:block;flex:1;min-height:0;padding:0;container-type:size;border-width:4px;border-radius:20px}
+.mission-game-dialog .sample-object{position:absolute;box-sizing:border-box;width:clamp(28px,min(11cqw,17cqh),60px);height:clamp(28px,min(11cqw,17cqh),60px);min-height:0;min-width:0;padding:3px;margin:0;transform:translate(-50%,-50%) rotate(var(--tilt));border-radius:12px}
+.mission-game-dialog .sample-object svg{width:100%;height:100%}
+.mission-game-dialog .orbit-window{flex:1;min-height:0;display:flex;align-items:center}
+.mission-game-dialog .orbit-window svg{max-height:100%}
+@media(max-height:500px){.mission-game-dialog{padding:12px;gap:5px}.mission-game-dialog>h2{font-size:18px}.mission-game-dialog>.game-participation{display:none}.mission-game-dialog>.game-stage{gap:5px}.mission-game-dialog .planet-grid{gap:4px}.mission-game-dialog .sample-legend svg{width:16px;height:16px}.mission-game-dialog>.game-stage>button,.mission-game-dialog>button{min-height:32px;padding:4px 8px}}
+.mission-task .game-tags{flex:none;margin:3px 0;font-size:11px;line-height:1.5;color:#cbb8e7}
+.bird-eye-happy,.bird-eye-dizzy{display:none}.pip-happy .bird-eye-default,.pip-dizzy .bird-eye-default{display:none}.pip-happy .bird-eye-happy{display:block;transform-origin:178px 139px;animation:happy-eye .35s ease-out}.pip-dizzy .bird-eye-happy{display:none}.pip-dizzy .bird-eye-dizzy{display:block;transform-origin:175px 142px;animation:dizzy-eye 1.1s linear infinite}@keyframes happy-eye{0%{transform:scaleY(.5)}70%{transform:scaleY(1.2)}100%{transform:scaleY(1)}}@keyframes dizzy-eye{to{transform:rotate(360deg)}}@media(prefers-reduced-motion:reduce){.pip-happy .bird-eye-happy,.pip-dizzy .bird-eye-dizzy{animation:none}}
+body:has(.mission-game-dialog[open]){overflow:hidden}

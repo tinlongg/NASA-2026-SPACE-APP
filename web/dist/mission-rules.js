@@ -15,13 +15,15 @@ export const MISSION_SHOP=[
  {id:'pack',name:'Sample pack',cost:60,slot:'gear',icon:'🎒',description:'Room for imaginary moon rocks.'},
  {id:'garden',name:'Garden light',cost:75,slot:'buff',icon:'✿',description:'+1 garden growth on each completed daily routine. No change to health or game scoring.'}
 ];
-export const MISSION_GAMES=[{id:'dock',name:'Orbital docking',icon:'◎',description:'Tap when the beacon turns green. Three rounds of timing.'},{id:'memory',name:'Planet memory',icon:'✦',description:'Match six pairs of planets. Take as many turns as you need.'},{id:'minerals',name:'Sample collector',icon:'◇',description:'Collect minerals and leave hazards alone. Select samples in the salvage window.'}];
+export const MISSION_GAMES=[{id:'dock',name:'Orbital docking',icon:'◎',description:'Tap when the beacon turns green. Three rounds of timing.',tags:['Reflexes','Timing','Consistency']},{id:'memory',name:'Planet memory',icon:'✦',description:'Match six pairs of planets. Take as many turns as you need.',tags:['Memory','Visual recognition']},{id:'minerals',name:'Sample collector',icon:'◇',description:'Collect minerals and leave hazards alone. Select samples in the salvage window.',tags:['Hazard identification','Attention','Visual search']}];
 export const missionDay=now=>new Date(now).toISOString().slice(0,10);
+export const GARDEN_STAGES=['Seed resting','Taking root','First sprout','Seedling','Growing leaves','Budding','First bloom','Full bloom'];
+export const plantGrowthLevel=(growth,index)=>Math.min(GARDEN_STAGES.length-1,Math.max(0,Math.floor((growth-index)/2)));
 export const missionGap=(a,b)=>Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000);
 export function newMission(){return {version:1,fuel:0,coins:0,rankPoints:0,distance:0,prestige:0,garden:0,streak:0,lastDay:null,days:{},owned:[],equipped:{},history:[],bests:{},pending:null,actions:[],listed:false};}
 export function missionSummary(state,now=Date.now()) {
  const day=missionDay(now), gap=state.lastDay?missionGap(state.lastDay,day):0;
- return {day,done:state.days[day]?.tasks||[],streak:gap>1?0:state.streak,dust:Math.min(7,Math.max(0,gap-1)),percent:Math.min(100,Math.floor(state.distance/10)),gardenStage:['Seed tray','First sprouts','Leafy greens','Space blooms'][Math.min(3,Math.floor(state.garden/3))],plays:state.days[day]?.plays||0};
+ return {day,done:state.days[day]?.tasks||[],streak:gap>1?0:state.streak,dust:Math.min(7,Math.max(0,gap-1)),percent:Math.min(100,Math.floor(state.distance/10)),gardenStage:GARDEN_STAGES[plantGrowthLevel(state.garden,0)],plays:state.days[day]?.plays||0};
 }
 export function missionStats(state,game){const runs=state.history.filter(r=>r.game===game).slice(-10),scores=runs.map(r=>r.score);return {count:runs.length,best:state.bests?.[game]??(scores.length?Math.max(...state.history.filter(r=>r.game===game).map(r=>r.score)):null),average:scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):null};}
 export function applyMissionAction(original,action,now=Date.now(),{admin=false}={}) {

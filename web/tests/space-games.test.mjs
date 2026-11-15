@@ -1,6 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mountSpaceGame} from '../dist/space-games.js';
+import {mountSpaceGame,scatterSamples} from '../dist/space-games.js';
+test('sample scatter stays inside the field and varies between flights',()=>{
+ const seeded=seed=>()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296;};
+ const a=scatterSamples(20,seeded(123)),b=scatterSamples(20,seeded(456));
+ assert.equal(a.length,20);assert.notDeepEqual(a,b);
+ for(const p of a){assert.ok(p.x>=9&&p.x<=91);assert.ok(p.y>=10&&p.y<=90);}
+ for(let i=0;i<a.length;i++)for(let j=0;j<i;j++)assert.ok(Math.hypot((a[i].x-a[j].x)/16,(a[i].y-a[j].y)/18)>.65);
+});
 function setup(id){
  class Element{constructor(tag){this.tag=tag;this.children=[];this.attributes={};this.style={setProperty(){}};this.classList={add(){},remove(){},toggle(){}};}append(...n){this.children.push(...n);}setAttribute(k,v){this.attributes[k]=v;}click(){if(!this.disabled)this.onclick?.();}}
  globalThis.document={createElement:tag=>new Element(tag)};const stage=new Element('div'),timers=[],out=[];let inputs=0;

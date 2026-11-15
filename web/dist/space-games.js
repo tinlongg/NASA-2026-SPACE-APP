@@ -1,6 +1,19 @@
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n;};
 const button=(text,fn,cls)=>{const b=el('button',text,cls);b.type='button';b.onclick=fn;return b;};
 const planets=['Mercury','Venus','Earth','Mars','Jupiter','Saturn'];
+export function scatterSamples(count,random=Math.random){
+ const positions=[];
+ for(let i=0;i<count;i++){
+  let best=null,bestDistance=-1;
+  for(let attempt=0;attempt<80;attempt++){
+   const candidate={x:10+random()*80,y:14+random()*72};
+   const distance=positions.reduce((nearest,p)=>Math.min(nearest,Math.hypot((p.x-candidate.x)/16,(p.y-candidate.y)/18)),Infinity);
+   if(distance>bestDistance){best=candidate;bestDistance=distance;}
+  }
+  positions.push(best);
+ }
+ return positions;
+}
 export function planetArt(name){
  const i=planets.indexOf(name),colors=['#a9a59f','#e5bd79','#64b9ed','#d77851','#d6ab83','#e7d4a0'];
  const texture=name==='Earth'?'<path d="m35 30 20-8 14 11-9 14-16-4-8 18-10-9zm30 30 14 1-3 20-12 5-6-13z" fill="#76b786"/>':name==='Jupiter'?'<path d="M13 35h74M10 48h80M13 63h74M20 75h60" stroke="#9c6256" stroke-width="7"/><ellipse cx="65" cy="61" rx="12" ry="6" fill="#bb6d52"/>':name==='Mars'?'<path d="M21 39q14-18 28-9l-6 17 23 4-4 20-26 5-12-20z" fill="#9e4d3c" opacity=".6"/><path d="M36 16q15-7 29 1l-5 8-19-1z" fill="#edceae"/><circle cx="66" cy="64" r="7" fill="#b45e42"/>':name==='Mercury'?'<g fill="#716e6b"><circle cx="36" cy="36" r="9"/><circle cx="61" cy="62" r="13"/><circle cx="28" cy="65" r="5"/></g>':'<path d="M15 38q35-15 70 0M12 53q40-16 76 0M22 70q30-10 55 0" fill="none" stroke="#fff" stroke-opacity=".23" stroke-width="8"/>';
@@ -18,7 +31,7 @@ export function mountSpaceGame(id,{stage,later,finish,input}){
  }
  if(id==='memory'){
   const cards=[...planets,...planets];for(let i=cards.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[cards[i],cards[j]]=[cards[j],cards[i]];}
-  let open=[],matched=0,attempts=0,locked=false;const grid=el('div',null,'planet-grid'),status=el('p','0 / 6 planet pairs'),end=button('Finish practice with current progress',()=>finish(Math.max(0,Math.round(matched/6*100)-Math.max(0,attempts-6)*2),{attempts,accuracy:attempts?matched/attempts*100:0,errors:Math.max(0,attempts-matched)}));end.disabled=true;
+  let open=[],matched=0,attempts=0,locked=false;const grid=el('div',null,'planet-grid'),status=el('p','0 / 6 planet pairs'),end=button('Finish with current matches',()=>finish(Math.max(0,Math.round(matched/6*100)-Math.max(0,attempts-6)*2),{attempts,accuracy:attempts?matched/attempts*100:0,errors:Math.max(0,attempts-matched)}));end.disabled=true;
   cards.forEach((name,i)=>{const b=button('',()=>{if(locked||b.disabled||open.some(x=>x.i===i))return;input();end.disabled=false;b.innerHTML=planetArt(name);b.append(el('span',name));b.setAttribute('aria-label',`Card ${i+1}: ${name}`);b.classList.add('revealed');open.push({i,b});if(open.length===2){attempts++;const[a,c]=open;if(cards[a.i]===cards[c.i]){a.b.disabled=c.b.disabled=true;open=[];matched++;status.textContent=`${matched} / 6 planet pairs · ${attempts} attempts`;if(matched===6)end.click();}else{locked=true;later(()=>{open.forEach(x=>hide(x.b,x.i));open=[];locked=false;},850);}}},'planet-card');hide(b,i);grid.append(b);});
   function hide(b,i){b.innerHTML='<span class="card-constellation" aria-hidden="true">· ✧ ·</span>';b.classList.remove('revealed');b.setAttribute('aria-label',`Hidden card ${i+1}`);}
   stage.append(el('p','Discover six illustrated planets. Match their pairs.'),status,grid,end);
@@ -26,7 +39,8 @@ export function mountSpaceGame(id,{stage,later,finish,input}){
  if(id==='minerals'){
   const kinds=['Crystal','Metal','Ice','Hazard'],items=Array.from({length:20},(_,i)=>({kind:kinds[i%4],selected:false}));for(let i=items.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[items[i],items[j]]=[items[j],items[i]];}
   const field=el('div',null,'salvage-window'),count=el('p','0 samples collected'),legend=el('div',null,'sample-legend');for(const kind of kinds){const badge=el('span');badge.innerHTML=sampleArt(kind);badge.append(el('span',kind==='Hazard'?'Avoid debris':kind));legend.append(badge);}
-  items.forEach((item,i)=>{const b=button('',()=>{input();item.selected=!item.selected;b.classList.toggle('collected',item.selected);b.setAttribute('aria-pressed',String(item.selected));count.textContent=`${items.filter(x=>x.selected).length} objects in your cargo · click again to release`;},'sample-object');b.innerHTML=sampleArt(item.kind);b.style.setProperty('--tilt',((i*29)%36-18)+'deg');b.style.setProperty('--offset',((i*13)%16-8)+'px');b.setAttribute('aria-label',`${item.kind} ${i+1}${item.kind==='Hazard'?' · avoid':' · collect'}`);b.setAttribute('aria-pressed','false');field.append(b);});
-  const end=button('Submit cargo & leave unselected objects',()=>{input();const correct=items.filter(x=>x.selected===(x.kind!=='Hazard')).length;finish(correct/items.length*100,{accuracy:correct/items.length*100,errors:items.length-correct});},'mission-primary');stage.append(el('p','Salvage window · collect crystals, metal and ice. Leave rocky debris outside. Select all the samples you want, then submit your cargo.'),legend,field,count,end);
+  const positions=scatterSamples(items.length);
+  items.forEach((item,i)=>{const b=button('',()=>{input();item.selected=!item.selected;b.classList.toggle('collected',item.selected);b.setAttribute('aria-pressed',String(item.selected));count.textContent=`${items.filter(x=>x.selected).length} / 20 objects in cargo`;},'sample-object');b.innerHTML=sampleArt(item.kind);b.style.setProperty('--tilt',(-24+Math.random()*48)+'deg');b.style.left=positions[i].x+'%';b.style.top=positions[i].y+'%';b.setAttribute('aria-label',`${item.kind} ${i+1}${item.kind==='Hazard'?' · avoid':' · collect'}`);b.setAttribute('aria-pressed','false');field.append(b);});
+  const end=button('Submit cargo',()=>{input();const correct=items.filter(x=>x.selected===(x.kind!=='Hazard')).length;finish(correct/items.length*100,{accuracy:correct/items.length*100,errors:items.length-correct});},'mission-primary');stage.append(el('p','Collect crystal, metal and ice. Leave debris. Tap again to release.'),legend,field,count,end);
  }
 }
