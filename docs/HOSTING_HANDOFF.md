@@ -16,7 +16,9 @@ For whoever manages the hosted deployment (Vercel). This lists what the latest c
 
 Redeploy after changing them. Set them for Production, not only Preview.
 
-## 2. Database: apply migrations 0007 and 0008
+## 2. Database: migrations apply themselves on Turso
+
+The live site runs on Vercel with a Turso database. On the first request after a deploy, `web/api/index.mjs` applies any migration in `web/drizzle/` that the database has not run yet and records it in `local_migrations`. So `0007_calls.sql` and `0008_journal_reflections.sql` need no manual step there. The SQL below is only for a different database, or if a migration fails.
 
 Phone calls need two new tables. Run this once on the production database (all earlier migrations `0000` to `0006` must already be applied):
 
@@ -64,7 +66,9 @@ new payloads, three-entry threshold and astronaut demo.
 
 ## Heads-up
 
-The code is written as a Worker that talks to a D1-style database (`env.DB.prepare(...)`), and the repo has no `vercel.json` or database config. If the Vercel deployment uses an adapter or a different database, apply step 2 in that database's own tool and tell Andrew what it is, so the notes can be updated.
+- Hosting is Vercel (`web/vercel.json`, `web/api/index.mjs`) with Turso (`TURSO_DATABASE_URL`, `TURSO_AUTH_TOKEN`, provided by the Turso integration). Environment variables set in Vercel are passed straight to the server code, so everything in section 1 is read from there.
+- The live voice check-in only turns on when `ELEVENLABS_API_KEY` and `ELEVENLABS_CHECKIN_AGENT_ID` are both set for **Production**. Until then the checkbox stays off and the recorded question plays instead.
+- `web/node_modules` is committed in the repo even though `.gitignore` lists it. Vercel installs its own copy, so it can be removed with `git rm -r --cached web/node_modules`.
 
 ## What changed in the code this round
 
