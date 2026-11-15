@@ -5,6 +5,15 @@ import {createWorker} from '../worker.mjs';
 import {localSyncDB} from '../scripts/local-sync-db.mjs';
 import {newMission,applyMissionAction} from '../dist/mission-rules.js';
 const action=(type,extra={})=>({id:randomUUID(),type,...extra});
+test('only admins can edit flight fuel, with whole-number validation and normal flight costs',()=>{
+ const base=newMission(),edit=action('admin',{fuel:120});
+ assert.throws(()=>applyMissionAction(base,edit),/Admin/);
+ const updated=applyMissionAction(base,edit,Date.now(),{admin:true});assert.equal(updated.fuel,120);assert.equal(base.fuel,0);assert.equal(updated.rankPoints,0);
+ assert.deepEqual(applyMissionAction(updated,edit,Date.now(),{admin:true}),updated);
+ for(const fuel of [-1,1.5,'120',null,1000000001])assert.throws(()=>applyMissionAction(base,action('admin',{fuel}),Date.now(),{admin:true}),/whole flight fuel/);
+ for(const fuel of [0,1000000000])assert.equal(applyMissionAction(base,action('admin',{fuel}),Date.now(),{admin:true}).fuel,fuel);
+ const started=applyMissionAction(updated,action('start',{game:'memory'}));assert.equal(started.fuel,110);assert.equal(applyMissionAction(started,action('cancel')).fuel,120);
+});
 test('only admins can set their leaderboard points to a nonnegative whole number',()=>{
  const base=newMission(),change=action('admin',{points:600});
  assert.throws(()=>applyMissionAction(base,change),/Admin/);
@@ -40,6 +49,14 @@ test('provisioned admin authenticates by hashed password and ID; client flags ca
  assert.equal((await(await a('/api/mission/state')).json()).state.garden,18);
  await regular('/api/auth/register',{username:'regular-crew',password:randomUUID()});
  assert.equal((await(await regular('/api/mission/state')).json()).admin,false);
+ const fuelEdit=action('admin',{fuel:120});
+ assert.equal((await regular('/api/mission/action',fuelEdit)).status,403);
+ assert.equal((await a('/api/mission/action',fuelEdit)).status,200);
+ assert.equal((await a('/api/mission/action',fuelEdit)).status,200);
+ assert.equal((await(await a('/api/mission/state')).json()).state.fuel,120);
+ assert.equal((await(await regular('/api/mission/state')).json()).state.fuel,0);
+ for(const fuel of [-1,1.5,'120',null,1000000001])assert.equal((await a('/api/mission/action',action('admin',{fuel}))).status,400);
+ assert.equal((await(await a('/api/mission/state')).json()).state.fuel,120);
  assert.equal((await regular('/api/mission/action',action('admin',{stage:'healthy'}))).status,403);
  assert.equal((await regular('/api/mission/action',action('buy',{item:'cap',admin:true}))).status,400);
  assert.equal((await regular('/api/mission/action',action('buy',{item:'cap'}))).status,400);

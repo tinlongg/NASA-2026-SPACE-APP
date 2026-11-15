@@ -60,3 +60,4 @@
 body:has(.mission-game-dialog[open]){overflow:hidden}
 
 .mission-pet.pip-returning{z-index:4}.mission-hero:has(.pip-returning){overflow:visible}
+.mission-value-edit{display:inline-block;min-width:40px;min-height:32px;margin:0;padding:2px 4px;border:0;border-bottom:1px dashed currentColor;border-radius:4px;background:transparent;color:inherit;font:inherit;line-height:inherit;cursor:pointer}.mission-value-edit:hover{background:#c8b5ec22}.mission-value-edit:focus-visible{outline:2px solid #c8b5ec;outline-offset:3px}
