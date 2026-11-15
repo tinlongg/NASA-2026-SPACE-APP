@@ -1,7 +1,8 @@
 import { journalToneElement, museJournalElement, sentimentMetadata } from './journal-sentiment.js';
 import { InactivityDetector, measurePose, STILL_SECONDS } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
-import { VISION_MODULE, VISION_WASM, POSE_MODEL } from './offline-config.js';
+import { VISION_MODULE, VISION_WASM, POSE_MODELS } from './offline-config.js';
+import { visibilityGroups, FramingMonitor, RestPause, REST_OPTIONS, MODEL_CHOICES } from './camera-health.js';
 import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
 import { initAccount, api } from './account.js';
@@ -51,7 +52,7 @@ function setCameraState(label, live) {
 function stopSession(message = 'Session stopped. Camera released.') {
   generation++; cancelAnimationFrame(animation);
   if (stream) stream.getTracks().forEach(track => track.stop());
-  stream = null; video.srcObject = null; mode = 'idle'; detector.reset();
+  stream = null; video.srcObject = null; mode = 'idle'; detector.reset(); resetDiagnostics();
   context.clearRect(0, 0, canvas.width, canvas.height);
   element('camera-placeholder').hidden = false; element('start').disabled = false; element('stop').disabled = true;
   setCameraState('Camera off', false);
@@ -60,6 +61,33 @@ function stopSession(message = 'Session stopped. Camera released.') {
   element('tracking').textContent = 'Awaiting camera connection'; element('detector-state').textContent = 'Idle';
   element('camera-message').textContent = message;
 }
+
+let poseModel = 'lite', landmarkerModel = null, landmarkerDelegate = '—';
+const framing = new FramingMonitor(), rest = new RestPause();
+const percent = value => value == null ? '—' : `${Math.round(value * 100)}%`;
+function updateDiagnostics(time, groups) {
+  element('diag-video').textContent = `${video.videoWidth}×${video.videoHeight}`;
+  for (const name of ['shoulders', 'hips', 'arms']) element('diag-' + name).textContent = percent(groups?.[name]);
+  const hint = framing.update(time, groups); element('framing-hint').hidden = !hint; if (hint) element('framing-hint').textContent = hint;
+}
+function resetDiagnostics() {
+  framing.reset(); element('framing-hint').hidden = true; element('diag-video').textContent = '—';
+  for (const name of ['shoulders', 'hips', 'arms']) element('diag-' + name).textContent = '—';
+}
+// Model choice and rest period controls.
+for (const [value, choice] of Object.entries(MODEL_CHOICES)) element('model-select').add(new Option(`${choice.label} · ${choice.size}`, value));
+element('model-select').onchange = () => { poseModel = element('model-select').value; element('model-note').textContent = poseModel === 'heavy' ? 'Heavy is 31 MB and needs a connection the first time. Start the camera again to use it.' : 'Start the camera again to use this model.'; if (mode === 'live') stopSession(`Model changed to ${MODEL_CHOICES[poseModel].label}. Start the camera again.`); };
+for (const option of REST_OPTIONS) element('rest-length').add(new Option(option.label, option.minutes));
+function renderRest() {
+  const paused = rest.isPaused(Date.now());
+  element('rest-start').hidden = paused; element('rest-length').hidden = paused; element('rest-end').hidden = !paused;
+  const status = element('rest-status'); status.classList.toggle('rest-status-on', paused);
+  status.textContent = paused ? `Paused until ${new Date(rest.until).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Monitoring is on';
+  if (paused) { element('detector-state').textContent = 'Paused (rest period)'; }
+}
+element('rest-start').onclick = () => { rest.start(Date.now(), Number(element('rest-length').value)); detector.reset(); renderRest(); };
+element('rest-end').onclick = () => { rest.clear(); detector.reset(); renderRest(); };
+setInterval(renderRest, 1000);
 
 async function startCamera() {
   stopSession('Requesting camera access…');
@@ -75,13 +103,19 @@ async function startCamera() {
     if (session !== generation) return;
     element('camera-placeholder').hidden = true;
     element('camera-message').textContent = 'Camera connected. Downloading the pose model for local processing…';
-    if (!landmarker) {
+    if (!landmarker || landmarkerModel !== poseModel) {
+      landmarker?.close(); landmarker = null;
       const { FilesetResolver, PoseLandmarker } = await import(VISION_MODULE);
       const files = await FilesetResolver.forVisionTasks(VISION_WASM);
-      const loaded = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: POSE_MODEL, delegate: 'CPU' }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+      let loaded, used = 'GPU';
+      for (const delegate of ['GPU', 'CPU']) { // Try the GPU first and fall back to the CPU.
+        try { loaded = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: POSE_MODELS[poseModel], delegate }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 }); used = delegate; break; }
+        catch (error) { if (delegate === 'CPU') throw error; }
+      }
       if (session !== generation) { loaded.close(); return; }
-      landmarker = loaded;
+      landmarker = loaded; landmarkerModel = poseModel; landmarkerDelegate = used;
     }
+    element('diag-model').textContent = MODEL_CHOICES[poseModel].label; element('diag-delegate').textContent = landmarkerDelegate;
     if (session !== generation) return;
     mode = 'live'; lastVideoTime = -1; lastInference = 0;
     setCameraState('Live camera', true); element('source').textContent = 'Webcam, live';
@@ -97,6 +131,8 @@ async function startCamera() {
           const pose = result.landmarks[0];
           context.clearRect(0, 0, canvas.width, canvas.height);
           if (pose && element('skeleton').checked) drawPose(pose);
+          const groups = visibilityGroups(pose);
+          updateDiagnostics(now / 1000, groups);
           handleMeasurement(now / 1000, measurePose(pose, canvas.width / canvas.height));
           element('fps').textContent = `${Math.min(15, Math.round(1000 / elapsed))} fps`;
         }
@@ -122,6 +158,7 @@ function drawPose(pose) {
 }
 
 function handleMeasurement(time, measurement) {
+  if (rest.isPaused(Date.now())) { detector.reset(); latestSnapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: null, detection: null }; element('pose-status').textContent = 'Paused'; element('motion').textContent = '—'; element('still').textContent = '—'; return; }
   const detection = detector.process(time, measurement);
   const stillFor = detector.stillFor(time);
   // Coach and events get two numbers, never joint positions.
