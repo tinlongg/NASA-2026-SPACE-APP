@@ -38,7 +38,7 @@ export function bandLevel(bins, from, to) {
  * Create it from a click so the browser lets the audio start. isMuted() pauses it, for example while
  * the app's own voice clip plays. Returns { stop(), reading } or throws when the microphone is refused.
  */
-export async function startVoiceActivity({ onSpeech, isMuted = () => false }) {
+export async function startVoiceActivity({ onSpeech, isMuted = () => false, margin, minSpeech }) {
   const AudioContextClass = globalThis.AudioContext || globalThis.webkitAudioContext;
   if (!AudioContextClass || !navigator.mediaDevices?.getUserMedia) throw new Error('This browser cannot measure microphone loudness.');
   const audio = new AudioContextClass(); // made before the await, while the click still counts as a user gesture
@@ -50,7 +50,7 @@ export async function startVoiceActivity({ onSpeech, isMuted = () => false }) {
   audio.createMediaStreamSource(stream).connect(analyser);
   const bins = new Float32Array(analyser.frequencyBinCount), hz = audio.sampleRate / analyser.fftSize;
   const from = Math.floor(SPEECH_BAND[0] / hz), to = Math.ceil(SPEECH_BAND[1] / hz);
-  const vad = new VoiceActivity(), handle = { reading: { state: 'unknown', level: null }, spokeAt: null };
+  const vad = new VoiceActivity({ ...(margin ? { margin } : {}), ...(minSpeech ? { minSpeech } : {}) }), handle = { reading: { state: 'unknown', level: null }, spokeAt: null };
   const timer = setInterval(() => {
     if (isMuted()) { handle.reading = { state: 'muted', level: null }; return; }
     analyser.getFloatFrequencyData(bins);

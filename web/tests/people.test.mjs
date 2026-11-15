@@ -127,3 +127,14 @@ test('mouth motion: talking lips move, a still mouth and head-only motion do not
   assert.equal(state, 'moving');
   assert.equal(new MouthMotion().update(0, null, null).state, 'unknown');
 });
+
+test('camera noise around a still mouth does not count as talking', () => {
+  const mouth = new MouthMotion();
+  let state;
+  // A still face: the lip gap wobbles by 0.02 and the lip patch has a noisy spike every third frame.
+  for (let index = 0; index < 40; index++) state = mouth.update(index * 0.15, 0.1 + (index % 2) * 0.02, index % 3 === 0 ? 0.05 : 0.012).state;
+  assert.equal(state, 'still');
+  // Real talking: the lip gap opens and closes by 0.1.
+  for (let index = 40; index < 50; index++) state = mouth.update(index * 0.15, 0.1 + (index % 2) * 0.1, 0.012).state;
+  assert.equal(state, 'moving');
+});

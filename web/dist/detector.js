@@ -11,6 +11,8 @@
 export const STILL_SECONDS = 15;
 export const MOVE_THRESHOLD = 0.25; // largest single-joint displacement, in torso lengths
 export const POSE_LOSS_SECONDS = 2;
+// Joints the model is only guessing (hands below the desk, out of frame) jitter; ignore them below this confidence.
+export const LIMB_VISIBILITY = 0.65;
 // With wholeBody on (the default for anything on Earth) the whole body travelling or turning counts as
 // movement, so walking past the camera is activity. With it off (microgravity) drifting and tumbling
 // are ignored and only limbs moving relative to the torso count.
@@ -109,13 +111,13 @@ export function measurePose(landmarks, aspect) {
     // No hips: track the upper body if both shoulders are visible (seated at a desk, for example).
     if (seen(11) < 0.3 || seen(12) < 0.3) return null;
     const upper = {};
-    for (const index of UPPER_KEEP) if (seen(index) >= (index === 11 || index === 12 ? 0.3 : 0.5)) upper[index] = [landmarks[index].x * aspect, landmarks[index].y];
+    for (const index of UPPER_KEEP) if (seen(index) >= (index === 11 || index === 12 ? 0.3 : LIMB_VISIBILITY)) upper[index] = [landmarks[index].x * aspect, landmarks[index].y];
     return upperBodyShape(upper) ? { points: upper, upper: true } : null;
   }
   const points = {};
   for (const index of KEEP) {
     const landmark = landmarks[index];
-    if (landmark && (landmark.visibility ?? 0) >= (TORSO.includes(index) ? 0.3 : 0.5)) points[index] = [landmark.x * aspect, landmark.y];
+    if (landmark && (landmark.visibility ?? 0) >= (TORSO.includes(index) ? 0.3 : LIMB_VISIBILITY)) points[index] = [landmark.x * aspect, landmark.y];
   }
   return bodyShape(points) ? { points } : null;
 }
