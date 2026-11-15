@@ -3,4 +3,3 @@ data/nasa-osdr/raw/* -text
 data/nasa-osdr/tables/* -text
 
 web/data/sentiment/vader_lexicon.txt -text
-
