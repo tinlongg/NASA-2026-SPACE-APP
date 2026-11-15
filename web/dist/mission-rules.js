@@ -24,6 +24,7 @@ export const MISSION_SHOP=[
  {id:'star-brooch',name:'Star brooch',cost:45,slot:'gear',icon:'★',description:'A golden star pinned to the collar.'},
  {id:'medal',name:'Explorer medal',cost:85,slot:'gear',icon:'✪',description:'A small expedition medal on a blue ribbon.'},
  {id:'cigarette',name:'Cigarette',cost:5000,slot:'face',icon:'≈',description:'A rare accessory with animated drifting smoke.'},
+ {id:'cigarette-bundle',name:'Cigarette bundle',cost:10000,slot:'face',icon:'≈',description:'Five cigarettes fanned from one beak, each with drifting smoke.'},
  {id:'dunce',name:'Dunce hat',cost:75,slot:'hat',icon:'△',description:'A little paper cone fitted inside the helmet.'},
  {id:'fire-cape',name:'Cape of fire',cost:400,slot:'back',icon:'♨',description:'A flowing cape with softly flickering illustrated flames.'},
  {id:'propeller',name:'Propeller hat',cost:90,slot:'hat',icon:'✣',description:'A multicolored cap with a spinning blue propeller.'},

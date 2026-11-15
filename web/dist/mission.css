@@ -141,3 +141,4 @@ body:has(.mission-game-dialog[open]){overflow:hidden}
 @keyframes cape-sway{0%,100%{transform:rotate(-3deg) skewY(-4deg) scaleX(.94)}50%{transform:rotate(3deg) skewY(3deg) scaleX(1.12)}}.fire-cape-cloth{animation-duration:1.8s}.cape-flames{animation-duration:.9s}
 .aura-flames{filter:drop-shadow(0 0 10px #f4cd3a99);animation:aura-envelope 1.7s ease-in-out infinite alternate}@keyframes aura-envelope{from{opacity:.65;transform:scale(.98,.99)}to{opacity:1;transform:scale(1.025,1.04) translateY(-2px)}}
 @media(prefers-reduced-motion:reduce){.aura-flames{animation:none}}
+.bundle-smoke path{animation-delay:var(--bundle-smoke-delay,0s)}.bundle-smoke path:nth-child(2){animation-delay:calc(var(--bundle-smoke-delay,0s) - 1.2s)}

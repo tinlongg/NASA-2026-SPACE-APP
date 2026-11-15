@@ -19,7 +19,13 @@ test('cigarette and smoke follow the beak in each care pose',()=>{
  }
 });
 
-test('cigarette is the premium cosmetic and ordinary purchases still need enough stars',()=>{const cigarette=MISSION_SHOP.find(i=>i.id==='cigarette');assert.equal(cigarette.cost,5000);assert.ok(cigarette.cost>=10*Math.max(...MISSION_SHOP.filter(i=>i.id!=='cigarette').map(i=>i.cost)));assert.throws(()=>applyMissionAction({...newMission(),coins:200},{id:crypto.randomUUID(),type:'buy',item:'cigarette'}),/Not enough/);});
+test('cigarette accessories remain premium and require enough stars',()=>{const cigarette=MISSION_SHOP.find(i=>i.id==='cigarette'),bundle=MISSION_SHOP.find(i=>i.id==='cigarette-bundle');assert.equal(cigarette.cost,5000);assert.ok(bundle.cost>cigarette.cost);assert.ok(cigarette.cost>=10*Math.max(...MISSION_SHOP.filter(i=>!i.id.startsWith('cigarette')).map(i=>i.cost)));for(const item of ['cigarette','cigarette-bundle'])assert.throws(()=>applyMissionAction({...newMission(),coins:200},{id:crypto.randomUUID(),type:'buy',item}),/Not enough/);});
+test('bundle has five smoking cigarettes, follows the beak, and keeps the back accessory',()=>{
+ let state={...newMission(),coins:20000};for(const item of ['fire-cape','cigarette','cigarette-bundle'])state=applyMissionAction(state,{id:crypto.randomUUID(),type:'buy',item});
+ assert.equal(state.equipped.face,'cigarette-bundle');assert.equal(state.equipped.back,'fire-cape');
+ for(const [pose,offset]of[['healthy',0],['tired',4],['needs-care',9]]){const art=astronautBird(state,0,pose);assert.ok(art.includes(`class="bird-cigarette-bundle" transform="translate(0 ${offset})"`));assert.equal((art.match(/class="bundle-cigarette"/g)||[]).length,5);assert.equal((art.match(/class="cigarette-smoke bundle-smoke"/g)||[]).length,5);assert.ok(art.includes('bird-fire-cape'));}
+ const unequipped=applyMissionAction(state,{id:crypto.randomUUID(),type:'equip',item:'cigarette-bundle'});assert.equal(unequipped.equipped.face,null);assert.equal(unequipped.equipped.back,'fire-cape');
+});
 test('solar aura uses a separate slot and can combine with a hat and fire cape',()=>{
  const action=(type,item)=>({id:crypto.randomUUID(),type,item});let state={...newMission(),coins:1000};
  for(const item of ['cap','fire-cape','solar-aura'])state=applyMissionAction(state,action('buy',item));
