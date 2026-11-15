@@ -63,7 +63,7 @@ export function initializeCrewSync() {
     for (const event of snapshot.events) {
       const row = make('article', null, 'entry');
       const name = snapshot.crew.find(c => c.id === event.crewMemberID)?.displayName || 'Crew member';
-      const source = {liveCamera:'iPhone camera',replay:'Synthetic replay',simulated:'Simulated'}[event.source];
+      const source = {liveCamera:'iPhone camera',webCamera:'External webcam',replay:'Synthetic replay',simulated:'Simulated'}[event.source];
       row.append(make('strong', `${event.type === 'possibleFall' ? 'Possible fall' : 'Manual test'} · ${name}`), make('time', `${new Date(event.timestamp).toLocaleString()} · ${source}`), make('p', event.details));
       const button = make('button', event.acknowledged ? 'Acknowledged' : 'Acknowledge on all devices');
       button.disabled = event.acknowledged;
