@@ -16,6 +16,8 @@ document.head.append(syncStyles);
 initializeCrewSync();
 
 const element = id => document.getElementById(id);
+// Same format as Date.missionTimestamp in the iOS app, e.g. "GMT 318 · 14:02".
+const missionTimestamp = date => { const d = new Date(date); const day = Math.floor((Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()) - Date.UTC(d.getUTCFullYear(), 0, 0)) / 86400000); return `GMT ${String(day).padStart(3,'0')} · ${String(d.getUTCHours()).padStart(2,'0')}:${String(d.getUTCMinutes()).padStart(2,'0')}`; };
 const video = element('video');
 const canvas = element('overlay');
 const context = canvas.getContext('2d');
@@ -26,7 +28,7 @@ let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, dete
 let coachPending = false;
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
-const titles = { monitor: ['Camera monitor', 'A clearer view of your crew. Right from your browser.'], dashboard: ['Crew dashboard', 'Simulated crew telemetry and NASA spaceflight research.'], alerts: ['Safety events', 'Review possible-fall detections from this browser session.'], muse: ['MUSE research', 'Explore NASA research with traceable sources.'], journal: ['Wellness journal', 'A private space to reflect on your day.'] };
+const titles = { dashboard: ['Crew status', 'Pair the iPhone app, or explore the simulated crew in this browser'], monitor: ['Monitor', 'Possible-fall detection from a webcam or a synthetic replay'], alerts: ['Alerts', 'Possible-fall events from this browser session'], muse: ['MUSE', 'NASA research with traceable sources'], journal: ['Journal', 'A private place to reflect, kept in this browser'] };
 document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => {
   const tab = button.dataset.tab;
   if (tab !== 'monitor') stopSession();
@@ -41,9 +43,9 @@ function stopSession(message = 'Session stopped. Camera released.') {
   stream = null; video.srcObject = null; mode = 'idle'; detector.reset();
   context.clearRect(0, 0, canvas.width, canvas.height);
   element('camera-placeholder').hidden = false; element('start').disabled = false; element('stop').disabled = true;
-  element('mode-label').textContent = 'CAMERA OFFLINE'; element('camera-dot').classList.remove('live');
+  element('mode-label').textContent = 'Camera off'; element('camera-dot').classList.remove('live');
   element('source').textContent = 'Not connected'; element('pose-status').textContent = 'Standby';
-  element('angle').textContent = '—'; element('hip').textContent = '—'; element('fps').textContent = '— FPS';
+  element('angle').textContent = '—'; element('hip').textContent = '—'; element('fps').textContent = '— fps';
   element('tracking').textContent = 'Awaiting camera connection'; element('detector-state').textContent = 'Idle';
   element('camera-message').textContent = message;
 }
@@ -71,7 +73,7 @@ async function startCamera() {
     }
     if (session !== generation) return;
     mode = 'live'; lastVideoTime = -1; lastInference = 0;
-    element('mode-label').textContent = 'LIVE CAMERA'; element('source').textContent = 'Webcam · live';
+    element('mode-label').textContent = 'Monitoring · live camera'; element('source').textContent = 'Webcam · live';
     element('camera-dot').classList.add('live'); element('camera-message').textContent = 'Monitoring locally. Keep your full body in frame. No video is recorded or uploaded.';
     stream.getVideoTracks()[0].addEventListener('ended', () => { if (session === generation) stopSession('Camera disconnected. Reconnect it and start again.'); });
     const tick = now => {
@@ -85,7 +87,7 @@ async function startCamera() {
           context.clearRect(0, 0, canvas.width, canvas.height);
           if (pose && element('skeleton').checked) drawPose(pose);
           handleMeasurement(now / 1000, measurePose(pose, canvas.width / canvas.height));
-          element('fps').textContent = `${Math.min(15, Math.round(1000 / elapsed))} FPS`;
+          element('fps').textContent = `${Math.min(15, Math.round(1000 / elapsed))} fps`;
         }
         animation = requestAnimationFrame(tick);
       } catch (error) { stopSession(`Tracking failed: ${error.message}. You can still test synthetic replay.`); }
@@ -100,7 +102,7 @@ async function startCamera() {
 
 function drawPose(pose) {
   const links = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
-  context.strokeStyle = '#baf27a'; context.fillStyle = '#e2ffb8'; context.lineWidth = 3;
+  context.strokeStyle = '#E7F434'; context.fillStyle = '#FFFFFF'; context.lineWidth = 3;
   for (const [from, to] of links) {
     if ((pose[from]?.visibility ?? 0) < 0.3 || (pose[to]?.visibility ?? 0) < 0.3) continue;
     context.beginPath(); context.moveTo(pose[from].x * canvas.width, pose[from].y * canvas.height); context.lineTo(pose[to].x * canvas.width, pose[to].y * canvas.height); context.stroke();
@@ -120,7 +122,7 @@ function handleMeasurement(time, measurement) {
   if (!detection) return;
   const details = `Hip height dropped ${Math.round(detection.drop * 100)}% of the frame in ${detection.duration.toFixed(1)} s; torso reached ${Math.round(detection.angle)}°; stayed low for ${detection.held.toFixed(1)} s.`;
   events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', type: 'Possible fall', details, snapshot: structuredClone(latestSnapshot), acknowledged: false });
-  element('event-banner').hidden = false; element('event-banner').textContent = `Possible fall · ${events[0].source}. ${details} Review Safety events.`;
+  element('event-banner').hidden = false; element('event-banner').textContent = `Possible fall · ${events[0].source}. ${details} Review in Alerts.`;
   renderEvents();
 }
 
@@ -130,7 +132,7 @@ function replay(kind) {
   updateCoachContext();
   const session = generation; mode = 'replay';
   element('stop').disabled = false; element('camera-placeholder').hidden = true;
-  element('source').textContent = 'Synthetic replay'; element('mode-label').textContent = 'REPLAY · GENERATED POSE'; element('camera-dot').classList.add('live');
+  element('source').textContent = 'Synthetic replay'; element('mode-label').textContent = 'Replay · generated pose'; element('camera-dot').classList.add('live');
   canvas.width = 800; canvas.height = 600;
   const started = performance.now();
   const tick = now => {
@@ -138,24 +140,24 @@ function replay(kind) {
     const time = (now - started) / 1000;
     const { angle, hipY } = replayMeasurement(kind, time);
     context.clearRect(0, 0, 800, 600);
-    context.strokeStyle = '#baf27a'; context.fillStyle = '#baf27a'; context.lineWidth = 5; context.lineCap = 'round';
+    context.strokeStyle = '#E7F434'; context.fillStyle = '#E7F434'; context.lineWidth = 5; context.lineCap = 'round';
     context.save(); context.translate(380, (1 - hipY) * 600); context.rotate(angle * Math.PI / 180);
     context.beginPath(); context.moveTo(0,0); context.lineTo(0,-130); context.moveTo(0,-110); context.lineTo(-65,-35); context.moveTo(0,-110); context.lineTo(65,-35); context.moveTo(0,0); context.lineTo(-38,150); context.moveTo(0,0); context.lineTo(38,150); context.stroke(); context.beginPath(); context.arc(0,-160,22,0,Math.PI*2); context.stroke(); context.restore();
-    handleMeasurement(time, { angle, hipY }); element('fps').textContent = 'REPLAY';
-    if (time < REPLAYS[kind].duration) animation = requestAnimationFrame(tick); else stopSession(`${REPLAYS[kind].label} replay complete. Expected ${REPLAYS[kind].expected} event(s). Review Safety events.`);
+    handleMeasurement(time, { angle, hipY }); element('fps').textContent = 'Replay';
+    if (time < REPLAYS[kind].duration) animation = requestAnimationFrame(tick); else stopSession(`${REPLAYS[kind].label} replay complete. Expected ${REPLAYS[kind].expected} event(s). Review in Alerts.`);
   };
   animation = requestAnimationFrame(tick);
 }
 
 function renderEvents() {
   const pending = events.filter(event => !event.acknowledged).length;
-  element('alert-count').textContent = pending; element('dashboard-alerts').textContent = pending;
+  element('alert-count').textContent = pending; element('alert-count').hidden = !pending; element('dashboard-alerts').textContent = pending;
   element('events').replaceChildren();
   if (!events.length) element('events').textContent = 'No events yet. Start a camera session or run the possible-fall replay.';
   for (const event of events) {
     const row = document.createElement('article'); row.className = 'entry';
     const title = document.createElement('strong'); title.textContent = `${event.type} · ${event.source}`;
-    const date = document.createElement('time'); date.textContent = new Date(event.date).toLocaleString();
+    const date = document.createElement('time'); date.textContent = missionTimestamp(event.date);
     const details = document.createElement('p'); details.textContent = event.details;
     const button = document.createElement('button'); button.textContent = event.acknowledged ? 'Acknowledged' : 'Acknowledge'; button.disabled = event.acknowledged;
     button.onclick = () => { event.acknowledged = true; renderEvents(); if (events.every(item => item.acknowledged)) element('event-banner').hidden = true; };
@@ -176,7 +178,7 @@ function renderJournals() {
   if (!journals.length) element('journal-entries').textContent = 'Your reflections will appear here.';
   for (const entry of journals) {
     const row = document.createElement('article'); row.className = 'entry';
-    const date = document.createElement('time'); date.textContent = new Date(entry.date).toLocaleString();
+    const date = document.createElement('time'); date.textContent = new Date(entry.date).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' });
     const body = document.createElement('p'); body.textContent = entry.body;
     const summary = document.createElement('p'); summary.className = 'tag'; summary.textContent = `${summarize(entry.body)} Summary of your words, not an assessment.`;
     row.append(date,body,summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); element('journal-entries').append(row);
@@ -191,7 +193,7 @@ element('journal-form').onsubmit = event => {
 };
 element('clear-journal').onclick = () => { if (!journals.length || !confirm('Delete all journal entries from this browser?')) return; try { localStorage.removeItem('crewsafety-journal'); journals = []; renderJournals(); } catch { element('journal-message').textContent = 'Could not clear browser storage.'; } };
 const coachPanel = document.createElement('div'); coachPanel.className = 'panel instructions'; coachPanel.id = 'coach-panel';
-coachPanel.innerHTML = '<span class="eyebrow">OPTIONAL / POWERED BY META</span><h3>Camera Coach</h3><p id="pose-summary">Start the camera or run a replay first.</p><button id="analyze-pose" class="primary" disabled>Explain pose summary ↗</button><p class="micro">Sends your question and numerical pose summary to Meta on click. No video, images, journal entries, or crew identity. Not NASA research or a medical assessment.</p><p id="coach-status" role="status">Checking coach configuration…</p><div id="coach-chat" class="entries" aria-live="polite"></div><form id="coach-form"><label for="coach-question">Camera setup or pose question</label><input id="coach-question" required maxlength="500" placeholder="How should I frame the camera?"><button id="ask-coach">Ask Camera Coach</button></form>';
+coachPanel.innerHTML = '<p class="eyebrow">Optional · uses Meta</p><h3>Camera Coach</h3><p id="pose-summary">Start the camera or run a replay first.</p><button id="analyze-pose" class="primary" disabled>Explain pose summary</button><p class="micro">Sends your question and numerical pose summary to Meta on click. No video, images, journal entries, or crew identity. Not NASA research or a medical assessment.</p><p id="coach-status" role="status">Checking coach configuration…</p><div id="coach-chat" class="entries" aria-live="polite"></div><form id="coach-form"><label for="coach-question">Camera setup or pose question</label><input id="coach-question" required maxlength="500" placeholder="How should I frame the camera?"><button id="ask-coach">Ask Camera Coach</button></form>';
 
 document.querySelector('.monitor-side').append(coachPanel);
 
@@ -251,8 +253,19 @@ for (const [kind, fixture] of Object.entries(REPLAYS)) { const button = document
 document.querySelectorAll('[data-replay]').forEach(button => button.onclick = () => replay(button.dataset.replay));
 document.addEventListener('visibilitychange', () => { if (document.hidden) stopSession('Session stopped while the page was hidden. Start again to resume.'); });
 window.addEventListener('pagehide', () => stopSession());
-const rates = Array.from({ length: 60 }, () => 68 + Math.random() * 12);
-function updateDashboard() { rates.shift(); rates.push(68 + Math.random() * 12); element('heart-rate').textContent = Math.round(rates.at(-1)); element('chart-line').setAttribute('d', rates.map((rate,index) => `${index ? 'L' : 'M'}${index * 900 / 59},${160 - (rate - 60) * 6}`).join(' ')); element('clock').textContent = `${new Date().toISOString().slice(11,19)} UTC`; }
+// Same deterministic curve as SimulatedTelemetryProvider in the iOS app: one sample every 10 s, last 30 minutes.
+const TELEMETRY_SEED = 412;
+function simulatedHeartRate(t, seed = TELEMETRY_SEED) {
+  const value = 66 + (seed % 9) + 6 * Math.sin(t / 600 + seed) + 3 * Math.sin(t / 97 + seed * 2) + 2 * Math.sin(t * 12.9898 + seed * 78.233);
+  return Math.min(95, Math.max(55, Math.round(value * 10) / 10));
+}
+function updateDashboard() {
+  const end = Math.floor(Date.now() / 10000) * 10;
+  const rates = Array.from({ length: 180 }, (_, i) => simulatedHeartRate(end - (179 - i) * 10));
+  element('heart-rate').textContent = Math.round(rates.at(-1));
+  element('chart-line').setAttribute('d', rates.map((rate, index) => `${index ? 'L' : 'M'}${(index * 900 / 179).toFixed(1)},${(170 - (rate - 50) * 3.2).toFixed(1)}`).join(' '));
+  element('clock').textContent = missionTimestamp(new Date());
+}
 setInterval(updateDashboard,2000); updateDashboard(); renderEvents(); renderJournals();
 
 initResearch();

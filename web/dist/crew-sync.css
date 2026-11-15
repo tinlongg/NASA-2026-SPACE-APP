@@ -1,1 +1,23 @@
-.crew-sync{margin-bottom:24px}.crew-sync .panel-head h2{font-size:24px}.crew-sync .eyebrow{margin-bottom:5px}.sync-form{padding:12px 24px}.sync-form label{color:var(--muted)}.sync-form input{display:block;margin-top:8px}.sync-actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:18px}.sync-help,.sync-status{margin:8px 24px 20px;font-size:12px}.sync-status{color:var(--accent);border-top:1px solid var(--line);padding-top:16px}.sync-data{padding:0 24px 24px}.sync-crew{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}.sync-member{padding:18px;border:1px solid var(--line);border-radius:8px}.sync-member strong{font-size:12px}.sync-member p{font-size:12px}.sync-telemetry{margin:20px 0;padding:18px;background:#10191b;border-radius:8px}.sync-telemetry p{font-size:12px}.sync-events .entry p{font-size:13px}.crew-sync [hidden],#dashboard>[hidden]{display:none!important}
+.crew-sync { margin-bottom: 16px; }
+.crew-sync .panel-head h2 { font-size: 17px; }
+.crew-sync .eyebrow { margin: 0 0 2px; }
+.sync-form { padding: 4px 20px 0; }
+.sync-form label { color: var(--text-2); }
+.sync-form input { display: block; margin-top: 8px; }
+.sync-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.sync-help, .sync-status { margin: 12px 20px 16px; font-size: 13px; }
+.sync-help { color: var(--text-3); }
+.sync-status { display: flex; align-items: center; padding-top: 12px; border-top: 1px solid var(--border); color: var(--text-2); }
+.sync-status::before { content: ''; flex: none; width: 6px; height: 6px; margin-right: 8px; border-radius: 50%; background: var(--accent); }
+.sync-data { padding: 0 20px 20px; }
+.sync-data > h3 { margin: 20px 0 4px; }
+.sync-crew { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; }
+.sync-member { padding: 16px; border: 1px solid var(--border); border-radius: 12px; }
+.sync-member h3 { font-size: 15px; }
+.sync-member p { margin: 2px 0 8px; font-size: 13px; }
+.sync-member strong { font-size: 13px; font-weight: 500; color: var(--text-2); }
+.sync-telemetry { margin: 16px 0 0; padding: 16px; border-radius: 12px; background: var(--fill); }
+.sync-telemetry h3 { font-size: 22px; font-variant-numeric: tabular-nums; }
+.sync-telemetry p { margin: 4px 0 0; font-size: 13px; }
+.sync-events .entry p { font-size: 13px; }
+.crew-sync [hidden], #dashboard > [hidden] { display: none !important; }

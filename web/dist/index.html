@@ -1,12 +1,102 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#10191b"><title>CrewSafety · Web Lab</title><link rel="stylesheet" href="./styles.css"></head>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light dark"><meta name="theme-color" content="#EEEEEE" media="(prefers-color-scheme: light)"><meta name="theme-color" content="#151622" media="(prefers-color-scheme: dark)"><title>CrewSafety · Web companion</title><link rel="stylesheet" href="./styles.css"></head>
 <body>
-<aside><a class="brand" href="#monitor"><span class="brandmark">✳</span> CrewSafety<span class="edition">WEB LAB / 01</span></a><nav aria-label="Main navigation"><button class="nav active" data-tab="monitor">◉ <span>Camera monitor</span></button><button class="nav" data-tab="dashboard">▦ <span>Crew dashboard</span></button><button class="nav" data-tab="alerts">⚑ <span>Safety events</span><b id="alert-count">0</b></button><button class="nav" data-tab="muse">✧ <span>MUSE research</span></button><button class="nav" data-tab="journal">▤ <span>Wellness journal</span></button></nav><div class="sidebar-bottom"><span class="dot"></span> BROWSER TEST ENVIRONMENT<p>NASA Space Apps 2026<br>Independent team prototype</p></div></aside>
-<main><header><span>MISSION CONTROL <i>/</i> CREW SYSTEMS</span><span id="clock"></span></header><div class="page-head"><div><p class="eyebrow">CREW SAFETY / CROSS-PLATFORM PROTOTYPE</p><h1 id="page-title">Camera monitor</h1><p id="page-subtitle">A clearer view of your crew. Right from your browser.</p></div><span class="pill">◌ TEST ENVIRONMENT</span></div>
-<section id="monitor" class="tab active"><div class="monitor-grid"><div><div class="panel camera-panel"><div class="panel-head"><span><span class="dot" id="camera-dot"></span> <strong id="mode-label">CAMERA OFFLINE</strong></span><span class="micro">LOCAL PROCESSING</span></div><div class="viewport"><video id="video" playsinline muted></video><canvas id="overlay"></canvas><div id="camera-placeholder"><div class="camera-icon">◎</div><h2>Your camera. Your device.</h2><p>Start a live session to visualize body pose.<br>Video stays in this browser.</p></div><span class="frame-corner top-left"></span><span class="frame-corner bottom-right"></span><div class="viewport-footer"><span id="tracking">Awaiting camera connection</span><span id="fps">— FPS</span></div></div><div class="camera-toolbar"><button id="start" class="primary">◉ Start camera</button><button id="stop" disabled>■ Stop session</button><label class="toggle"><input id="skeleton" type="checkbox" checked> Pose overlay</label></div></div><p id="camera-message" role="status">Use Chrome or Edge on Windows or Mac. Allow camera access when prompted.</p><div class="panel replay-panel"><div><p class="eyebrow">NO CAMERA? NO PROBLEM.</p><h3>Run a synthetic replay</h3><p>Test the detector and alerts without acting out a fall.</p></div><div id="replay-actions" class="replay-actions"></div></div></div><div class="monitor-side"><div class="panel"><div class="panel-head"><strong>Session overview</strong><span class="micro">LIVE</span></div><dl><div><dt>Input source</dt><dd id="source">Not connected</dd></div><div><dt>Pose tracking</dt><dd id="pose-status">Standby</dd></div><div><dt>Torso angle</dt><dd><span id="angle">—</span> <small>deg</small></dd></div><div><dt>Hip height</dt><dd><span id="hip">—</span> <small>%</small></dd></div><div><dt>Detector state</dt><dd id="detector-state">Idle</dd></div></dl></div><div class="panel instructions"><span class="eyebrow">BEFORE YOU BEGIN</span><h3>Make room for the full picture.</h3><ol><li>Position the camera to show your full body.</li><li>Keep one person in frame with good lighting.</li><li>Use replay to test a possible-fall alert safely.</li></ol><div class="note">Experimental detection, not a medical device. Intentional lying down can trigger alerts.</div></div></div></div><div class="panel offline-panel"><div><strong>Offline preparation</strong><p id="offline-status" role="status">Preparing offline shell…</p><p class="micro">Replay, alerts, journal, and saved research work offline after caching. The camera model needs a separate download. AI coaching needs a connection. Browser storage may be cleared or evicted.</p></div><button id="prepare-offline" disabled>Download camera model for offline use</button></div><div id="event-banner" class="event-banner" role="alert" hidden></div></section>
-<section id="dashboard" class="tab"><div class="metric-grid"><div class="panel metric"><p>CREW MEMBER</p><h2>Alex Morgan</h2><span>Demo crew · monitored subject</span></div><div class="panel metric"><p>HEART RATE · SIMULATED</p><h2><span id="heart-rate">72</span> <small>BPM</small></h2><span>Generated values, not sensor readings</span></div><div class="panel metric"><p>UNACKNOWLEDGED EVENTS</p><h2 id="dashboard-alerts">0</h2><span>Review in Safety events</span></div></div><div class="panel chart-panel"><div class="panel-head"><strong>Simulated heart rate</strong><span class="pill">DEMO DATA</span></div><svg id="telemetry" viewBox="0 0 900 180" role="img" aria-label="Simulated heart-rate trend"><path id="chart-line" fill="none" stroke="#6fc7a8" stroke-width="3"/></svg><p>Rolling samples generated in this browser. No wearable is connected.</p></div></section>
-<section id="alerts" class="tab"><div class="panel"><div class="panel-head"><strong>Session event log</strong><button id="export-events">Export JSON</button></div><div id="events" class="entries"></div></div></section>
-<section id="muse" class="tab"><div class="panel prose"><span class="eyebrow">NASA SOURCES / MUSE RESEARCH</span><h2>Research with a source.</h2><p>Ask about exercise, sleep, isolation, teamwork, or OSDR datasets. Answers use a small, curated NASA library. Your question and retrieved passages go to Meta in Live mode; camera observations and journal entries are never attached.</p><p id="research-status" role="status">Checking research service…</p><label class="toggle"><input id="research-demo" type="checkbox"> Demo mode · saved answers, no model request</label><div id="research-chat" class="entries" aria-live="polite"></div><form id="research-form"><label for="research-question">Ask MUSE about the research</label><div class="input-row"><input id="research-question" placeholder="What does NASA describe about astronaut exercise and fitness?" required maxlength="500"><button id="ask-research" class="primary">Ask MUSE ↗</button></div></form><p class="micro">General information only; not medical diagnosis or emergency guidance.</p><details open><summary>Prepared questions · also available offline</summary><div id="prepared-questions" class="prepared-questions"></div></details><p><a href="https://osdr.nasa.gov/bio/repo/search?q=&amp;data_source=cgene,alsda,esa&amp;data_type=study" target="_blank" rel="noopener noreferrer">Explore NASA OSDR datasets ↗</a></p><p class="micro">OSDR study descriptions are research records, not personal health guidance. MUSE uses curated text; historical dataset charts are separate. Independent source review is pending.</p></div></section>
-<section id="journal" class="tab"><div class="journal-grid"><div class="panel prose"><span class="eyebrow">A MOMENT TO CHECK IN</span><h2>How was your day?</h2><p>Your entries stay in this browser. Theme summaries and optional sentiment feedback describe your words, not your health.</p><label class="toggle"><input type="checkbox" id="journal-tone-enabled" checked> Show local sentiment analysis</label><p class="micro" id="journal-dataset"></p><details><summary>About the sentiment dataset</summary><p>Uses human-rated English words from the <a href="https://github.com/cjhutto/vaderSentiment" target="_blank" rel="noopener noreferrer">VADER lexicon</a> with a custom wording heuristic, not the full VADER algorithm. Sarcasm, quotations and context can change the meaning. No clinical or astronaut-wellness validation. Nothing you write is uploaded.</p><a href="./sentiment-license.txt" target="_blank" rel="noopener noreferrer">Dataset license</a></details><form id="journal-form"><label for="journal-body">Journal entry</label><textarea id="journal-body" rows="8" maxlength="10000" required placeholder="Today I noticed…"></textarea><button class="primary">Save & reflect ↗</button></form><p id="journal-message" role="status"></p></div><div class="panel"><div class="panel-head"><strong>Your entries</strong><button id="clear-journal">Delete all</button></div><div id="journal-entries" class="entries"></div></div></div></section>
-<footer><span>CREWSAFETY <i>/</i> BUILT FOR EXPLORATION</span><span>Camera frames are not recorded or uploaded.</span></footer></main><script type="module" src="./app.js"></script></body></html>
+<aside>
+  <a class="brand" href="#dashboard"><span class="brand-name">CrewSafety</span><span class="brand-sub">Web companion to the iPhone app</span></a>
+  <nav aria-label="Main navigation">
+    <button class="nav active" data-tab="dashboard"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg><span>Dashboard</span></button>
+    <button class="nav" data-tab="monitor"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg><span>Monitor</span></button>
+    <button class="nav" data-tab="alerts"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span>Alerts</span><b id="alert-count" hidden>0</b></button>
+    <button class="nav" data-tab="muse"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 9a2 2 0 0 1-2 2H6l-4 4V4a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2z"/><path d="M18 9h2a2 2 0 0 1 2 2v11l-4-4h-6a2 2 0 0 1-2-2v-1"/></svg><span>MUSE</span></button>
+    <button class="nav" data-tab="journal"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg><span>Journal</span></button>
+  </nav>
+  <div class="sidebar-bottom"><p><span class="dot"></span>Browser test environment</p><p class="muted">NASA Space Apps 2026 · independent team prototype</p></div>
+</aside>
+<main>
+<header><span>Mission control · crew systems</span><time id="clock" class="mono"></time></header>
+<div class="page-head"><div><h1 id="page-title">Crew status</h1><p id="page-subtitle">Pair the iPhone app, or explore the simulated crew in this browser</p></div><span class="badge">Test environment</span></div>
+
+<section id="dashboard" class="tab active">
+  <div class="metric-grid">
+    <div class="panel metric"><p class="metric-label">Crew member</p><h2>Alex Morgan</h2><span>Demo crew · monitored subject</span></div>
+    <div class="panel metric"><p class="metric-label">Heart rate <span class="badge">Simulated</span></p><h2><span id="heart-rate">72</span> <small>bpm</small></h2><span>Generated values, not sensor readings</span></div>
+    <div class="panel metric"><p class="metric-label">Unacknowledged events</p><h2 id="dashboard-alerts">0</h2><span>Review in Alerts</span></div>
+  </div>
+  <div class="panel chart-panel">
+    <div class="panel-head"><strong>Heart rate · last 30 minutes</strong><span class="badge">Simulated</span></div>
+    <svg id="telemetry" viewBox="0 0 900 180" role="img" aria-label="Simulated heart-rate trend"><g class="chart-grid"><line x1="0" x2="900" y1="10" y2="10"/><line x1="0" x2="900" y1="74" y2="74"/><line x1="0" x2="900" y1="138" y2="138"/></g><path id="chart-line" class="chart-line"/></svg>
+    <p>Generated with the same formula as the iOS app. No wearable is connected.</p>
+  </div>
+</section>
+
+<section id="monitor" class="tab">
+  <div class="monitor-grid">
+    <div>
+      <div class="panel camera-panel">
+        <div class="panel-head"><span class="status-line"><span class="dot" id="camera-dot"></span><strong id="mode-label">Camera off</strong></span><span class="micro">Local processing</span></div>
+        <div class="viewport">
+          <video id="video" playsinline muted></video><canvas id="overlay"></canvas>
+          <div id="camera-placeholder"><svg class="icon icon-lg" viewBox="0 0 24 24" aria-hidden="true"><path d="m16 13 5.2 3.5a.5.5 0 0 0 .8-.4V7.9a.5.5 0 0 0-.8-.4L16 10.5"/><rect x="2" y="6" width="14" height="12" rx="2"/></svg><h2>Not monitoring</h2><p>Place the camera so the whole body is in view, then start a session. Video stays in this browser.</p></div>
+          <div class="viewport-footer"><span id="tracking">Awaiting camera connection</span><span id="fps" class="mono">— fps</span></div>
+        </div>
+        <div class="camera-toolbar"><button id="start" class="primary">Start monitoring</button><button id="stop" disabled>Stop</button><label class="toggle"><input id="skeleton" type="checkbox" checked> Pose overlay</label></div>
+      </div>
+      <p id="camera-message" role="status">Use Chrome or Edge on Windows or Mac. Allow camera access when prompted.</p>
+      <div id="event-banner" class="event-banner" role="alert" hidden></div>
+      <div class="panel replay-panel"><div><h3>Synthetic replay</h3><p>Test the detector and alerts without acting out a fall</p></div><div id="replay-actions" class="replay-actions"></div></div>
+    </div>
+    <div class="monitor-side">
+      <div class="panel">
+        <div class="panel-head"><strong>Detector readout</strong><span class="micro">Live</span></div>
+        <dl>
+          <div><dt>Input source</dt><dd id="source">Not connected</dd></div>
+          <div><dt>Pose tracking</dt><dd id="pose-status">Standby</dd></div>
+          <div><dt>Torso angle</dt><dd class="mono"><span id="angle">—</span> <small>deg</small></dd></div>
+          <div><dt>Hip height</dt><dd class="mono"><span id="hip">—</span> <small>%</small></dd></div>
+          <div><dt>Detector state</dt><dd id="detector-state">Idle</dd></div>
+        </dl>
+      </div>
+      <div class="panel instructions">
+        <h3>Before you begin</h3>
+        <ol><li>Show the full body in frame</li><li>Keep one person in view with good light</li><li>Use replay to test a possible-fall alert safely</li></ol>
+        <p class="note">Possible-fall detection is a heuristic and will make mistakes. It is not a diagnosis. Lying down on purpose can trigger an alert.</p>
+      </div>
+    </div>
+  </div>
+  <div class="panel offline-panel"><div><strong>Offline preparation</strong><p id="offline-status" role="status">Preparing offline shell…</p><p class="micro">Replay, alerts, journal and saved research work offline after caching. The camera model needs a separate download. Camera Coach needs a connection. Browser storage may be cleared or evicted.</p></div><button id="prepare-offline" disabled>Download camera model</button></div>
+</section>
+
+<section id="alerts" class="tab"><div class="panel"><div class="panel-head"><strong>Session events</strong><button id="export-events">Export JSON</button></div><div id="events" class="entries"></div></div></section>
+
+<section id="muse" class="tab"><div class="panel prose">
+  <h2>Research with a source</h2>
+  <p>Ask about exercise, sleep, isolation, teamwork or OSDR datasets. Answers come only from a small curated NASA library. In Live mode your question and the retrieved passages go to Meta; camera observations and journal entries are never attached.</p>
+  <p id="research-status" class="micro" role="status">Checking research service…</p>
+  <label class="toggle"><input id="research-demo" type="checkbox"> Demo mode · saved answers, no model request</label>
+  <div id="research-chat" class="entries chat" aria-live="polite"></div>
+  <form id="research-form"><label for="research-question">Ask MUSE about the research</label><div class="input-row"><input id="research-question" placeholder="Ask a wellness question" required maxlength="500"><button id="ask-research" class="primary">Ask</button></div></form>
+  <p class="micro">General information only. Not medical advice or emergency guidance.</p>
+  <details open><summary>Prepared questions · also available offline</summary><div id="prepared-questions" class="prepared-questions"></div></details>
+  <p><a href="https://osdr.nasa.gov/bio/repo/search?q=&amp;data_source=cgene,alsda,esa&amp;data_type=study" target="_blank" rel="noopener noreferrer">Explore NASA OSDR datasets ↗</a></p>
+  <p class="micro">OSDR study descriptions are research records, not personal health guidance. MUSE uses curated text; the historical dataset charts on the dashboard are separate. Independent source review is pending.</p>
+</div></section>
+
+<section id="journal" class="tab"><div class="journal-grid">
+  <div class="panel prose">
+    <h2>New entry</h2>
+    <p>Entries stay in this browser. Theme summaries and optional sentiment feedback describe your words, not your health.</p>
+    <form id="journal-form"><label for="journal-body" class="visually-hidden">Journal entry</label><textarea id="journal-body" rows="8" maxlength="10000" required placeholder="Today I noticed…"></textarea><button class="primary">Save entry</button></form>
+    <p id="journal-message" role="status"></p>
+    <label class="toggle"><input type="checkbox" id="journal-tone-enabled" checked> Show local sentiment analysis</label>
+    <p class="micro" id="journal-dataset"></p>
+    <details><summary>About the sentiment dataset</summary><p>Uses human-rated English words from the <a href="https://github.com/cjhutto/vaderSentiment" target="_blank" rel="noopener noreferrer">VADER lexicon</a> with a custom wording heuristic, not the full VADER algorithm. Sarcasm, quotations and context can change the meaning. No clinical or astronaut-wellness validation. Nothing you write is uploaded.</p><a href="./sentiment-license.txt" target="_blank" rel="noopener noreferrer">Dataset license</a></details>
+  </div>
+  <div class="panel"><div class="panel-head"><strong>History</strong><button id="clear-journal">Delete all</button></div><div id="journal-entries" class="entries"></div></div>
+</div></section>
+
+<footer><span>Prototype for a simulated crew. Not a medical device.</span><span>Camera frames are not recorded or uploaded.</span></footer>
+</main>
+<script type="module" src="./app.js"></script>
+</body>
+</html>

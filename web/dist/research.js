@@ -22,7 +22,7 @@ export function initializeResearch() {
   const section = node('section', null, 'research');
   section.setAttribute('aria-labelledby', 'research-title');
   section.innerHTML = `
-    <div class="research-heading"><div><p class="eyebrow">NASA OPEN SCIENCE DATA REPOSITORY</p><h2 id="research-title">The research behind crew health</h2><p>Explore historical measurements and the studies behind them.</p></div><span class="pill">HISTORICAL RESEARCH</span></div>
+    <div class="research-heading"><div><p class="eyebrow">NASA Open Science Data Repository</p><h2 id="research-title">The research behind crew health</h2><p>Explore historical measurements and the studies behind them.</p></div><span class="pill">Historical research</span></div>
     <p class="research-status" role="status">Loading NASA research snapshot…</p>
     <button class="research-retry" hidden>Retry loading research</button>
     <div class="research-content" hidden>

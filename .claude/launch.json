@@ -4,8 +4,18 @@
     {
       "name": "webcam",
       "runtimeExecutable": "node",
-      "runtimeArgs": ["webcam/server.js"],
+      "runtimeArgs": [
+        "webcam/server.js"
+      ],
       "port": 8765
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "web/scripts/serve.mjs"
+      ],
+      "port": 4173
     }
   ]
 }
