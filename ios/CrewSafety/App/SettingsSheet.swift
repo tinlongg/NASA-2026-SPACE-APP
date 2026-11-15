@@ -5,6 +5,8 @@ struct SettingsSheet: View {
     @Environment(DashboardSync.self) private var dashboardSync
     @Environment(AppAccount.self) private var account
     @Environment(\.dismiss) private var dismiss
+    @State private var aboutTapCount = 0
+    @State private var isShowingBiodome = false
 
     var body: some View {
         @Bindable var settings = settings
@@ -50,6 +52,8 @@ struct SettingsSheet: View {
                     Text("Prototype for a simulated crew. Not a medical device. Detections mean a crew member stopped moving, not a diagnosis.")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondaryText)
+                        .contentShape(Rectangle())
+                        .onTapGesture(perform: tapAbout)
                 }
             }
             .scrollContentBackground(.hidden)
@@ -62,5 +66,94 @@ struct SettingsSheet: View {
                 }
             }
         }
+        .sheet(isPresented: $isShowingBiodome) {
+            OrbitalBiodomeView(url: MissionWebURL.make(from: settings.dashboardBaseURL))
+        }
+    }
+
+    /// A small hidden doorway: five taps on the About copy open Pip's habitat.
+    private func tapAbout() {
+        aboutTapCount += 1
+        guard aboutTapCount >= 5 else { return }
+        aboutTapCount = 0
+        isShowingBiodome = true
+    }
+}
+
+/// The existing website mission/habitat page, presented from the About easter egg.
+struct OrbitalBiodomeView: View {
+    let url: URL?
+    @Environment(\.dismiss) private var dismiss
+    @State private var loading = true
+    @State private var failure: String?
+    @State private var attempt = UUID()
+
+    var body: some View {
+        NavigationStack {
+            Group {
+                if let url {
+                    ZStack {
+                        MissionBrowser(url: url, loading: $loading, failure: $failure)
+                            .id(attempt)
+                        if loading {
+                            ProgressView("Opening the biodome…")
+                                .padding()
+                                .background(.regularMaterial)
+                        }
+                        if let failure {
+                            VStack(spacing: 12) {
+                                Text(failure)
+                                Button("Try again") {
+                                    self.failure = nil
+                                    loading = true
+                                    attempt = UUID()
+                                }
+                            }
+                            .padding()
+                            .background(.regularMaterial)
+                        }
+                    }
+                } else {
+                    ContentUnavailableView("Biodome unavailable", systemImage: "network",
+                                           description: Text("Set an HTTPS dashboard address in Settings to visit Pip's habitat."))
+                }
+            }
+            .navigationTitle("Orbital Biodome")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") { dismiss() }
+                }
+            }
+        }
+    }
+}
+
+/// Adds the same Settings entry point to every top-level screen.
+/// Settings stays a sheet so it does not take a sixth tab from the core workflow.
+struct SettingsToolbar: ViewModifier {
+    @State private var isShowingSettings = false
+
+    func body(content: Content) -> some View {
+        content
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        isShowingSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
+                }
+            }
+            .sheet(isPresented: $isShowingSettings) {
+                SettingsSheet()
+            }
+    }
+}
+
+extension View {
+    func settingsToolbar() -> some View {
+        modifier(SettingsToolbar())
     }
 }

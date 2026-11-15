@@ -90,6 +90,7 @@ struct WellnessJournalView: View {
             .scrollContentBackground(.hidden)
             .background(Theme.screenBackground)
             .navigationTitle("Journal")
+            .settingsToolbar()
             .navigationDestination(for: UUID.self) { id in
                 JournalDetailView(entry: ownEntries.first { $0.id == id },
                                   reflecting: reflecting.contains(id), error: reflectionErrors[id]) {

@@ -23,19 +23,7 @@ struct DashboardView: View {
             }
             .background(Theme.screenBackground)
             .navigationTitle("Crew status")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        model.isShowingSettings = true
-                    } label: {
-                        Image(systemName: "gearshape")
-                    }
-                    .accessibilityLabel("Settings")
-                }
-            }
-            .sheet(isPresented: $model.isShowingSettings) {
-                SettingsSheet()
-            }
+            .settingsToolbar()
         }
     }
 

@@ -30,6 +30,7 @@ struct AlertsView: View {
                 }
             }
             .navigationTitle("Alerts")
+            .settingsToolbar()
             .navigationDestination(for: UUID.self) { id in
                 AlertDetailView(eventID: id)
             }

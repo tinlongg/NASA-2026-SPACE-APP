@@ -3,7 +3,6 @@ import Observation
 
 @MainActor @Observable
 final class DashboardViewModel {
-    var isShowingSettings = false
     let recentEventLimit = 10
 
     func recentEvents(in store: EventStore) -> [SafetyEvent] {
