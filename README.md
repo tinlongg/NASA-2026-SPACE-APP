@@ -1,8 +1,8 @@
 # CrewSafety — NASA Space Apps 2026
 
 A native SwiftUI iPhone prototype for a **simulated** space crew: a crew dashboard,
-camera-based possible-unresponsive alerts with an "Are you OK?" check-in, a research assistant (MUSE) that answers from curated NASA
-documents and shows its sources, and an on-device wellness journal.
+camera-based possible-unresponsive alerts with an "Are you OK?" check-in, an on-device wellness journal, and MUSE, which only does
+image recognition and journal-entry analysis.
 
 **Not a medical device.** Detections mean a crew member *stopped moving*, from a simple heuristic. Heart-rate values
 are simulated and labelled. Journal summaries list themes you wrote about; they are not assessments.
@@ -32,7 +32,7 @@ The same rules run in `ios/CrewSafety/Features/Camera/InactivityDetector.swift` 
 | Path | What |
 | --- | --- |
 | `ios/` | Xcode project `CrewSafety.xcodeproj`, app sources, unit tests |
-| `backend/` | FastAPI service for MUSE (`POST /chat`, `GET /health`) |
+| `backend/` | FastAPI service for crew sync, the local dashboard and `GET /health` |
 | `web/` | Browser companion for Windows/Mac: webcam pose detection, replay, alerts, paired crew status, accounts and a journal with MUSE reflections; see `web/README.md` |
 | `docs/PASSDOWN.md` | **Start here**: current state, verified results, remaining checks and run commands |
 | `docs/HANDOFF.md` | Historical status before the station-detector/account changes |
@@ -83,7 +83,7 @@ See `backend/README.md`. Short version:
 cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-In the app: Dashboard → gear → MUSE mode **Live**, and set the backend address.
+In the app: Dashboard → gear, and set the backend address.
 
 ## Status
 
@@ -92,19 +92,8 @@ remains primary; the browser companion uses MediaPipe for Windows/Mac testing. X
 26.5 simulator now run on this Mac. Current test results and interactive QA are in
 [PASSDOWN.md](docs/PASSDOWN.md).
 
-NASA-grounded MUSE Research remains in iOS, backed by FastAPI `/chat` and six bundled cited demo answers.
-It was removed from the website and hosted Worker. The browser has Camera Coach, an optional MUSE
-journal reflection, and accounts with server-side journal storage and lexical vector recall. Guest
-entries and the native journal stay local unless a browser user explicitly sends or moves an entry.
+MUSE only does image recognition (journal photos, station camera frames) and journal-entry analysis. It has no
+document question-and-answer: the NASA-grounded research chat, `/chat`, the source corpus and the iOS demo answers were removed.
+The browser has Camera Coach, an optional MUSE journal reflection, and accounts with server-side journal storage and
+lexical vector recall. Guest entries and the native journal stay local unless a browser user explicitly sends or moves an entry.
 Optional related account entries can accompany a MUSE reflection when selected. Keys stay server-side.
-The five-source NASA corpus still needs independent human review.
-
-Remaining acceptance work:
-
-- Live camera/permission/orientation and sustained monitoring tests on a real iPhone and Windows webcam.
-- Physical-device offline tests. The browser caches its shell and offers an explicit camera-model
-  download; browser cache storage is not guaranteed to persist.
-- Record and review real pose fixtures. All current replay sequences are synthetic.
-- Complete independent source verification in `docs/SOURCES.md` and rehearse `docs/DEMO_SCRIPT.md`.
-
-See `docs/PASSDOWN.md` for exact scope, verification, and known limits.

@@ -318,7 +318,7 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads heart rate, heart rate variability, resting heart rate, breathing rate, blood oxygen and ECG recordings from your Apple Watch, to show them next to camera alerts and compare them with your own usual range. They stay on this iPhone and never decide an alert.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Starts a monitoring session on your Apple Watch so heart rate arrives every few seconds. The session is discarded, not saved as a workout.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your computer's CrewSafety dashboard to share crew status and safety alerts.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used on-device to hear whether you're OK after no movement is detected. Audio is not stored or sent.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used to hear whether you're OK after no movement is detected. Audio stays on this device unless you turn on the voice agent in Settings, which sends it to ElevenLabs during a check-in.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Used on-device to recognise \"I'm okay\" or \"help\" after no movement is detected. Audio is not stored or sent.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -350,7 +350,7 @@
 				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads heart rate, heart rate variability, resting heart rate, breathing rate, blood oxygen and ECG recordings from your Apple Watch, to show them next to camera alerts and compare them with your own usual range. They stay on this iPhone and never decide an alert.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Starts a monitoring session on your Apple Watch so heart rate arrives every few seconds. The session is discarded, not saved as a workout.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your computer's CrewSafety dashboard to share crew status and safety alerts.";
-				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used on-device to hear whether you're OK after no movement is detected. Audio is not stored or sent.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used to hear whether you're OK after no movement is detected. Audio stays on this device unless you turn on the voice agent in Settings, which sends it to ElevenLabs during a check-in.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Used on-device to recognise \"I'm okay\" or \"help\" after no movement is detected. Audio is not stored or sent.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

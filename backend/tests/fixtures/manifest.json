@@ -1,4 +1,0 @@
-[
-  {"id": "fixture-alpha", "title": "Artificial Test Fixture Alpha (not a real document)", "url": "https://example.org/fixture-alpha", "publisher": "TEST", "file": "raw/fixture_alpha.txt", "retrievedOn": "2026-11-14", "verifiedBy": null},
-  {"id": "fixture-beta", "title": "Artificial Test Fixture Beta (not a real document)", "url": "https://example.org/fixture-beta", "publisher": "TEST", "file": "raw/fixture_beta.html", "retrievedOn": "2026-11-14", "verifiedBy": null}
-]

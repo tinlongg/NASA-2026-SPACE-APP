@@ -79,10 +79,16 @@ struct CheckInView: View {
 
     private var voiceStatus: some View {
         VStack(spacing: Theme.Spacing.xs) {
-            Label(model.isListening ? "Listening · say \"I'm okay\" or \"help\"" : "Tap a button to answer",
+            Label(model.isTalkingWithAgent ? "Talking with the voice agent · say \"I'm okay\" or \"help\"" : model.isListening ? "Listening · say \"I'm okay\" or \"help\"" : "Tap a button to answer",
                   systemImage: model.isListening ? "mic" : "hand.tap")
                 .font(.subheadline)
                 .foregroundStyle(Theme.secondaryText)
+            if let said = model.agentText, !said.isEmpty {
+                Text("Agent: \(said)")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
+                    .lineLimit(3)
+            }
             if let heard = model.heardText, !heard.isEmpty {
                 Text("Heard \"\(heard)\"")
                     .font(.caption)

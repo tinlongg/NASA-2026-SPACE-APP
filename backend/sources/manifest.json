@@ -1,7 +1,0 @@
-[
-  {"id":"hrp-isolation","title":"Hazard: Isolation and Confinement","url":"https://www.nasa.gov/hrp/hazard-isolation-and-confinement/","publisher":"NASA","file":"raw/isolation.txt","retrievedOn":"2026-11-14","verifiedBy":null},
-  {"id":"hrp-fitness","title":"Risk of Reduced Cardiorespiratory and Musculoskeletal Fitness","url":"https://www.nasa.gov/reference/risk-of-reduced-cardiorespiratory-and-musculoskeletal-fitness/","publisher":"NASA","file":"raw/fitness.txt","retrievedOn":"2026-11-14","verifiedBy":null},
-  {"id":"hrp-risks","title":"Risks of Human Spaceflight","url":"https://www.nasa.gov/hrp/risks/","publisher":"NASA","file":"raw/crew-risks.txt","retrievedOn":"2026-11-14","verifiedBy":null},
-  {"id":"osdr-about","title":"About OSDR","url":"https://science.nasa.gov/biological-physical/data/osdr/","publisher":"NASA","file":"raw/osdr-about.txt","retrievedOn":"2026-11-14","verifiedBy":null},
-  {"id":"osd-946","title":"Exercise Training Attenuates the Muscle Mitochondria Genomic Response to Bed Rest (miRNA microarray data)","url":"https://osdr.nasa.gov/bio/repo/data/studies/OSD-946","publisher":"NASA","file":"raw/osd-946.txt","retrievedOn":"2026-11-14","verifiedBy":null}
-]
