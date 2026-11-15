@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// Live view of what the possible-fall detector sees: each rule's value against the threshold it must cross.
-/// Pose confidence comes from the pose model; the heuristic score is not a probability and is labelled so.
+/// Live view of what the no-movement detector sees: each value against the threshold it works with.
+/// Pose confidence comes from the pose model; the other values come from the heuristic.
 struct DetectorReadoutCard: View {
     let model: CameraMonitorViewModel
 
@@ -19,25 +19,19 @@ struct DetectorReadoutCard: View {
                 }
                 meter("Pose confidence",
                       value: reading.poseConfidence, limit: 1,
-                      text: reading.poseConfidence.map { "\(percent($0))" } ?? "–",
+                      text: reading.poseConfidence.map { "\(Int(($0 * 100).rounded()))%" } ?? "–",
                       met: false, neutral: true)
-                meter("Torso angle",
-                      value: reading.torsoAngleDeg, limit: t.fallenMinTorsoAngleDeg,
-                      text: "\(reading.torsoAngleDeg.map { "\(Int($0.rounded()))°" } ?? "–") of \(Int(t.fallenMinTorsoAngleDeg))°",
-                      met: (reading.torsoAngleDeg ?? 0) >= t.fallenMinTorsoAngleDeg)
-                meter("Hip drop",
-                      value: reading.hipDrop, limit: t.minHipDropFraction,
-                      text: "\(reading.hipDrop.map(percent) ?? "–") of \(percent(t.minHipDropFraction))",
-                      met: (reading.hipDrop ?? 0) >= t.minHipDropFraction)
-                meter("Held low",
-                      value: reading.held, limit: t.lowPostureHold,
-                      text: String(format: "%.1f of %.1f s", reading.held, t.lowPostureHold),
-                      met: reading.held >= t.lowPostureHold)
-                if let score = model.lastDetection?.score {
-                    Text("Last heuristic score \(percent(score)) · not a probability")
-                        .font(.caption.monospacedDigit())
-                        .foregroundStyle(Theme.secondaryText)
-                }
+                meter("Movement",
+                      value: reading.motion, limit: t.moveThreshold,
+                      text: "\(reading.motion.map { String(format: "%.2f", $0) } ?? "–") of \(String(format: "%.2f", t.moveThreshold))",
+                      met: false, neutral: true)
+                meter("Still for",
+                      value: reading.stillFor, limit: t.stillDuration,
+                      text: String(format: "%.0f of %.0f s", reading.stillFor, t.stillDuration),
+                      met: reading.stillFor >= t.stillDuration)
+                Text("Movement is the largest joint shift since the last motion, in torso lengths. Drifting does not count.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.secondaryText)
             }
         }
         .accessibilityElement(children: .combine)
@@ -67,24 +61,21 @@ struct DetectorReadoutCard: View {
         }
     }
 
-    private func percent(_ value: Double) -> String { "\(Int((value * 100).rounded()))%" }
-
-    private func phaseText(_ phase: HeuristicFallDetector.Reading.Phase) -> String {
+    private func phaseText(_ phase: InactivityDetector.Reading.Phase) -> String {
         if model.checkIn.isAwaiting { return "Checking in" }
         switch phase {
         case .noPerson: return "No person"
-        case .upright: return "Upright"
-        case .tilted: return "Leaning"
-        case .holding: return "Low, holding"
-        case .cooldown: return "Just detected"
+        case .moving: return "Moving"
+        case .still: return "Holding still"
+        case .alerted: return "Alerted · waiting for movement"
         }
     }
 
-    private func phaseColor(_ phase: HeuristicFallDetector.Reading.Phase) -> Color {
+    private func phaseColor(_ phase: InactivityDetector.Reading.Phase) -> Color {
         if model.checkIn.isAwaiting { return Theme.alert }
         switch phase {
-        case .holding: return Theme.attention
-        case .cooldown: return Theme.alert
+        case .still: return Theme.attention
+        case .alerted: return Theme.alert
         default: return .secondary
         }
     }

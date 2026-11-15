@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Full-screen "Are you OK?" prompt shown after a possible fall. Large targets, readable from the floor.
+/// Full-screen "Are you OK?" prompt shown after a no-movement alert. Large targets, readable from across the module.
 struct CheckInView: View {
     let model: CameraMonitorViewModel
 
@@ -11,7 +11,7 @@ struct CheckInView: View {
             VStack(spacing: Theme.Spacing.xl) {
                 Spacer(minLength: 0)
                 VStack(spacing: Theme.Spacing.s) {
-                    Text("Possible fall detected")
+                    Text("No movement detected")
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(Theme.alert)
                     Text("Are you OK?")

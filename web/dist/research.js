@@ -22,7 +22,7 @@ export function initializeResearch() {
   const section = node('section', null, 'research');
   section.setAttribute('aria-labelledby', 'research-title');
   section.innerHTML = `
-    <div class="research-heading"><div><p class="eyebrow">NASA OPEN SCIENCE DATA REPOSITORY</p><h2 id="research-title">The research behind crew health</h2><p>Explore historical measurements and the studies behind them.</p></div><span class="pill">HISTORICAL RESEARCH</span></div>
+    <div class="research-heading"><div><p class="eyebrow">NASA Open Science Data Repository</p><h2 id="research-title">The research behind crew health</h2><p>Explore historical measurements and the studies behind them.</p></div><span class="pill">Archived data</span></div>
     <p class="research-status" role="status">Loading NASA research snapshot…</p>
     <button class="research-retry" hidden>Retry loading research</button>
     <div class="research-content" hidden>
@@ -49,7 +49,7 @@ export function initializeResearch() {
 
   function renderSeries(series, studies) {
     const study = studies.find(s => s.accession === series.accession);
-    get('.research-source').replaceChildren(link(`${series.accession} · NASA source ↗`, study.sourceUrl), node('p', `Unit: ${series.unit}`));
+    get('.research-source').replaceChildren(link(`${series.accession} · NASA source`, study.sourceUrl), node('p', `Unit: ${series.unit}`));
     get('.research-chart-heading').replaceChildren(node('h3', series.label), node('span', series.unit));
     const svg = svgNode('svg', { viewBox: '0 0 840 290', role: 'img', 'aria-label': `${series.label} in ${series.unit}. Cohort means and observed ranges by research timepoint. Exact values in the table below.` });
     const valid = series.points.filter(p => p.mean != null);
@@ -105,9 +105,9 @@ export function initializeResearch() {
       renderSeries(data.series[0], data.studies);
       const cards = data.studies.map(s => {
         const card = node('article', null, 'panel research-study');
-        card.append(node('p', `${s.accession} · ${s.population}`, 'eyebrow'), node('h3', s.topic), node('p', s.applicationUse), link('View study at NASA ↗', s.sourceUrl));
+        card.append(node('p', `${s.accession} · ${s.population}`, 'eyebrow'), node('h3', s.topic), node('p', s.applicationUse), link('View study at NASA', s.sourceUrl));
         const details = node('details'); details.append(node('summary', `Study details · ${s.files.length} downloaded tables`), node('p', s.title), node('p', `Study version ${s.version}`));
-        for (const file of s.files) details.append(link(`${file.category} · ${file.rowCount} rows ↗`, file.url));
+        for (const file of s.files) details.append(link(`${file.category} · ${file.rowCount} rows`, file.url));
         if (!s.files.length) details.append(node('p', 'Metadata reference only; expression measurements were not downloaded.'));
         card.append(details); return card;
       });

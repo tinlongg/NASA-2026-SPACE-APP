@@ -27,7 +27,7 @@ def snapshot():
     return {'deviceID': str(uuid4()), 'monitoredCrewMemberID': member,
             'crew': [{'id': member, 'displayName': 'Demo crew', 'role': 'Commander',
                       'status': 'nominal', 'lastUpdated': 1794680000000}],
-            'events': [{'id': str(uuid4()), 'crewMemberID': member, 'type': 'possibleFall',
+            'events': [{'id': str(uuid4()), 'crewMemberID': member, 'type': 'possibleUnresponsive',
                         'timestamp': 1794680000000, 'severity': 2, 'source': 'replay',
                         'details': 'Synthetic test, not a real fall.', 'acknowledged': False}],
             'telemetry': [{'id': str(uuid4()), 'crewMemberID': member, 'timestamp': 1794680000000,

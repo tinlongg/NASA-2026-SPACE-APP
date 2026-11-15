@@ -6,7 +6,7 @@ final class CoreTests: XCTestCase {
     private let memberID = UUID()
 
     private func event(_ severity: EventSeverity, at offset: TimeInterval = 0) -> SafetyEvent {
-        SafetyEvent(crewMemberID: memberID, type: .possibleFall,
+        SafetyEvent(crewMemberID: memberID, type: .possibleUnresponsive,
                     timestamp: Date(timeIntervalSince1970: 1_000_000 + offset),
                     severity: severity, source: .simulated, details: "test")
     }

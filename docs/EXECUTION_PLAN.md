@@ -4,6 +4,12 @@
 > **Status (updated 2026-11-14):** This is the original architecture and acceptance plan. Implementation exists; see `docs/HANDOFF.md` for current results and remaining checks. The native app stays primary. The user later authorized a public browser companion, Meta as provider, and the NASA/OSDR source set. The web Worker is a deployment adapter for the unchanged §5.3 API, using an exported Python index; it does not replace FastAPI or physical-iPhone acceptance. Original brief and frozen contracts are unchanged.
 > **Historical verification done when this plan was written:** the Swift contracts in §5 were type-checked with `swiftc -typecheck` (Apple Swift 6.4.2) in both Swift 5 and Swift 6 language modes and compile cleanly. Nothing else here has been built or run.
 
+> **Direction change (2026-11-14): fall detection is scrapped.** The product now targets crew aboard a
+> space station, where nobody falls. The camera feature is a *possible-unresponsive* check: it alerts
+> when a tracked crew member shows no limb movement for 15 seconds (drifting and tumbling are ignored),
+> then runs the same "Are you OK?" check-in. Wherever this document says fall, possible fall, low posture
+> or hip drop, read the no-movement check described in `README.md` → *Setting and detection*. The
+> event type is `possibleUnresponsive` (was `possibleFall`).
 ---
 
 ## 1. Improved project specification
@@ -42,7 +48,7 @@ Deliverables from the brief: working build on the demo iPhone, FastAPI service (
 | A1 | Deployment target **iOS 17.0**; Xcode 16 or later | Needed for `@Observable` and file-system-synchronised project folders. The brief names no minimum OS. |
 | A2 | **Swift 6 toolchain, Swift 5 language mode** | The brief says "Swift 6". Strict concurrency plus AVFoundation delegate callbacks is a known time sink. The §5 contracts compile in both modes, so the team can flip to Swift 6 mode later if it builds clean. |
 | A3 | One monitored crew member, one person in frame, phone stationary in portrait on a stand 2–4 m away with the full body visible | The brief does not state camera placement. If Vision returns several people, use the one with the largest bounding box. |
-| A4 | The scenario is an Earth analog habitat or partial-gravity surface | A "fall" needs gravity. The brief does not address microgravity; the pitch must say this. |
+| A4 | ~~The scenario is an Earth analog habitat or partial-gravity surface~~ Superseded 2026-11-14: the scenario is a space station in microgravity | A fall needs gravity, so fall detection was replaced by a no-movement (possible-unresponsive) check that works while floating. |
 | A5 | **LLM provider and model: to be supplied by the team.** The backend isolates the provider behind one function and ships an *extractive* mode that needs no LLM | The brief names none. |
 | A6 | **NASA corpus: to be supplied by the team.** The brief lists topics only (isolation, exercise, crew health, human performance) and contains no document titles or URLs. This plan names none. | Hard constraint: do not invent sources. |
 | A7 | Journal summary is produced **on-device** with Apple's NaturalLanguage framework (theme extraction, no sentiment score) | The brief asks for an "AI-generated" summary *and* for journal text to stay on-device. On-device analysis satisfies both and needs no backend. |

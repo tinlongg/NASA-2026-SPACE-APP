@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createWorker, validateInput } from '../worker.mjs';
 
-function input() { return { question: 'Explain this replay.', snapshot: { source: 'replay', capturedAt: new Date().toISOString(), measurement: { angle: 85, hipY: 0.22 }, detection: { drop: 0.28, angle: 85, duration: 0.5, held: 2 } } }; }
+function input() { return { question: 'Explain this replay.', snapshot: { source: 'replay', capturedAt: new Date().toISOString(), measurement: { motion: 0.04, stillFor: 15.2 }, detection: { stillFor: 15, threshold: 0.25 } } }; }
 function request(body = input(), origin = 'https://crew.test') { return new Request('https://crew.test/api/coach/analyze', { method: 'POST', headers: { Origin: origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) }); }
 const env = { META_API_KEY: 'test-only-secret' };
 
@@ -30,7 +30,7 @@ test('missing secrets, wrong origin and invalid input do not call Meta', async (
   const worker = createWorker({}, () => { throw new Error('Must not call provider'); });
   assert.equal((await worker.fetch(request(), {})).status, 503);
   assert.equal((await worker.fetch(request(input(), 'https://other.test'), env)).status, 403);
-  const body = input(); body.snapshot.measurement.angle = 500;
+  const body = input(); body.snapshot.measurement.motion = 500;
   assert.equal((await worker.fetch(request(body), env)).status, 400);
   body.question = 'x'.repeat(9000);
   assert.equal((await worker.fetch(request(body), env)).status, 400);
@@ -68,7 +68,7 @@ test('status and assets expose no credential or arbitrary server file', async ()
 test('no-pose and stale observations are explicit, not invented', () => {
   const body = input(); body.snapshot = { source: 'none', capturedAt: null, measurement: null, detection: null };
   assert.equal(validateInput(body).snapshot.measurement, null);
-  body.snapshot.measurement = { angle: 0, hipY: 0.5 };
+  body.snapshot.measurement = { motion: 0.1, stillFor: 3 };
   assert.equal(validateInput(body), null);
   const stale = input(); stale.snapshot.capturedAt = '2020-01-01T00:00:00.000Z';
   assert.equal(validateInput(stale).snapshot.capturedAt, stale.snapshot.capturedAt);
