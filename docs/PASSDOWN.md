@@ -202,7 +202,7 @@ Plan: `docs/ROADMAP_PLAN.md` (in worktree `crewsafety-roadmap-9c2217`, not yet c
 
 ### Phase 4 — ElevenLabs check-in voice (2026-11-15)
 
-- `backend/scripts/generate_voice.py` reads `ios/CrewSafety/Resources/Voice/phrases.json` and writes one mp3 per phrase with ElevenLabs (default voice Sarah, `eleven_multilingual_v2`). The key comes from `ELEVENLABS_API_KEY` or the git-ignored `backend/.env`; only the clip is committed. Re-run with `--force` to change voice or wording.
+- `backend/scripts/generate_voice.py` reads `ios/CrewSafety/Resources/Voice/phrases.json` and writes one mp3 per phrase with ElevenLabs (default voice Eric (the CrewSafety Check-in agent's voice; first generated with Sarah by mistake), `eleven_multilingual_v2`). The key comes from `ELEVENLABS_API_KEY` or the git-ignored `backend/.env`; only the clip is committed. Re-run with `--force` to change voice or wording.
 - `CheckInVoice.speak` plays the bundled clip for an exact phrase match with `AVAudioPlayer`, and falls back to `AVSpeechSynthesizer` for any other phrase or a playback failure. Listening is still on-device. The lazy-creation and repeated-`stop()` behaviour is unchanged.
 - iOS suite: 56/56 on iPhone 17 / iOS 26.5 (two new clip-lookup tests). Verified by ear in the iPhone 17 simulator (Synthetic Stops Moving): the ElevenLabs clip played and the 60-second countdown ran, with speech and notification permission declined. Not verified: a physical iPhone, or listening after the clip with speech permission granted.
 - The ElevenLabs key was pasted in chat; rotate it in the ElevenLabs dashboard and update `backend/.env`.
@@ -224,3 +224,57 @@ Plan: `docs/ROADMAP_PLAN.md` (in worktree `crewsafety-roadmap-9c2217`, not yet c
 
 - Removed the MUSE chat tab and everything behind it: `Features/MuseChat`, `MuseService`, the MUSE settings section, `MUSE_BASE_URL`, the bundled fallback answers and their tests. The FastAPI `/chat` route is untouched but nothing in the iOS app calls it now. `docs/EXECUTION_PLAN.md` and `docs/IOS_WEB_CONNECTION.md` still describe the chat in their bodies.
 - Added a month calendar to the iOS Journal tab (`JournalCalendarView.swift`): days with entries are marked, tapping one filters History to that day, "Show all" clears it. iOS suite is now 43 tests (the removed MUSE tests were 16, the new calendar tests 3), all passing. Checked in the simulator that the calendar renders with the marked day; tapping a day to filter was not confirmed visually.
+
+### Phase 1 — camera diagnostics, model choice and rest pause (2026-11-15)
+
+Built without the live test (that still needs a person in front of the camera; see step 6 of `docs/ROADMAP_PLAN.md`).
+- **Web (`web/dist/camera-health.js`, `app.js`, `offline-config.js`):** the Monitor tab shows model, delegate (GPU tried first, CPU fallback), video size and per-group visibility for shoulders, hips and arms. A model selector offers Lite, Full and Heavy (5.8, 9.4 and 30.7 MB). The offline download prepares Lite and Full; Heavy is cached the first time it is used online. After more than 2 seconds without both shoulders and hips, the page says "Move back so your hips are visible" (or shoulders, or both). The existing detector, 15 s and 0.25 thresholds are untouched.
+- **Rest period (D7):** a manual pause of 15 min to 4 h, web and iOS (`RestPause.swift`, a card on the Monitor screen). Paused monitors raise no events, show the end time, and restart the timer when the pause ends. There is no automatic sleep detection.
+- Tests: web 61/61, iOS 47/47. In the local browser the diagnostics panel, model list and rest pause rendered, and a "Stops moving" replay raised no event while paused. **Not re-verified:** the replay alert after resuming (the browser pane was hidden and the app stops a session in a hidden tab), GPU delegate behaviour, and anything with a real camera.
+- **Still to do for Phase 1:** run the live test (ordinary movement, 15 s still, leaving view, returning), record fps, model, delegate and any false alerts or misses here, and only then consider changing thresholds.
+
+### Spoken alert on the website (2026-11-15)
+
+- The ElevenLabs voice had only been added to the iOS check-in. The website now plays a recorded clip ("Alert. Possible unresponsive crew member. Please check on them now.") when a possible-unresponsive event is raised, live or replay, with a "Spoken alert" checkbox (on by default). `backend/scripts/generate_voice.py` writes phrases named `web-*` to `web/dist/voice/`; the Worker embeds the mp3 as base64. Web suite 62/62.
+- Not verified in a browser: browsers may block audio until the page has been used, and the Worker build now embeds a binary asset (a hosted deploy has not been tried). The written banner remains the primary alert.
+- **Voice correction:** the first clips used Sarah (a female premade voice) because the script defaulted to it; the user's ElevenLabs agent "CrewSafety Check-in" is set to Eric (`cjVigY5qzO86Huf0OWal`). Both clips were regenerated with Eric and the script default changed. Clips come from the text-to-speech API, so changing the agent's voice in the dashboard does not change them: re-run `python3 backend/scripts/generate_voice.py --force` (set `ELEVENLABS_VOICE_ID` for another voice).
+
+### Seated / upper-body tracking (2026-11-15)
+
+- **False negative fixed on the web:** the detector needed shoulders and hips, so a person seated at a desk (hips hidden) counted as "out of view" and the timer reset: a slumped person would never alert. `measurePose` now falls back to an upper-body measurement (shoulders required; nose, ears, elbows, wrists optional) scaled by shoulder width, with the movement threshold scaled to match (0.35 shoulder widths, about 0.25 torso lengths). Switching between full-body and upper-body tracking counts as movement. Events say "upper body only". Only missing shoulders now produce the framing hint.
+- New synthetic replays: "Seated, typing" (0 events) and "Seated, slumped and still" (1 event). Web suite 67/67. These are generated numbers, not validation on people.
+- **Not done:** the iOS detector (`InactivityDetector.swift`) still needs shoulders and hips; it has the same false negative. Eyes are not used by any detector.
+- Likely cause of "no sound" in the live test: the local server loads assets once at startup, so a server started before the voice change serves no clip. Restart `npm start` and hard-reload (the service worker also caches the old page).
+
+### Multi-person tracking, close-up view, readings (2026-11-15)
+
+- Web only. People are found automatically (nothing entered ahead of time; up to 4 per frame) and tracked with stable ids (`web/dist/people.js`), a detector per person, per-person events, labelled boxes on the overview, click to follow someone. A **Close-up** second view zooms on the face of the flagged or clicked person with eyes (open/closed/mixed) and mouth (moving/still) readings from MediaPipe `FaceLandmarker` blendshapes (new 3.7 MB model, added to the offline download). A **What the monitor sees** panel lists rule-generated plain-language statements per person.
+- Eye and mouth readings are **information for the person watching only**; no alert depends on them (decision: info only; closed eyes cannot tell sleep from a problem). They are recorded on each event as `eyes` and `mouth`.
+- Tests: web 75/75, including a guard that every imported browser module is served by the Worker and cached by the shell (a missing allowlist entry had broken the whole page once during this work).
+- **Not verified:** anything with a real camera. Multi-person tracking, face matching to people, blink and mouth thresholds (0.55 blink score, 0.04 jaw spread) and the crop framing are untested on real people. The tracker matches by position only, so people who cross paths can swap ids. Not done: iOS multi-person, the iOS upper-body fallback, and a layout check at narrow widths (the toolbar overflowed sideways in the narrow browser pane).
+
+### Rest period removed (2026-11-15)
+
+- The manual rest-period pause (web panel, iOS Monitor card, `RestPause`, tests) was removed at the user's request: crew sleep in private areas that the cameras do not cover, so no pause is needed. This reverses roadmap decision D7 and the "Rest period" notes in the Phase 1 section above. Sleep or deliberate stillness in a monitored area can still raise an alert. Web suite 74/74, iOS 43/43.
+
+### Spoken answers on the website (2026-11-15)
+
+- Opt-in checkbox, on-device recognition only (`web/dist/voice-answer.js`; Chrome's `processLocally`; refuses to run if the browser would use a server). After a live alert's clip, it listens up to 30 s for okay or help; only the classification is stored on the event, and the event is never auto-acknowledged. Web suite 76/76.
+- **Not verified with real speech.** In the in-app browser the API reported on-device English as `unavailable`, so the checkbox correctly refuses to turn on there. It needs desktop Chrome 139+ with the language pack, plus microphone permission. The words matched (okay/fine/yes vs help/not okay) are a first list.
+
+### Voice follows the ElevenLabs agent; facial activity prevents false alerts (2026-11-15)
+
+- `backend/scripts/generate_voice.py` now looks up the voice set on the CrewSafety Check-in agent through the API (falls back to Eric) and prints it. After the user changed the agent's voice, both clips were regenerated with "Hope" (`WAhoMTNdLdMoq1j3wf3I`). The clips are recordings, so any later change to the agent's voice needs `python3 backend/scripts/generate_voice.py --force`, an iOS rebuild and a web server restart.
+- Live test report: a person talking while standing still still raised an alert. Fix: talking (mouth movement) and blinks now count as activity and restart the stillness timer (`InactivityDetector.noteActivity`, `BlinkDetector`, `MouthActivity`), behind a default-on checkbox. Web suite 78/78. Not verified with real people; thresholds are starting values. This reverses the earlier "info only" decision for the face readings at the user's request. Known trade-off: facial movement without the ability to respond would delay an alert.
+
+### "Are you OK?" check-in on the website (2026-11-15)
+
+- Live detections now start a 30 s check-in (new clip `web/dist/voice/web-checkin.mp3`, voice Hope; `web/dist/checkin.js`) before the alert: OK or movement ends it quietly, help or silence raises the event. Replays and the unchecked setting skip it. The check-in length (30 s vs iOS 60 s) and the 45 s grace after OK are untested guesses. Web suite 81/81.
+- Not verified with a live camera or real speech: the countdown card, the spoken prompt followed by listening, and that talking during the check-in ends it. If a person says OK but stays still, they are asked again after about a minute.
+
+### Walking false alert, second view, Full model default (2026-11-15)
+
+- Live report: an alert fired while the user was walking. Likely cause (not reproduced with a camera): the microgravity design ignores the whole body travelling, so with limbs not tracked a walking torso looks still. Added `wholeBody` to `InactivityDetector` (torso travel or ~20° turn counts as movement) and a default-on page checkbox; tests cover walking past (alert only in space mode), turning in place, and still standing. Web suite 85/85. The UI replays remain microgravity unless a fixture says otherwise ("Walking past, torso only" is Earth mode).
+- The close-up is now an always-on second view beside the main camera, with a pop-out window ("Open on another screen"). Pose model now defaults to Full.
+- Not verified with a camera: walking in front of a real webcam, the pop-out window (browsers may block it), and the layout below 980 px width (stacked).
+- Open question for the product: Earth mode is the default because every test so far is on Earth; the space-station behaviour is the checkbox off.

@@ -1,7 +1,11 @@
 import { journalToneElement, museJournalElement, sentimentMetadata } from './journal-sentiment.js';
 import { InactivityDetector, measurePose, STILL_SECONDS } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
-import { VISION_MODULE, VISION_WASM, POSE_MODEL } from './offline-config.js';
+import { VISION_MODULE, VISION_WASM, POSE_MODELS, FACE_MODEL } from './offline-config.js';
+import { visibilityGroups, FramingMonitor, MODEL_CHOICES } from './camera-health.js';
+import { CheckIns, CHECKIN_SECONDS, GRACE_SECONDS, RAISES_ALERT } from './checkin.js';
+import { onDeviceSupport, installLanguagePack, listenForAnswer, ANSWER_LABEL } from './voice-answer.js';
+import { BlinkDetector, PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthActivity, faceBox, cropRect, describePerson } from './people.js';
 import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
 import { initAccount, api } from './account.js';
@@ -21,7 +25,14 @@ const element = id => document.getElementById(id);
 const video = element('video');
 const canvas = element('overlay');
 const context = canvas.getContext('2d');
-const detector = new InactivityDetector();
+const detector = new InactivityDetector(); // the single synthetic-replay person
+// Live people: a stable id per person, each with their own detector and face readings.
+const tracker = new PersonTracker(), people = new Map(), replayPerson = { id: 1, detector, mouth: new MouthActivity(), face: null, result: null };
+// People are found automatically: nobody is entered ahead of time. The only limit is how many the models look for per frame.
+const MAX_PEOPLE = 4;
+let selectedId = null, focusId = null, faceLandmarker = null, lastFace = 0;
+const newPerson = id => ({ id, detector: new InactivityDetector(), mouth: new MouthActivity(), blink: new BlinkDetector(), face: null, result: null, pose: null, seen: 0, activeAt: null, activeReason: null, appliedAt: null });
+function resetPeople() { tracker.reset(); people.clear(); detector.reset(); replayPerson.mouth.reset(); replayPerson.face = null; replayPerson.result = null; focusId = null; selectedId = null; renderViews(true); }
 let stream, landmarker, animation, generation = 0, mode = 'idle', lastVideoTime = -1, lastInference = 0;
 const events = [];
 let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, detection: null };
@@ -40,7 +51,6 @@ function showTab(tab) {
 document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => showTab(button.dataset.tab)));
 document.querySelector('[data-action="camera"]').onclick = () => { showTab('monitor'); startCamera(); };
 document.querySelector('[data-action="replay"]').onclick = () => { showTab('monitor'); replay('unresponsive'); };
-document.querySelector('[data-action="entry"]').onclick = () => { showTab('journal'); element('journal-body').focus(); };
 
 function setCameraState(label, live) {
   element('mode-label').textContent = label; element('head-status').textContent = label; element('home-camera').textContent = live ? label.replace(/^Live camera$/, 'Live') : 'Off';
@@ -51,7 +61,7 @@ function setCameraState(label, live) {
 function stopSession(message = 'Session stopped. Camera released.') {
   generation++; cancelAnimationFrame(animation);
   if (stream) stream.getTracks().forEach(track => track.stop());
-  stream = null; video.srcObject = null; mode = 'idle'; detector.reset();
+  stream = null; video.srcObject = null; mode = 'idle'; if (typeof cancelCheckIns === 'function') cancelCheckIns(); resetPeople(); resetDiagnostics();
   context.clearRect(0, 0, canvas.width, canvas.height);
   element('camera-placeholder').hidden = false; element('start').disabled = false; element('stop').disabled = true;
   setCameraState('Camera off', false);
@@ -60,6 +70,23 @@ function stopSession(message = 'Session stopped. Camera released.') {
   element('tracking').textContent = 'Awaiting camera connection'; element('detector-state').textContent = 'Idle';
   element('camera-message').textContent = message;
 }
+
+let poseModel = 'full', landmarkerModel = null, landmarkerDelegate = '—';
+const framing = new FramingMonitor();
+const percent = value => value == null ? '—' : `${Math.round(value * 100)}%`;
+function updateDiagnostics(time, groups) {
+  element('diag-video').textContent = `${video.videoWidth}×${video.videoHeight}`;
+  for (const name of ['shoulders', 'hips', 'arms']) element('diag-' + name).textContent = percent(groups?.[name]);
+  const hint = framing.update(time, groups); element('framing-hint').hidden = !hint; if (hint) element('framing-hint').textContent = hint;
+}
+function resetDiagnostics() {
+  framing.reset(); element('framing-hint').hidden = true; element('diag-video').textContent = '—';
+  for (const name of ['shoulders', 'hips', 'arms']) element('diag-' + name).textContent = '—';
+}
+// Model choice control.
+for (const [value, choice] of Object.entries(MODEL_CHOICES)) element('model-select').add(new Option(`${choice.label} · ${choice.size}`, value));
+element('model-select').value = poseModel;
+element('model-select').onchange = () => { poseModel = element('model-select').value; element('model-note').textContent = poseModel === 'heavy' ? 'Heavy is 31 MB and needs a connection the first time. Start the camera again to use it.' : 'Start the camera again to use this model.'; if (mode === 'live') stopSession(`Model changed to ${MODEL_CHOICES[poseModel].label}. Start the camera again.`); };
 
 async function startCamera() {
   stopSession('Requesting camera access…');
@@ -75,13 +102,23 @@ async function startCamera() {
     if (session !== generation) return;
     element('camera-placeholder').hidden = true;
     element('camera-message').textContent = 'Camera connected. Downloading the pose model for local processing…';
-    if (!landmarker) {
-      const { FilesetResolver, PoseLandmarker } = await import(VISION_MODULE);
+    if (!landmarker || landmarkerModel !== poseModel) {
+      landmarker?.close(); landmarker = null;
+      const { FilesetResolver, PoseLandmarker, FaceLandmarker } = await import(VISION_MODULE);
       const files = await FilesetResolver.forVisionTasks(VISION_WASM);
-      const loaded = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: POSE_MODEL, delegate: 'CPU' }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+      let loaded, used = 'GPU';
+      for (const delegate of ['GPU', 'CPU']) { // Try the GPU first and fall back to the CPU.
+        try { loaded = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: POSE_MODELS[poseModel], delegate }, runningMode: 'VIDEO', numPoses: MAX_PEOPLE, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 }); used = delegate; break; }
+        catch (error) { if (delegate === 'CPU') throw error; }
+      }
       if (session !== generation) { loaded.close(); return; }
-      landmarker = loaded;
+      landmarker = loaded; landmarkerModel = poseModel; landmarkerDelegate = used;
+      // Face readings are optional: if the face model cannot load, pose tracking still works.
+      faceLandmarker?.close(); faceLandmarker = null;
+      try { faceLandmarker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: used }, runningMode: 'VIDEO', numFaces: MAX_PEOPLE, outputFaceBlendshapes: true }); }
+      catch { try { faceLandmarker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: 'CPU' }, runningMode: 'VIDEO', numFaces: MAX_PEOPLE, outputFaceBlendshapes: true }); } catch { faceLandmarker = null; } }
     }
+    element('diag-model').textContent = MODEL_CHOICES[poseModel].label; element('diag-delegate').textContent = landmarkerDelegate;
     if (session !== generation) return;
     mode = 'live'; lastVideoTime = -1; lastInference = 0;
     setCameraState('Live camera', true); element('source').textContent = 'Webcam, live';
@@ -93,11 +130,25 @@ async function startCamera() {
         if (video.readyState >= 2 && video.currentTime !== lastVideoTime && now - lastInference >= 65) {
           const elapsed = now - lastInference; lastInference = now; lastVideoTime = video.currentTime;
           canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-          const result = landmarker.detectForVideo(video, now);
-          const pose = result.landmarks[0];
+          const result = landmarker.detectForVideo(video, now), time = now / 1000, aspect = canvas.width / canvas.height;
+          const poses = result.landmarks.filter(pose => personCentre(pose));
+          const ids = tracker.update(time, poses.map(personCentre));
+          for (const gone of tracker.gone) { people.delete(gone); if (selectedId === gone) selectedId = null; }
+          const seenNow = new Set();
+          poses.forEach((pose, index) => {
+            const person = people.get(ids[index]) ?? newPerson(ids[index]); people.set(person.id, person);
+            person.pose = pose; person.seen = time; seenNow.add(person.id);
+            evaluatePerson(person, time, measurePose(pose, aspect));
+          });
+          for (const person of people.values()) if (!seenNow.has(person.id)) { person.pose = null; evaluatePerson(person, time, null); } // keeps the lost-pose timer honest
+          if (faceLandmarker && now - lastFace >= 120) { lastFace = now; updateFaces(now, time, poses, ids); }
+          focusId = chooseFocus();
+          const focus = people.get(focusId);
           context.clearRect(0, 0, canvas.width, canvas.height);
-          if (pose && element('skeleton').checked) drawPose(pose);
-          handleMeasurement(now / 1000, measurePose(pose, canvas.width / canvas.height));
+          if (element('skeleton').checked) for (const person of people.values()) if (person.pose) drawPerson(person);
+          updateDiagnostics(time, focus?.pose ? visibilityGroups(focus.pose) : null);
+          renderFocus(focus ?? null, time);
+          drawCloseUp();
           element('fps').textContent = `${Math.min(15, Math.round(1000 / elapsed))} fps`;
         }
         animation = requestAnimationFrame(tick);
@@ -111,9 +162,99 @@ async function startCamera() {
   }
 }
 
-function drawPose(pose) {
+const statusColour = person => !person.result ? '#5ccf8e' : person.result.alerted ? '#df6a5e' : person.result.stillFor >= STILL_SECONDS / 3 ? '#d6a24e' : '#5ccf8e';
+// Second view: a zoomed crop of the video around the face of whoever the monitor is following.
+const faceCanvas = element('face-view'), faceContext = faceCanvas.getContext('2d');
+function closeUpTarget() {
+  // Always on: the flagged person, else the one clicked, else whoever the monitor is following.
+  if (mode === 'replay') return null;
+  const flagged = people.get(focusId);
+  if (flagged?.result && (flagged.result.alerted || flagged.result.stillFor >= STILL_SECONDS / 3)) return flagged;
+  return people.get(selectedId) ?? (flagged?.pose ? flagged : null) ?? [...people.values()].find(person => person.pose) ?? null;
+}
+function headBox(pose) { // fallback when the face model has nothing: a box around the head from the pose
+  const nose = pose?.[0]; if (!nose || (nose.visibility ?? 0) < 0.3) return null;
+  const ls = pose[11], rs = pose[12], width = ls && rs ? Math.hypot(ls.x - rs.x, ls.y - rs.y) * 0.9 : 0.2;
+  return { x: nose.x - width / 2, y: nose.y - width * 0.65, width, height: width * 1.2 };
+}
+function drawCloseUp() {
+  const target = closeUpTarget(), box = target && (target.face?.box ?? headBox(target.pose));
+  element('closeup-placeholder').hidden = Boolean(box); element('closeup-placeholder').textContent = mode === 'replay' ? 'No close-up in replays' : 'Waiting for a person';
+  if (!box || video.readyState < 2) { faceContext.clearRect(0, 0, faceCanvas.width, faceCanvas.height); return; }
+  const crop = cropRect(box, video.videoWidth, video.videoHeight, faceCanvas.width / faceCanvas.height);
+  faceContext.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, faceCanvas.width, faceCanvas.height);
+}
+const READING = { open: 'Open', closed: 'Closed', unclear: 'Mixed', unknown: '—', moving: 'Moving', still: 'Still' };
+let lastViews = 0;
+function renderViews(force = false) {
+  const nowMs = performance.now(); if (!force && nowMs - lastViews < 250) return; lastViews = nowMs;
+  const list = mode === 'replay' ? [replayPerson] : [...people.values()].sort((a, b) => a.id - b.id);
+  const target = closeUpTarget();
+  element('closeup-title').textContent = target ? `Close-up · Person ${target.id}` : 'Close-up';
+  element('closeup-eyes').textContent = target ? READING[target.face?.eyes?.state ?? 'unknown'] : '—';
+  element('closeup-mouth').textContent = target ? READING[target.face?.mouth?.state ?? 'unknown'] : '—';
+  element('closeup-note').textContent = !target ? 'Follows the person who stops moving, or click a person in the camera view.' : target.face ? 'Readings come from the face model, on this device.' : faceLandmarker ? 'No clear face in view. Showing the head area.' : 'Face model unavailable. Showing the head area.';
+  const boxes = element('thought-boxes'); boxes.replaceChildren();
+  if (!list.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No one is being tracked yet. Start the camera or a replay.'; boxes.append(empty); return; }
+  for (const person of list) {
+    const result = person.result, card = document.createElement('article'); card.className = 'thought' + (person.id === focusId ? ' focus' : '') + (result?.alerted ? ' alert' : '');
+    const head = document.createElement('div'); head.className = 'thought-head';
+    const name = document.createElement('strong'); name.textContent = mode === 'replay' ? 'Synthetic person' : `Person ${person.id}`;
+    const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = result?.alerted ? 'Alert' : !result?.measurement ? 'Not tracked' : result.stillFor >= STILL_SECONDS / 3 ? 'Still' : 'Moving';
+    head.append(name, chip); card.append(head);
+    const lines = describePerson({ tracked: Boolean(result?.measurement), upper: result?.upper, motion: result?.motion, threshold: result?.threshold, stillFor: result?.stillFor ?? 0, stillSeconds: STILL_SECONDS, alerted: result?.alerted, eyes: person.face?.eyes, mouth: person.face?.mouth, replay: mode === 'replay', faceActiveAgo: person.activeAt == null || mode === 'replay' || !element('face-activity-enabled').checked ? null : performance.now() / 1000 - person.activeAt });
+    for (const line of lines) { const item = document.createElement('p'); item.textContent = line; card.append(item); }
+    const look = events.find(event => event.personId === person.id && event.lookNote?.status === 'done');
+    if (look) { const note = document.createElement('p'); note.className = 'look'; note.textContent = `MUSE second look (a description, not a decision): ${look.lookNote.text}`; card.append(note); }
+    if (mode !== 'replay') card.onclick = () => { selectedId = person.id; renderViews(true); };
+    boxes.append(card);
+  }
+}
+// A literal second screen: the close-up in its own window, drawn from the same canvas.
+element('closeup-popout').onclick = () => {
+  const win = window.open('', 'crewsafety-closeup', 'popup,width=640,height=560');
+  if (!win) { element('closeup-note').textContent = 'The browser blocked the new window. Allow pop-ups for this site and try again.'; return; }
+  win.document.title = 'CrewSafety close-up';
+  win.document.body.style.cssText = 'margin:0;background:#121314;color:#ececef;font:14px system-ui,sans-serif';
+  const view = win.document.createElement('video'); view.autoplay = true; view.muted = true; view.playsInline = true; view.style.cssText = 'width:100%;display:block;background:#0e0f10';
+  view.srcObject = faceCanvas.captureStream(15);
+  const caption = win.document.createElement('div'); caption.style.cssText = 'padding:12px 16px';
+  win.document.body.replaceChildren(view, caption);
+  const timer = setInterval(() => { if (win.closed) return clearInterval(timer); caption.textContent = `${element('closeup-title').textContent} · Eyes: ${element('closeup-eyes').textContent} · Mouth: ${element('closeup-mouth').textContent}`; }, 500);
+};
+canvas.addEventListener('click', event => {
+  if (mode !== 'live') return;
+  const rect = canvas.getBoundingClientRect(), point = [(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height];
+  const list = [...people.values()].filter(person => person.pose), at = nearestIndex(point, list.map(person => personCentre(person.pose)), 0.4);
+  if (at >= 0) { selectedId = list[at].id; renderViews(true); }
+});
+// Face readings for each tracked person: eyes open or closed, and whether the mouth is moving.
+function updateFaces(now, time, poses, ids) {
+  const result = faceLandmarker.detectForVideo(video, now);
+  const heads = poses.map(pose => pose[0] && (pose[0].visibility ?? 0) >= 0.3 ? [pose[0].x, pose[0].y] : personCentre(pose)), matched = new Set();
+  (result.faceLandmarks || []).forEach((landmarks, index) => {
+    const nose = landmarks[1], at = nose ? nearestIndex([nose.x, nose.y], heads, 0.25) : -1, person = at >= 0 ? people.get(ids[at]) : null;
+    if (!person) return;
+    const scores = blendshapeScores(result.faceBlendshapes?.[index]?.categories);
+    person.face = { eyes: eyeReading(scores), mouth: person.mouth.update(time, scores), box: faceBox(landmarks), at: time }; matched.add(person.id);
+    if (person.face.mouth.state === 'moving') { person.activeAt = time; person.activeReason = 'talking'; }
+    if (person.blink.update(scores)) { person.activeAt = time; person.activeReason = 'blinking'; }
+  });
+  for (const person of people.values()) if (!matched.has(person.id) && person.face && time - person.face.at > 1) { person.face = null; person.mouth.reset(); }
+}
+function drawPerson(person) {
+  const pose = person.pose, colour = statusColour(person), points = pose.filter(point => (point.visibility ?? 0) >= 0.3);
+  drawPose(pose, colour);
+  if (!points.length) return;
+  const x0 = Math.min(...points.map(point => point.x)) * canvas.width, x1 = Math.max(...points.map(point => point.x)) * canvas.width, y0 = Math.min(...points.map(point => point.y)) * canvas.height, y1 = Math.max(...points.map(point => point.y)) * canvas.height;
+  context.save(); context.strokeStyle = colour; context.lineWidth = person.id === focusId ? 3 : 1.5; context.setLineDash(person.id === selectedId ? [] : [6, 4]); context.strokeRect(x0 - 8, y0 - 8, x1 - x0 + 16, y1 - y0 + 16);
+  const result = person.result, status = !result ? '' : result.alerted ? ' · ALERT' : result.stillFor >= 1 ? ` · still ${Math.floor(result.stillFor)} s` : ' · moving', label = `Person ${person.id}${status}`;
+  context.font = '14px system-ui, sans-serif'; const width = context.measureText(label).width + 12;
+  context.fillStyle = colour; context.fillRect(x0 - 8, Math.max(0, y0 - 32), width, 22); context.fillStyle = '#121314'; context.fillText(label, x0 - 2, Math.max(16, y0 - 16)); context.restore();
+}
+function drawPose(pose, colour = '#5ccf8e') {
   const links = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
-  context.strokeStyle = '#5ccf8e'; context.fillStyle = '#ececef'; context.lineWidth = 3;
+  context.strokeStyle = colour; context.fillStyle = '#ececef'; context.lineWidth = 3;
   for (const [from, to] of links) {
     if ((pose[from]?.visibility ?? 0) < 0.3 || (pose[to]?.visibility ?? 0) < 0.3) continue;
     context.beginPath(); context.moveTo(pose[from].x * canvas.width, pose[from].y * canvas.height); context.lineTo(pose[to].x * canvas.width, pose[to].y * canvas.height); context.stroke();
@@ -121,24 +262,105 @@ function drawPose(pose) {
   for (const point of pose) if ((point.visibility ?? 0) >= 0.3) { context.beginPath(); context.arc(point.x * canvas.width, point.y * canvas.height, 4, 0, Math.PI * 2); context.fill(); }
 }
 
-function handleMeasurement(time, measurement) {
-  const detection = detector.process(time, measurement);
-  const stillFor = detector.stillFor(time);
+// One person's detector step. Raises an event when the detector fires; the display is separate.
+function evaluatePerson(person, time, measurement) {
+  const d = person.detector;
+  d.wholeBody = mode === 'replay' ? Boolean(REPLAYS[replayKind]?.wholeBody) : element('whole-body-enabled').checked; // synthetic replays were written for microgravity unless they say otherwise
+  const detection = d.process(time, measurement);
+  // Talking or blinking is activity: a person standing still while speaking is not unresponsive.
+  if (mode !== 'replay' && element('face-activity-enabled').checked && person.activeAt != null && person.activeAt !== person.appliedAt) { d.noteActivity(person.activeAt); person.appliedAt = person.activeAt; }
+  const stillFor = d.stillFor(time);
   // Coach and events get two numbers, never joint positions.
-  const summary = measurement ? { motion: Number(Math.min(detector.motion ?? 0, 9.99).toFixed(3)), stillFor: Number(stillFor.toFixed(1)) } : null;
-  latestSnapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: summary, detection: detection && { stillFor: Number(detection.stillFor.toFixed(1)), threshold: detection.threshold } };
-  updateCoachContext();
-  element('pose-status').textContent = measurement ? 'Person visible' : 'No reliable pose';
-  element('tracking').textContent = measurement ? (mode === 'replay' ? 'Synthetic pose · not a recording' : 'Pose tracking active') : 'No reliable pose · show shoulders and hips';
-  element('motion').textContent = summary ? summary.motion.toFixed(2) : '—';
-  element('still').textContent = summary ? Math.floor(stillFor) : '—';
-  element('detector-state').textContent = !measurement ? 'Waiting for crew member' : detector.alerted ? 'Alert raised · waiting for movement' : stillFor >= STILL_SECONDS / 3 ? `No movement · alert at ${STILL_SECONDS} s` : 'Monitoring';
+  const summary = measurement ? { motion: Number(Math.min(d.motion ?? 0, 9.99).toFixed(3)), stillFor: Number(stillFor.toFixed(1)) } : null;
+  const snapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: summary, detection: detection && { stillFor: Number(detection.stillFor.toFixed(1)), threshold: detection.threshold } };
+  person.result = { measurement, summary, stillFor, alerted: d.alerted, detection, snapshot, upper: Boolean(measurement?.upper), threshold: d.threshold, motion: d.motion};
   if (!detection) return;
-  const details = `No body movement for ${Math.round(detection.stillFor)} s while in view (no joint moved more than ${detection.threshold} torso lengths). Check in with the crew member.`;
-  events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', type: 'Possible unresponsive', details, snapshot: structuredClone(latestSnapshot), acknowledged: false, lookNote: null });
+  // Live: ask "Are you OK?" first. Replays and the unchecked setting raise the event straight away.
+  if (mode === 'live' && element('checkin-enabled').checked) { startCheckIn(person, detection, snapshot); return; }
+  raiseEvent(person, detection, snapshot);
+}
+
+function raiseEvent(person, detection, snapshot, why = '') {
+  const who = mode === 'replay' ? '' : `Person ${person.id}: `;
+  const details = `${who}${why || `No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`}`;
+  events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', personId: mode === 'replay' ? null : person.id, type: 'Possible unresponsive', details, snapshot: structuredClone(snapshot), eyes: person.face?.eyes?.state ?? null, mouth: person.face?.mouth?.state ?? null, acknowledged: false, lookNote: null });
   if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
+  if (element('voice-answer-enabled').checked && mode === 'live' && !why) listenAfterAlert(events[0]); else speakAlert();
   element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${events[0].source}. ${details}`;
   renderEvents();
+}
+
+// "Are you OK?" check-in: a spoken and written question with a countdown. Saying or tapping OK, or moving
+// again, ends it quietly; asking for help or no answer raises the alert. Voice answers are on-device only.
+const checkIns = new CheckIns({ seconds: CHECKIN_SECONDS }), checkInTimers = new Map(), checkInListeners = new Map();
+function startCheckIn(person, detection, snapshot) {
+  if (!checkIns.start(person.id, { person, detection, snapshot }, Date.now())) return;
+  checkInTimers.set(person.id, setInterval(() => { renderCheckIns(); for (const ended of checkIns.tick(Date.now(), id => Boolean(people.get(id)?.detector.alerted))) finishCheckIn(ended); }, 500));
+  playClip('/voice/web-checkin.mp3', { respectToggle: false }).then(async () => {
+    if (!checkIns.has(person.id) || !element('voice-answer-enabled').checked) return;
+    const listener = listenForAnswer({ seconds: checkIns.secondsLeft(person.id, Date.now()) });
+    checkInListeners.set(person.id, listener);
+    const answer = await listener;
+    const ended = checkIns.answer(person.id, answer); if (ended) finishCheckIn(ended);
+  });
+  renderCheckIns();
+}
+function answerCheckIn(id, kind) { const ended = checkIns.answer(id, kind); if (ended) finishCheckIn(ended); }
+function finishCheckIn({ id, outcome, info }) {
+  clearInterval(checkInTimers.get(id)); checkInTimers.delete(id); checkInListeners.get(id)?.stop?.(); checkInListeners.delete(id);
+  const { person, detection, snapshot } = info, now = Date.now();
+  if (RAISES_ALERT[outcome]) raiseEvent(person, detection, snapshot, outcome === 'help' ? `Person ${id} asked for help at the check-in. Go to them now.` : `Person ${id} did not answer the "Are you OK?" check-in for ${CHECKIN_SECONDS} s after ${Math.round(detection.stillFor)} s without movement. Check in with them.`);
+  else {
+    // Said OK, or showed activity again: log it quietly. After OK, give a longer grace before asking again.
+    if (outcome === 'ok') person.detector.noteActivity(performance.now() / 1000 + GRACE_SECONDS); // the detector clock is performance.now() in seconds
+    events.unshift({ id: crypto.randomUUID(), date: new Date(now).toISOString(), source: 'Live webcam', personId: id, type: 'Check-in answered', details: outcome === 'ok' ? `Person ${id} said they are okay.` : `Person ${id} moved or spoke during the check-in.`, snapshot: structuredClone(snapshot), acknowledged: true, manual: true, lookNote: null });
+    renderEvents();
+  }
+  renderCheckIns();
+}
+function cancelCheckIns() { checkIns.cancelAll(); for (const timer of checkInTimers.values()) clearInterval(timer); for (const listener of checkInListeners.values()) listener.stop?.(); checkInTimers.clear(); checkInListeners.clear(); renderCheckIns(); }
+function renderCheckIns() {
+  const box = element('checkin-box'); box.hidden = !checkIns.size; box.replaceChildren();
+  for (const [id, entry] of checkIns.active) {
+    const card = document.createElement('article'); card.className = 'checkin-card';
+    const title = document.createElement('h3'); title.textContent = `Person ${id}: are you OK?`;
+    const count = document.createElement('div'); count.className = 'count'; count.textContent = `${checkIns.remaining(id, Date.now())} s`;
+    const note = document.createElement('p'); note.textContent = `No movement for ${Math.round(entry.info.detection.stillFor)} s. If there is no answer, the alert is raised. Say "I'm okay" or "help" if voice answers are on, or use the buttons.`;
+    const answers = document.createElement('div'); answers.className = 'answers';
+    const ok = document.createElement('button'); ok.className = 'primary'; ok.textContent = "I'm OK"; ok.onclick = () => answerCheckIn(id, 'ok');
+    const help = document.createElement('button'); help.className = 'help'; help.textContent = 'I need help'; help.onclick = () => answerCheckIn(id, 'help');
+    answers.append(ok, help); card.append(title, count, note, answers); box.append(card);
+  }
+}
+
+// The person the session panel, close-up and coach follow: someone with an alert, else the person who
+// has been still longest (past a third of the alert time), else the one the user clicked.
+function chooseFocus() {
+  const list = [...people.values()].filter(person => person.result);
+  const alerted = list.filter(person => person.result.alerted).sort((a, b) => b.result.stillFor - a.result.stillFor)[0];
+  if (alerted) return alerted.id;
+  const stillest = list.filter(person => person.pose).sort((a, b) => b.result.stillFor - a.result.stillFor)[0];
+  if (stillest && stillest.result.stillFor >= STILL_SECONDS / 3) return stillest.id;
+  if (selectedId !== null && people.has(selectedId)) return selectedId;
+  return stillest?.id ?? [...people.keys()][0] ?? null;
+}
+
+function renderFocus(person, time) {
+  const result = person?.result;
+  const measurement = result?.measurement ?? null, summary = result?.summary ?? null, stillFor = result?.stillFor ?? 0;
+  latestSnapshot = result?.snapshot ?? { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: null, detection: null };
+  updateCoachContext();
+  const count = [...people.values()].filter(item => item.pose).length;
+  element('pose-status').textContent = mode === 'replay' ? (measurement ? 'Person visible' : 'No reliable pose') : count > 1 ? `${count} people visible` : measurement ? 'Person visible' : 'No reliable pose';
+  element('tracking').textContent = measurement ? (mode === 'replay' ? 'Synthetic pose · not a recording' : measurement.upper ? 'Upper-body tracking (hips not visible)' : 'Pose tracking active') : 'No reliable pose · show your shoulders';
+  element('motion').textContent = summary ? summary.motion.toFixed(2) : '—';
+  element('still').textContent = summary ? Math.floor(stillFor) : '—';
+  element('detector-state').textContent = !measurement ? 'Waiting for crew member' : result.alerted ? 'Alert raised · waiting for movement' : stillFor >= STILL_SECONDS / 3 ? `No movement · alert at ${STILL_SECONDS} s` : 'Monitoring';
+  renderViews();
+}
+function handleMeasurement(time, measurement) { // synthetic replay: one person, no faces
+  evaluatePerson(replayPerson, time, measurement); focusId = replayPerson.id;
+  renderFocus(replayPerson, time);
 }
 
 const LINKS = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
@@ -153,8 +375,9 @@ function drawPoints(points) {
   }
 }
 
+let replayKind = null;
 function replay(kind) {
-  stopSession('Synthetic replay running. No camera is used.');
+  stopSession('Synthetic replay running. No camera is used.'); replayKind = kind;
   latestSnapshot = { source: 'none', capturedAt: null, measurement: null, detection: null };
   updateCoachContext();
   const session = generation; mode = 'replay';
@@ -174,6 +397,45 @@ function replay(kind) {
   animation = requestAnimationFrame(tick);
 }
 
+// Recorded ElevenLabs voice for new events. A browser may block audio until the page has been
+// used; the written banner and event log are always the primary alert.
+const clips = {};
+function playClip(src, { respectToggle = true } = {}) { // resolves when the clip has finished, or straight away if it cannot play
+  return new Promise(resolve => {
+    if (respectToggle && !element('voice-enabled').checked) return resolve();
+    try {
+      const audio = clips[src] ??= new Audio(src); audio.currentTime = 0;
+      audio.onended = () => resolve(); audio.onerror = () => resolve();
+      audio.play().catch(() => resolve());
+    } catch { resolve(); }
+  });
+}
+const speakAlert = () => playClip('/voice/web-alert.mp3');
+// Spoken answers, recognised on this device only. The words are classified and discarded; only the
+// meaning is recorded on the event. Nothing is kept for events that nobody answers.
+const answerStatus = text => { element('voice-answer-status').textContent = text; };
+element('voice-answer-enabled').onchange = async () => {
+  const box = element('voice-answer-enabled');
+  if (!box.checked) { answerStatus('Off.'); return; }
+  answerStatus('Checking this browser…');
+  let support = await onDeviceSupport();
+  if (support === 'downloadable' || support === 'downloading') { answerStatus('Downloading the on-device English speech pack…'); try { await installLanguagePack(); support = await onDeviceSupport(); } catch { support = 'unavailable'; } }
+  if (support !== 'available') { box.checked = false; answerStatus(support === 'unsupported' ? 'This browser cannot recognise speech on the device, so spoken answers stay off. Use the buttons. Chrome 139 or newer supports it.' : 'The on-device English speech pack is not available, so spoken answers stay off. Use the buttons.'); return; }
+  try { const mic = await navigator.mediaDevices.getUserMedia({ audio: true }); mic.getTracks().forEach(track => track.stop()); }
+  catch { box.checked = false; answerStatus('Microphone permission was not given, so spoken answers stay off.'); return; }
+  answerStatus('On. After a live alert it listens for up to 30 seconds. Speech is recognised on this device and not sent anywhere.');
+};
+async function listenAfterAlert(event) {
+  if (!element('voice-answer-enabled').checked || mode !== 'live') return;
+  await speakAlert();
+  if (!element('voice-answer-enabled').checked) return;
+  event.answer = { kind: 'listening' }; renderEvents(); answerStatus('Listening for an answer…');
+  const kind = await listenForAnswer();
+  event.answer = { kind, at: new Date().toISOString() }; renderEvents();
+  answerStatus(element('voice-answer-enabled').checked ? 'On. After a live alert it listens for up to 30 seconds. Speech is recognised on this device and not sent anywhere.' : 'Off.');
+  if (kind === 'help') { element('event-banner').hidden = false; element('event-banner').textContent = `${events[0] === event ? '' : 'Earlier alert: '}A crew member asked for help by voice. Go to them now.`; }
+  else if (kind === 'ok') { element('event-banner').textContent = 'A crew member said they are okay by voice. Please confirm in person, then acknowledge the event.'; }
+}
 // Opt-in second look: one downscaled frame from a live alert goes to MUSE. The reply is only a
 // note on the event; the deterministic detector alone decides alerts. Nothing is stored.
 async function secondLook(event) {
@@ -230,6 +492,7 @@ function renderEvents() {
       askCoach('Explain why this possible-unresponsive event triggered and what its limitations are.', event.snapshot);
     };
     row.append(title,date,details);
+    if (event.answer) { const spoken = document.createElement('p'); spoken.className = 'tag'; spoken.textContent = event.answer.kind === 'listening' ? 'Listening for a spoken answer…' : `Voice: ${ANSWER_LABEL[event.answer.kind]}. A voice answer does not close the event.`; row.append(spoken); }
     if (event.lookNote) { const note = document.createElement('p'); note.className = 'tag'; note.textContent = event.lookNote.status === 'pending' ? 'MUSE second look: describing the frame…' : `MUSE second look (description only, does not change this alert): ${event.lookNote.text}`; row.append(note); }
     row.append(button,...(event.manual ? [] : [explain])); element('events').append(row);
   }
