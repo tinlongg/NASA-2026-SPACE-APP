@@ -17,6 +17,13 @@ export const MISSION_SHOP=[
  {id:'antenna',name:'Signal antenna',cost:80,slot:'hat',icon:'⌁',description:'A little teal antenna for receiving cosmic chirps.'},
  {id:'moon-badge',name:'Moon badge',cost:35,slot:'gear',icon:'☾',description:'A crescent mission patch on the suit collar.'},
  {id:'wings',name:'Solar wings',cost:110,slot:'gear',icon:'✧',description:'A pair of golden solar panels for your explorer.'},
+ {id:'beret',name:'Comet beret',cost:70,slot:'hat',icon:'◒',description:'A soft blue beret with a tiny comet pin.'},
+ {id:'wreath',name:'Lunar leaf wreath',cost:65,slot:'hat',icon:'❧',description:'A ring of moon-green leaves fitted around the head.'},
+ {id:'headphones',name:'Mission headphones',cost:95,slot:'hat',icon:'♫',description:'A snug pair of lavender mission headphones.'},
+ {id:'bowtie',name:'Starlight bow tie',cost:50,slot:'gear',icon:'⋈',description:'A little plum bow tied to the suit collar.'},
+ {id:'star-brooch',name:'Star brooch',cost:45,slot:'gear',icon:'★',description:'A golden star pinned to the collar.'},
+ {id:'medal',name:'Explorer medal',cost:85,slot:'gear',icon:'✪',description:'A small expedition medal on a blue ribbon.'},
+ {id:'cigarette',name:'Cigarette',cost:65,slot:'gear',icon:'≈',description:'A small cigarette with animated drifting smoke.'},
  {id:'garden',name:'Garden light',cost:75,slot:'buff',icon:'✿',description:'+1 garden growth on each completed daily routine. No change to health or game scoring.'}
 ];
 export const MISSION_GAMES=[{id:'dock',name:'Orbital docking',icon:'◎',description:'Tap when the beacon turns green. Three rounds of timing.',tags:['Reflexes','Timing','Consistency']},{id:'memory',name:'Planet memory',icon:'✦',description:'Match six pairs of planets. Take as many turns as you need.',tags:['Memory','Visual recognition']},{id:'minerals',name:'Sample collector',icon:'◇',description:'Collect minerals and leave hazards alone. Select samples in the salvage window.',tags:['Hazard identification','Attention','Visual search']},{id:'sequence',name:'Signal sequence',icon:'▦',description:'Watch the numbered beacons, then repeat their order. Three growing sequences.',tags:['Working memory','Sequencing','Attention']},{id:'navigator',name:'Orbit navigator',icon:'➤',description:'Plan a safe route to the station. Move one square at a time and avoid debris.',tags:['Spatial planning','Problem solving','Hazard avoidance']}];

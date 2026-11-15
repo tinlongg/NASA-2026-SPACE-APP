@@ -46,3 +46,7 @@ Admins see ∞ flight fuel and launch without spending fuel; leaving a flight do
 Outfitters adds a Nebula beanie (55 stars), Signal antenna (80), Moon badge (35), and Solar wings (110), with previews on Pip. Hats and gear use the existing equipment slots and admin purchases remain free. Signal sequence practices working memory and sequencing with three growing beacon patterns and free replay; Orbit navigator practices spatial planning on a solvable 5×5 debris field. Both use the same 10 fuel, 15 star, 20 participation point rules and recent-average statistics as other flights. The garden, bird panel, previews, game boards, dialog buttons, and tabs now adapt to light mode.
 
 Each shop preview shows only that card’s accessory on Pip, independent of the currently equipped hat or gear. Fuel values cannot be edited through the admin action API. Regular participants retain normal fuel costs and refunds.
+
+The admin journey controls include Reset expedition level, which sets the displayed expedition to 1 while preserving current journey distance and other progress.
+
+Outfitters also includes a Comet beret, Lunar leaf wreath, Mission headphones, Starlight bow tie, Star brooch, Explorer medal, and a Cigarette with drifting smoke. Head accessories follow the head pose; the cigarette follows the beak offset in healthy, tired, and needs-care poses. Newly purchased items show an animated, dismissible unlock reveal; re-equipping and failed purchases do not. Reduced motion uses a static reveal and smoke curl.
