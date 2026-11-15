@@ -57,5 +57,8 @@ test('mission API isolates accounts, enforces origin and includes all accounts i
  assert.equal((await a('/api/mission/action','POST',action('listing',{listed:false}))).status,400);
  const board=await(await b('/api/mission/leaderboard')).json();assert.equal(board.rows.length,2);assert.deepEqual(Object.keys(board.rows[0]).sort(),['alias','points','rank','self']);assert.match(board.rows[0].alias,/^Bird-/);
  assert.equal((await a('/api/mission/action','POST',{...check,answers:['private']})).status,400);
+ const newcomer=client();assert.equal((await newcomer('/api/auth/register','POST',{username:'never-played',password:crypto.randomUUID()})).status,201);
+ const untouched=DB.sqlite.prepare('SELECT mission_profiles.user_id FROM users LEFT JOIN mission_profiles ON mission_profiles.user_id=users.id WHERE users.username=?').get('never-played');assert.equal(untouched.user_id,null);
+ const newcomerBoard=await(await newcomer('/api/mission/leaderboard')).json();assert.equal(newcomerBoard.rows.length,3);assert.equal(newcomerBoard.self.points,0);assert.ok(newcomerBoard.rows.some(r=>r.self));
  DB.sqlite.close();
 });
