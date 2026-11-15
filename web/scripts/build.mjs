@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 
 export async function loadAssets() {
   const assets = {};
-  for (const [name, type] of Object.entries({ 'index.html': 'text/html', 'journal-sentiment.js': 'application/javascript', 'sentiment-lexicon.js': 'application/javascript', 'sentiment-license.txt': 'text/plain', 'styles.css': 'text/css', 'app.js': 'application/javascript', 'detector.js': 'application/javascript', 'fixtures.js': 'application/javascript', 'offline-config.js': 'application/javascript', 'crew-sync.js': 'application/javascript', 'account.js': 'application/javascript', 'journal-photo.js': 'application/javascript', 'suit-layers.js': 'application/javascript', 'camera-health.js': 'application/javascript', 'people.js': 'application/javascript', 'voice-answer.js': 'application/javascript', 'checkin.js': 'application/javascript', 'crew-sync.css': 'text/css', 'research.js': 'application/javascript', 'research.css': 'text/css', 'data/nasa-research.json': 'application/json' })) {
+  for (const [name, type] of Object.entries({ 'index.html': 'text/html', 'mission.js':'application/javascript', 'mission-rules.js':'application/javascript', 'mission.css':'text/css', 'journal-sentiment.js': 'application/javascript', 'sentiment-lexicon.js': 'application/javascript', 'sentiment-license.txt': 'text/plain', 'styles.css': 'text/css', 'app.js': 'application/javascript', 'detector.js': 'application/javascript', 'fixtures.js': 'application/javascript', 'offline-config.js': 'application/javascript', 'crew-sync.js': 'application/javascript', 'account.js': 'application/javascript', 'journal-photo.js': 'application/javascript', 'suit-layers.js': 'application/javascript', 'camera-health.js': 'application/javascript', 'people.js': 'application/javascript', 'voice-answer.js': 'application/javascript', 'checkin.js': 'application/javascript', 'crew-sync.css': 'text/css', 'research.js': 'application/javascript', 'research.css': 'text/css', 'data/nasa-research.json': 'application/json' })) {
     assets[`/${name}`] = { body: await readFile(new URL(`../dist/${name}`, import.meta.url), 'utf8'), type: `${type}; charset=utf-8` };
   }
   // Binary assets are embedded as base64 and decoded by the Worker.
@@ -20,13 +20,15 @@ export async function loadAssets() {
 async function build() {
 const assets = await loadAssets();
 const sync = await readFile(new URL('../sync.mjs', import.meta.url), 'utf8');
-const source = (await readFile(new URL('../worker.mjs', import.meta.url), 'utf8')).replace("import { handleCrewSync } from './sync.mjs';", '').replace("import { createAccounts, accountUser, journalRecall, journalPhotosForCompare } from './account.mjs';", '');
+const source = (await readFile(new URL('../worker.mjs', import.meta.url), 'utf8')).replace("import { handleMission } from './mission.mjs';", '').replace("import { handleCrewSync } from './sync.mjs';", '').replace("import { createAccounts, accountUser, journalRecall, journalPhotosForCompare } from './account.mjs';", '');
 if (/^import /m.test(source)) throw new Error('worker.mjs has an import the bundle does not inline.');
 const account = await readFile(new URL('../account.mjs', import.meta.url), 'utf8');
+const missionRules = await readFile(new URL('../dist/mission-rules.js', import.meta.url), 'utf8');
+const mission = (await readFile(new URL('../mission.mjs', import.meta.url), 'utf8')).replace(/^import .*;$/gm, '');
 const hosting = JSON.parse(await readFile(new URL('../.openai/hosting.json', import.meta.url), 'utf8'));
 if (hosting.static) throw new Error('Worker deployment must not declare a static directory.');
 await mkdir(new URL('../dist/server/', import.meta.url), { recursive: true });
-await writeFile(new URL('../dist/server/index.js', import.meta.url), `${sync}\n${account}\n${source}\nexport default createWorker(${JSON.stringify(assets)}, fetch);\n`);
+await writeFile(new URL('../dist/server/index.js', import.meta.url), `${sync}\n${account}\n${missionRules}\n${mission}\n${source}\nexport default createWorker(${JSON.stringify(assets)}, fetch);\n`);
 console.log('Built Worker with embedded static assets. Runtime secrets are not included.');
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await build();
