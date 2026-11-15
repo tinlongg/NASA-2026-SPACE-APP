@@ -3,6 +3,7 @@ import { InactivityDetector, measurePose, STILL_SECONDS } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
 import { VISION_MODULE, VISION_WASM, POSE_MODELS, FACE_MODEL } from './offline-config.js';
 import { visibilityGroups, FramingMonitor, MODEL_CHOICES } from './camera-health.js';
+import { onDeviceSupport, installLanguagePack, listenForAnswer, ANSWER_LABEL } from './voice-answer.js';
 import { PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthActivity, faceBox, cropRect, describePerson } from './people.js';
 import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
@@ -256,7 +257,7 @@ function evaluatePerson(person, time, measurement) {
   const details = `${who}No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`;
   events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', personId: mode === 'replay' ? null : person.id, type: 'Possible unresponsive', details, snapshot: structuredClone(snapshot), eyes: person.face?.eyes?.state ?? null, mouth: person.face?.mouth?.state ?? null, acknowledged: false, lookNote: null });
   if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
-  speakAlert();
+  if (element('voice-answer-enabled').checked && mode === 'live') listenAfterAlert(events[0]); else speakAlert();
   element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${who}${events[0].source}. ${details}`;
   renderEvents();
 }
@@ -327,9 +328,40 @@ function replay(kind) {
 // Recorded ElevenLabs voice for new events. A browser may block audio until the page has been
 // used; the written banner and event log are always the primary alert.
 let alertAudio = null;
-function speakAlert() {
-  if (!element('voice-enabled').checked) return;
-  try { alertAudio ??= new Audio('/voice/web-alert.mp3'); alertAudio.currentTime = 0; alertAudio.play().catch(() => {}); } catch {}
+function speakAlert() { // resolves when the clip has finished, or straight away if it cannot play
+  return new Promise(resolve => {
+    if (!element('voice-enabled').checked) return resolve();
+    try {
+      alertAudio ??= new Audio('/voice/web-alert.mp3'); alertAudio.currentTime = 0;
+      alertAudio.onended = () => resolve(); alertAudio.onerror = () => resolve();
+      alertAudio.play().catch(() => resolve());
+    } catch { resolve(); }
+  });
+}
+// Spoken answers, recognised on this device only. The words are classified and discarded; only the
+// meaning is recorded on the event. Nothing is kept for events that nobody answers.
+const answerStatus = text => { element('voice-answer-status').textContent = text; };
+element('voice-answer-enabled').onchange = async () => {
+  const box = element('voice-answer-enabled');
+  if (!box.checked) { answerStatus('Off.'); return; }
+  answerStatus('Checking this browser…');
+  let support = await onDeviceSupport();
+  if (support === 'downloadable' || support === 'downloading') { answerStatus('Downloading the on-device English speech pack…'); try { await installLanguagePack(); support = await onDeviceSupport(); } catch { support = 'unavailable'; } }
+  if (support !== 'available') { box.checked = false; answerStatus(support === 'unsupported' ? 'This browser cannot recognise speech on the device, so spoken answers stay off. Use the buttons. Chrome 139 or newer supports it.' : 'The on-device English speech pack is not available, so spoken answers stay off. Use the buttons.'); return; }
+  try { const mic = await navigator.mediaDevices.getUserMedia({ audio: true }); mic.getTracks().forEach(track => track.stop()); }
+  catch { box.checked = false; answerStatus('Microphone permission was not given, so spoken answers stay off.'); return; }
+  answerStatus('On. After a live alert it listens for up to 30 seconds. Speech is recognised on this device and not sent anywhere.');
+};
+async function listenAfterAlert(event) {
+  if (!element('voice-answer-enabled').checked || mode !== 'live') return;
+  await speakAlert();
+  if (!element('voice-answer-enabled').checked) return;
+  event.answer = { kind: 'listening' }; renderEvents(); answerStatus('Listening for an answer…');
+  const kind = await listenForAnswer();
+  event.answer = { kind, at: new Date().toISOString() }; renderEvents();
+  answerStatus(element('voice-answer-enabled').checked ? 'On. After a live alert it listens for up to 30 seconds. Speech is recognised on this device and not sent anywhere.' : 'Off.');
+  if (kind === 'help') { element('event-banner').hidden = false; element('event-banner').textContent = `${events[0] === event ? '' : 'Earlier alert: '}A crew member asked for help by voice. Go to them now.`; }
+  else if (kind === 'ok') { element('event-banner').textContent = 'A crew member said they are okay by voice. Please confirm in person, then acknowledge the event.'; }
 }
 // Opt-in second look: one downscaled frame from a live alert goes to MUSE. The reply is only a
 // note on the event; the deterministic detector alone decides alerts. Nothing is stored.
@@ -387,6 +419,7 @@ function renderEvents() {
       askCoach('Explain why this possible-unresponsive event triggered and what its limitations are.', event.snapshot);
     };
     row.append(title,date,details);
+    if (event.answer) { const spoken = document.createElement('p'); spoken.className = 'tag'; spoken.textContent = event.answer.kind === 'listening' ? 'Listening for a spoken answer…' : `Voice: ${ANSWER_LABEL[event.answer.kind]}. A voice answer does not close the event.`; row.append(spoken); }
     if (event.lookNote) { const note = document.createElement('p'); note.className = 'tag'; note.textContent = event.lookNote.status === 'pending' ? 'MUSE second look: describing the frame…' : `MUSE second look (description only, does not change this alert): ${event.lookNote.text}`; row.append(note); }
     row.append(button,...(event.manual ? [] : [explain])); element('events').append(row);
   }

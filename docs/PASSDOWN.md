@@ -256,3 +256,8 @@ Built without the live test (that still needs a person in front of the camera; s
 ### Rest period removed (2026-11-15)
 
 - The manual rest-period pause (web panel, iOS Monitor card, `RestPause`, tests) was removed at the user's request: crew sleep in private areas that the cameras do not cover, so no pause is needed. This reverses roadmap decision D7 and the "Rest period" notes in the Phase 1 section above. Sleep or deliberate stillness in a monitored area can still raise an alert. Web suite 74/74, iOS 43/43.
+
+### Spoken answers on the website (2026-11-15)
+
+- Opt-in checkbox, on-device recognition only (`web/dist/voice-answer.js`; Chrome's `processLocally`; refuses to run if the browser would use a server). After a live alert's clip, it listens up to 30 s for okay or help; only the classification is stored on the event, and the event is never auto-acknowledged. Web suite 76/76.
+- **Not verified with real speech.** In the in-app browser the API reported on-device English as `unavailable`, so the checkbox correctly refuses to turn on there. It needs desktop Chrome 139+ with the language pack, plus microphone permission. The words matched (okay/fine/yes vs help/not okay) are a first list.
