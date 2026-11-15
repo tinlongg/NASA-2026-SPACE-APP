@@ -26,7 +26,9 @@ const context = canvas.getContext('2d');
 const detector = new InactivityDetector(); // the single synthetic-replay person
 // Live people: a stable id per person, each with their own detector and face readings.
 const tracker = new PersonTracker(), people = new Map(), replayPerson = { id: 1, detector, mouth: new MouthActivity(), face: null, result: null };
-let selectedId = null, focusId = null, faceLandmarker = null, maxPeople = 4, landmarkerPeople = 0, lastFace = 0;
+// People are found automatically: nobody is entered ahead of time. The only limit is how many the models look for per frame.
+const MAX_PEOPLE = 4;
+let selectedId = null, focusId = null, faceLandmarker = null, lastFace = 0;
 const newPerson = id => ({ id, detector: new InactivityDetector(), mouth: new MouthActivity(), face: null, result: null, pose: null, seen: 0 });
 function resetPeople() { tracker.reset(); people.clear(); detector.reset(); replayPerson.mouth.reset(); replayPerson.face = null; replayPerson.result = null; focusId = null; selectedId = null; renderViews(true); }
 let stream, landmarker, animation, generation = 0, mode = 'idle', lastVideoTime = -1, lastInference = 0;
@@ -82,7 +84,6 @@ function resetDiagnostics() {
 // Model choice control.
 for (const [value, choice] of Object.entries(MODEL_CHOICES)) element('model-select').add(new Option(`${choice.label} · ${choice.size}`, value));
 element('model-select').onchange = () => { poseModel = element('model-select').value; element('model-note').textContent = poseModel === 'heavy' ? 'Heavy is 31 MB and needs a connection the first time. Start the camera again to use it.' : 'Start the camera again to use this model.'; if (mode === 'live') stopSession(`Model changed to ${MODEL_CHOICES[poseModel].label}. Start the camera again.`); };
-element('people-max').onchange = () => { maxPeople = Number(element('people-max').value); if (mode === 'live') stopSession(`Now tracking up to ${maxPeople} ${maxPeople === 1 ? 'person' : 'people'}. Start the camera again.`); };
 
 async function startCamera() {
   stopSession('Requesting camera access…');
@@ -98,21 +99,21 @@ async function startCamera() {
     if (session !== generation) return;
     element('camera-placeholder').hidden = true;
     element('camera-message').textContent = 'Camera connected. Downloading the pose model for local processing…';
-    if (!landmarker || landmarkerModel !== poseModel || landmarkerPeople !== maxPeople) {
+    if (!landmarker || landmarkerModel !== poseModel) {
       landmarker?.close(); landmarker = null;
       const { FilesetResolver, PoseLandmarker, FaceLandmarker } = await import(VISION_MODULE);
       const files = await FilesetResolver.forVisionTasks(VISION_WASM);
       let loaded, used = 'GPU';
       for (const delegate of ['GPU', 'CPU']) { // Try the GPU first and fall back to the CPU.
-        try { loaded = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: POSE_MODELS[poseModel], delegate }, runningMode: 'VIDEO', numPoses: maxPeople, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 }); used = delegate; break; }
+        try { loaded = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: POSE_MODELS[poseModel], delegate }, runningMode: 'VIDEO', numPoses: MAX_PEOPLE, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 }); used = delegate; break; }
         catch (error) { if (delegate === 'CPU') throw error; }
       }
       if (session !== generation) { loaded.close(); return; }
-      landmarker = loaded; landmarkerModel = poseModel; landmarkerDelegate = used; landmarkerPeople = maxPeople;
+      landmarker = loaded; landmarkerModel = poseModel; landmarkerDelegate = used;
       // Face readings are optional: if the face model cannot load, pose tracking still works.
       faceLandmarker?.close(); faceLandmarker = null;
-      try { faceLandmarker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: used }, runningMode: 'VIDEO', numFaces: maxPeople, outputFaceBlendshapes: true }); }
-      catch { try { faceLandmarker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: 'CPU' }, runningMode: 'VIDEO', numFaces: maxPeople, outputFaceBlendshapes: true }); } catch { faceLandmarker = null; } }
+      try { faceLandmarker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: used }, runningMode: 'VIDEO', numFaces: MAX_PEOPLE, outputFaceBlendshapes: true }); }
+      catch { try { faceLandmarker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: 'CPU' }, runningMode: 'VIDEO', numFaces: MAX_PEOPLE, outputFaceBlendshapes: true }); } catch { faceLandmarker = null; } }
     }
     element('diag-model').textContent = MODEL_CHOICES[poseModel].label; element('diag-delegate').textContent = landmarkerDelegate;
     if (session !== generation) return;

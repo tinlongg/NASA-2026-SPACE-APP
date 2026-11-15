@@ -100,7 +100,7 @@ Both routes call `muse-spark-1.3` on the Meta chat-completions endpoint with an 
 
 ### Multi-person tracking, close-up view and readings
 
-The Monitor tab tracks up to 4 people (a selector offers 1, 2 or 4; more people is slower). `people.js` matches poses to stable ids across frames by position and gives each person their own detector, so each can raise their own event ("Person 2: …"). The overview draws a labelled box and skeleton per person (green moving, amber still, red alert); click a person to follow them.
+The Monitor tab tracks up to 4 people automatically, with nobody entered ahead of time (the limit is 4 per frame; more people is slower). `people.js` matches poses to stable ids across frames by position and gives each person their own detector, so each can raise their own event ("Person 2: …"). The overview draws a labelled box and skeleton per person (green moving, amber still, red alert); click a person to follow them.
 
 A second view, **Close-up**, crops the video around the face of the person with an alert or who has been still for a third of the alert time (or the one you clicked). Next to it: eyes (open, closed, mixed) from MediaPipe face blendshapes, and whether the mouth is moving. These are plain readings, shown for the person watching; they do not raise or suppress alerts, and a closed eye reading does not mean anything about a person's condition. If the face model cannot load or sees nothing, the close-up falls back to the head area from the pose. All processing is in the browser; nothing is stored.
 
