@@ -51,7 +51,7 @@ struct PoseCanvas: View {
                 var path = Path()
                 path.move(to: p)
                 path.addLine(to: q)
-                context.stroke(path, with: .color(.green), lineWidth: 4)
+                context.stroke(path, with: .color(Theme.Palette.neonYellow), lineWidth: 4)
             }
             for key in frame.joints.keys {
                 guard let p = location(key) else { continue }
