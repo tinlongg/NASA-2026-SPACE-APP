@@ -119,13 +119,15 @@ function shade(hex, brightness) {
 }
 
 /** Binds the model to a canvas: drag to turn, click to pick, redraw only when the view or camera status changes. */
-export function createIssView(canvas, { onSelect, getStatuses }) {
-  const context = canvas.getContext('2d'), scene = buildScene(), view = { yaw: -0.55, pitch: 0.65, width: 600, height: 380, zoom:1, panX:0, panY:0 };
-  let selected = null, hovered = null, dragging = null, frame = 0, dirty = true, statusKey = '';
+export function createIssView(canvas, { onSelect, getStatuses, autoRotate=true }) {
+  const context = canvas.getContext('2d'), scene = buildScene(), view = { yaw: -0.55, pitch: -1.0, width: 600, height: 380, zoom:1, panX:0, panY:0 };
+  let selected = null, hovered = null, dragging = null, frame = 0, dirty = true, statusKey = '', lastTime=null,lastAutoDraw=0,pauseUntil=0,rotating=false;
+  const motionAllowed=autoRotate&&!(typeof matchMedia==='function'&&matchMedia('(prefers-reduced-motion: reduce)').matches);
+  const pauseRotation=()=>{pauseUntil=performance.now()+2500;};
 
 
   const modulePolygons=Object.fromEntries(Object.keys(MODULES).map(id=>[id,scene.modules.filter(p=>p.module===id)])),fills=new Map();
-  function resize() { const ratio = (dragging?1:Math.min(window.devicePixelRatio || 1,1.5)), width = canvas.clientWidth || 600, height = Math.round(width * 0.62); if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) { canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); } view.width = canvas.width; view.height = canvas.height; return ratio; }
+  function resize() { const ratio = ((dragging||rotating)?1:Math.min(window.devicePixelRatio || 1,1.5)), width = canvas.clientWidth || 600, height = Math.round(width * 0.62); if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) { canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); } view.width = canvas.width; view.height = canvas.height; return ratio; }
   function draw() {
     const ratio = resize(), statuses = getStatuses?.() ?? {};
     context.clearRect(0, 0, canvas.width, canvas.height);
@@ -135,7 +137,7 @@ export function createIssView(canvas, { onSelect, getStatuses }) {
     const cachedFill=(polygon,base,brightness)=>{const key=(polygon.color||base)+polygon.normal.join(',');if(!fills.has(key))fills.set(key,shade(polygon.color||base,brightness(polygon.normal)));return fills.get(key);};
     const enqueue = (list, base, brightness, extra = {}) => { for (const polygon of list) { const normal=transform(polygon.normal,true);if(normal[2]>=.02&&!polygon.double)continue;const points=polygon.points.map(screen); polygons.push({ points, depth: points.reduce((sum, point) => sum + point[2], 0) / points.length, fill: cachedFill(polygon,base,brightness), ...extra, module: polygon.module, line:polygon.line, radius:polygon.r }); } };
     enqueue(scene.arrays, '#3b66b0', normal => 0.8 + 0.3 * Math.abs(dot(norm(normal), LIGHT)), { stroke: 'rgba(160,190,235,.5)' });
-    if(!dragging)enqueue(scene.details, '#cbd0d5', normal => 0.7 + 0.3 * Math.abs(dot(normal,LIGHT)), {stroke:'rgba(10,20,32,.16)'});
+    if(!dragging&&!rotating)enqueue(scene.details, '#cbd0d5', normal => 0.7 + 0.3 * Math.abs(dot(normal,LIGHT)), {stroke:'rgba(10,20,32,.16)'});
     enqueue(scene.structure, '#b4b9c1', normal => 0.6 + 0.5 * Math.max(0, dot(norm(normal), LIGHT)), { stroke: 'rgba(175,190,210,.25)', width:.45 });
     for (const [id] of Object.entries(MODULES)) {
       const status = statuses[id] ?? (MODULES[id].private ? 'offline' : 'none'), base = STATUS_COLOUR[status] ?? STATUS_COLOUR.none;
@@ -158,24 +160,27 @@ export function createIssView(canvas, { onSelect, getStatuses }) {
 
   function loop(now) {
     frame = requestAnimationFrame(loop);
-    if (!canvas.offsetParent) { return; } // hidden tab: draw nothing
+    if (!canvas.offsetParent) { lastTime=now;return; } // hidden tab: draw nothing
 
+    const elapsed=lastTime===null?0:Math.min(80,now-lastTime);lastTime=now;
+    const wasRotating=rotating;rotating=motionAllowed&&!dragging&&now>=pauseUntil;
+    if(rotating){view.yaw+=elapsed*.00007;if(now-lastAutoDraw>=50){dirty=true;lastAutoDraw=now;}}else if(wasRotating)dirty=true;
     const nextStatus=JSON.stringify(getStatuses?.()??{}), size=canvas.clientWidth;
     if(nextStatus!==statusKey||size!==view.clientWidth){dirty=true;statusKey=nextStatus;view.clientWidth=size;}
     if(dirty){draw();dirty=false;}
   }
   const local = event => { const rect = canvas.getBoundingClientRect(), ratio = canvas.width / rect.width; return [(event.clientX - rect.left) * ratio, (event.clientY - rect.top) * ratio]; };
-  canvas.addEventListener('pointerdown', event => { if(event.button!==undefined&&![0,2].includes(event.button))return;dragging = { x: event.clientX, y: event.clientY, moved: false, pan:event.button===2 }; canvas.setPointerCapture(event.pointerId); dirty=true; });
+  canvas.addEventListener('pointerdown', event => { if(event.button!==undefined&&![0,2].includes(event.button))return;pauseRotation();dragging = { x: event.clientX, y: event.clientY, moved: false, pan:event.button===2 }; canvas.setPointerCapture(event.pointerId); dirty=true; });
   canvas.addEventListener('pointermove', event => {
-    if (dragging) { const dx = event.clientX - dragging.x, dy = event.clientY - dragging.y; if (Math.abs(dx) + Math.abs(dy) > 3) dragging.moved = true; dirty=true;if(dragging.pan){view.panX+=dx;view.panY+=dy;}else{view.yaw += dx * 0.012; view.pitch = Math.max(-1.2, Math.min(1.2, view.pitch + dy * 0.009));} dragging.x = event.clientX; dragging.y = event.clientY; return; }
+    if (dragging) { pauseRotation();const dx = event.clientX - dragging.x, dy = event.clientY - dragging.y; if (Math.abs(dx) + Math.abs(dy) > 3) dragging.moved = true; dirty=true;if(dragging.pan){view.panX+=dx;view.panY+=dy;}else{view.yaw += dx * 0.012; view.pitch = Math.max(-1.2, Math.min(1.2, view.pitch + dy * 0.009));} dragging.x = event.clientX; dragging.y = event.clientY; return; }
     const [x, y] = local(event); const nextHover=pick(view.width/2+(x-view.width/2-view.panX*(canvas.width/canvas.clientWidth))/view.zoom,view.height/2+(y-view.height/2-view.panY*(canvas.width/canvas.clientWidth))/view.zoom,view);if(nextHover!==hovered)dirty=true;hovered=nextHover; canvas.style.cursor = hovered ? 'pointer' : 'grab';
   });
-  canvas.addEventListener('pointerup', event => { const moved = dragging?.moved; dragging = null; dirty=true; if (!moved&&event.button!==2) { const [x, y] = local(event); const id = pick(view.width/2+(x-view.width/2)/view.zoom,view.height/2+(y-view.height/2)/view.zoom,view); if (id) { dirty=true;selected = id; onSelect?.(id); } } });
+  canvas.addEventListener('pointerup', event => { const moved = dragging?.moved; dragging = null; dirty=true; if (!moved&&event.button!==2) { const [x, y] = local(event); const id = pick(view.width/2+(x-view.width/2-view.panX*(canvas.width/canvas.clientWidth))/view.zoom,view.height/2+(y-view.height/2-view.panY*(canvas.width/canvas.clientWidth))/view.zoom,view); if (id) { dirty=true;selected = id; onSelect?.(id); } } });
   canvas.addEventListener('pointercancel',()=>{dragging=null;hovered=null;dirty=true;});
   canvas.addEventListener('lostpointercapture',()=>{dragging=null;dirty=true;});
   canvas.addEventListener('pointerleave', () => { hovered = null; dirty=true; });
   canvas.addEventListener('contextmenu',event=>event.preventDefault());
-  canvas.addEventListener('wheel', event => {event.preventDefault();const delta=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?canvas.clientWidth:1);view.zoom=Math.max(.65,Math.min(1.8,view.zoom*Math.exp(-delta*.0015)));dirty=true;}, { passive: false });
+  canvas.addEventListener('wheel', event => {pauseRotation();event.preventDefault();const delta=event.deltaY*(event.deltaMode===1?16:event.deltaMode===2?canvas.clientWidth:1);view.zoom=Math.max(.65,Math.min(1.8,view.zoom*Math.exp(-delta*.0015)));dirty=true;}, { passive: false });
   frame = requestAnimationFrame(loop);
-  return { reset(){dragging=null;hovered=null;view.yaw=-.55;view.pitch=.65;view.zoom=1;view.panX=0;view.panY=0;dirty=true;}, select(id) { selected = id; dirty=true; }, view, stop() { cancelAnimationFrame(frame); } };
+  return { reset(){dragging=null;hovered=null;pauseUntil=0;view.yaw=-.55;view.pitch=-1.0;view.zoom=1;view.panX=0;view.panY=0;dirty=true;}, select(id) { selected = id; dirty=true; }, view, stop() { cancelAnimationFrame(frame); } };
 }
