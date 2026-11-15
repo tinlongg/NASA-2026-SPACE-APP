@@ -199,3 +199,10 @@ Plan: `docs/ROADMAP_PLAN.md` (in worktree `crewsafety-roadmap-9c2217`, not yet c
 - **Live provider check, 2026-11-15:** with the real `META_API_KEY` (copied from the design-auth worktree's ignored `web/.env`), both routes returned 200 from `muse-spark-1.3` for synthetic solid-colour JPEGs, and described them neutrally as having no person. Not yet tried with a real face photo or a real webcam alert.
 - Camera copy changed from "never uploaded" to "stays on this device unless you turn on the second look".
 - The weight idea is not implemented: a photo cannot measure weight. A manual number field on the entry is the suggested route.
+
+### Phase 4 — ElevenLabs check-in voice (2026-11-15)
+
+- `backend/scripts/generate_voice.py` reads `ios/CrewSafety/Resources/Voice/phrases.json` and writes one mp3 per phrase with ElevenLabs (default voice Sarah, `eleven_multilingual_v2`). The key comes from `ELEVENLABS_API_KEY` or the git-ignored `backend/.env`; only the clip is committed. Re-run with `--force` to change voice or wording.
+- `CheckInVoice.speak` plays the bundled clip for an exact phrase match with `AVAudioPlayer`, and falls back to `AVSpeechSynthesizer` for any other phrase or a playback failure. Listening is still on-device. The lazy-creation and repeated-`stop()` behaviour is unchanged.
+- iOS suite: 56/56 on iPhone 17 / iOS 26.5 (two new clip-lookup tests). Not verified: hearing the clip played by the app in the simulator or on a device, and the full prompt timing before listening starts.
+- The ElevenLabs key was pasted in chat; rotate it in the ElevenLabs dashboard and update `backend/.env`.
