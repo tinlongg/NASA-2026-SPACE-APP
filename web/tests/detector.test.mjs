@@ -51,5 +51,32 @@ test('measurement keeps confident joints and rejects a missing torso', () => {
   const measurement = measurePose(landmarks, 4 / 3);
   assert.ok(measurement.points[11] && !measurement.points[15]);
   assert.deepEqual(measurement.points[23], [0.5 * 4 / 3, 0.5]);
-  landmarks[24].visibility = 0.1; assert.equal(measurePose(landmarks, 4 / 3), null);
+  landmarks[24].visibility = 0.1;
+  const upper = measurePose(landmarks, 4 / 3); // hips hidden: shoulders still give an upper-body measurement
+  assert.equal(upper.upper, true); assert.ok(upper.points[11] && !upper.points[24]);
+  landmarks[12].visibility = 0.1; assert.equal(measurePose(landmarks, 4 / 3), null);
+});
+
+const seated = (arm = 0, dx = 0) => ({ upper: true, points: { 0: [0.5 + dx, 0.3], 11: [0.4 + dx, 0.45], 12: [0.6 + dx, 0.45], 15: [0.35 + dx, 0.7 - arm] } });
+
+test('a seated person (hips hidden) is tracked and alerts after stillness', () => {
+  const detector = new InactivityDetector();
+  for (let time = 0; time < STILL_SECONDS; time += 0.5) assert.equal(detector.process(time, seated()), null);
+  const event = detector.process(STILL_SECONDS, seated());
+  assert.equal(event.upper, true);
+  assert.equal(detector.process(STILL_SECONDS + 1, seated(0.4)), null, 'a reach restarts the timer');
+});
+
+test('typing-sized hand movement while seated is not stillness', () => {
+  const detector = new InactivityDetector(); let alerts = 0;
+  for (let time = 0; time < 60; time += 0.25) if (detector.process(time, seated(Math.round(time) % 2 ? 0.15 : 0))) alerts++;
+  assert.equal(alerts, 0);
+});
+
+test('sitting down or standing up counts as movement', () => {
+  const detector = new InactivityDetector();
+  for (let time = 0; time < 10; time += 0.5) detector.process(time, body());
+  assert.equal(detector.process(10, seated()), null);
+  for (let time = 10.5; time < 10 + STILL_SECONDS - 0.5; time += 0.5) assert.equal(detector.process(time, seated()), null, 'timer restarted when the tracking mode changed');
+  assert.ok(detector.process(10 + STILL_SECONDS, seated()));
 });

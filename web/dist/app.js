@@ -166,12 +166,12 @@ function handleMeasurement(time, measurement) {
   latestSnapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: summary, detection: detection && { stillFor: Number(detection.stillFor.toFixed(1)), threshold: detection.threshold } };
   updateCoachContext();
   element('pose-status').textContent = measurement ? 'Person visible' : 'No reliable pose';
-  element('tracking').textContent = measurement ? (mode === 'replay' ? 'Synthetic pose · not a recording' : 'Pose tracking active') : 'No reliable pose · show shoulders and hips';
+  element('tracking').textContent = measurement ? (mode === 'replay' ? 'Synthetic pose · not a recording' : measurement.upper ? 'Upper-body tracking (hips not visible)' : 'Pose tracking active') : 'No reliable pose · show your shoulders';
   element('motion').textContent = summary ? summary.motion.toFixed(2) : '—';
   element('still').textContent = summary ? Math.floor(stillFor) : '—';
   element('detector-state').textContent = !measurement ? 'Waiting for crew member' : detector.alerted ? 'Alert raised · waiting for movement' : stillFor >= STILL_SECONDS / 3 ? `No movement · alert at ${STILL_SECONDS} s` : 'Monitoring';
   if (!detection) return;
-  const details = `No body movement for ${Math.round(detection.stillFor)} s while in view (no joint moved more than ${detection.threshold} torso lengths). Check in with the crew member.`;
+  const details = `No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`;
   events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', type: 'Possible unresponsive', details, snapshot: structuredClone(latestSnapshot), acknowledged: false, lookNote: null });
   if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
   speakAlert();
