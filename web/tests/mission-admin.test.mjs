@@ -1,0 +1,36 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {pbkdf2Sync,randomBytes,randomUUID} from 'node:crypto';
+import {createWorker} from '../worker.mjs';
+import {localSyncDB} from '../scripts/local-sync-db.mjs';
+import {newMission,applyMissionAction} from '../dist/mission-rules.js';
+const action=(type,extra={})=>({id:randomUUID(),type,...extra});
+test('admin simulations require server authority and preserve ordinary shop rules',()=>{
+ const base=newMission();assert.throws(()=>applyMissionAction(base,action('admin',{growth:18})),/Admin/);
+ assert.throws(()=>applyMissionAction(base,action('buy',{item:'crown'})),/Not enough/);
+ let s=applyMissionAction(base,action('buy',{item:'crown'}),Date.now(),{admin:true});assert.equal(s.coins,0);assert.ok(s.owned.includes('crown'));
+ s=applyMissionAction(s,action('admin',{stage:'needs-care',growth:18}),Date.now(),{admin:true});assert.equal(s.birdStage,'needs-care');assert.equal(s.garden,18);assert.equal(s.rankPoints,0);
+ for(const extra of [{stage:'made-up'},{growth:-1},{growth:101}])assert.throws(()=>applyMissionAction(s,action('admin',extra),Date.now(),{admin:true}));
+ assert.throws(()=>applyMissionAction(s,action('listing',{listed:true}),Date.now(),{admin:true}),/outside public/);
+});
+test('provisioned admin authenticates by hashed password and ID; client flags cannot elevate',async()=>{
+ const DB=localSyncDB(),worker=createWorker(),password=randomUUID(),salt=randomBytes(16).toString('hex');
+ const config={id:randomUUID(),username:'test-admin',salt,hash:pbkdf2Sync(password,Buffer.from(salt,'hex'),100000,32,'sha256').toString('hex')};
+ const env={DB,MISSION_ADMIN_ACCOUNT:JSON.stringify(config)},origin='https://test.example';
+ const client=()=>{let cookie='';return async(path,body)=>{const r=await worker.fetch(new Request(origin+path,{method:body?'POST':'GET',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}),env);if(r.headers.get('set-cookie'))cookie=r.headers.get('set-cookie').split(';')[0];return r;};};
+ const a=client(),regular=client();assert.equal((await a('/api/auth/register',{username:config.username,password})).status,409);
+ assert.equal((await a('/api/auth/login',{username:config.username,password:'wrong-password'})).status,401);
+ assert.equal((await a('/api/auth/login',{username:config.username,password})).status,200);
+ assert.equal((await(await a('/api/mission/state')).json()).admin,true);
+ for(const item of ['cap','crown','scarf','pack','garden'])assert.equal((await a('/api/mission/action',action('buy',{item}))).status,200);
+ assert.equal((await a('/api/mission/action',action('admin',{stage:'tired',growth:18}))).status,200);
+ assert.equal((await(await a('/api/mission/state')).json()).state.garden,18);
+ await regular('/api/auth/register',{username:'regular-crew',password:randomUUID()});
+ assert.equal((await(await regular('/api/mission/state')).json()).admin,false);
+ assert.equal((await regular('/api/mission/action',action('admin',{stage:'healthy'}))).status,403);
+ assert.equal((await regular('/api/mission/action',action('buy',{item:'cap',admin:true}))).status,400);
+ assert.equal((await regular('/api/mission/action',action('buy',{item:'cap'}))).status,400);
+ assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,0);
+ assert.equal(DB.sqlite.prepare('SELECT hash FROM users WHERE id=?').get(config.id).hash,config.hash);
+ DB.sqlite.close();
+});

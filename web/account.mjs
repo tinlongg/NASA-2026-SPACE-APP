@@ -15,6 +15,14 @@ const ACCT_MAX_ENTRY = 10000;
 const ACCT_MAX_SUIT_CHECKS = 50;
 const ACCT_MAX_PHOTOS = 60, ACCT_PHOTO_BODY = 400000, ACCT_PHOTO_BYTES = 280000;
 
+// Deployment-only bootstrap: salted hash and immutable user ID, never a plaintext password.
+export function missionAdminConfig(env) {
+  try {
+    const config = JSON.parse(env.MISSION_ADMIN_ACCOUNT || 'null');
+    return config && /^[a-f0-9-]{36}$/.test(config.id) && /^[a-z0-9._-]{3,30}$/.test(config.username) && /^[a-f0-9]{32}$/.test(config.salt) && /^[a-f0-9]{64}$/.test(config.hash) ? config : null;
+  } catch { return null; }
+}
+
 const acctJSON = (value, status = 200, headers = {}) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers } });
 const acctError = (status, message) => Object.assign(new Error(message), { status });
 const acctHex = bytes => [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -223,6 +231,7 @@ export function createAccounts() {
       if (path === '/api/auth/register' && method === 'POST') {
         const { username, password } = credentials(await acctReadJSON(request, 2048));
         if (!allowAttempt(request)) throw acctError(429, 'Too many attempts. Wait a minute and try again.');
+        if (username === missionAdminConfig(env)?.username) throw acctError(409, 'This account is already provisioned. Use Sign in.');
         const salt = acctHex(crypto.getRandomValues(new Uint8Array(16))), user = { id: crypto.randomUUID(), username };
         let created;
         try { created = await db.prepare('INSERT INTO users (id, username, salt, hash, created) SELECT ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM users) < ?').bind(user.id, username, salt, await acctPasswordHash(password, salt), Date.now(), ACCT_MAX_USERS).run(); }
@@ -233,6 +242,10 @@ export function createAccounts() {
       if (path === '/api/auth/login' && method === 'POST') {
         const { username, password } = credentials(await acctReadJSON(request, 2048));
         if (!allowAttempt(request)) throw acctError(429, 'Too many attempts. Wait a minute and try again.');
+        const provisioned = missionAdminConfig(env);
+        if (provisioned && username === provisioned.username) {
+          await db.prepare('INSERT OR IGNORE INTO users (id, username, salt, hash, created) VALUES (?,?,?,?,?)').bind(provisioned.id, provisioned.username, provisioned.salt, provisioned.hash, Date.now()).run();
+        }
         const row = await db.prepare('SELECT id, username, salt, hash FROM users WHERE username = ?').bind(username).first();
         // Hash even for unknown names so timing does not reveal which usernames exist.
         const hash = await acctPasswordHash(password, row?.salt || '00000000000000000000000000000000');

@@ -3,14 +3,15 @@ import {api} from './account.js';
 import {ITEMS as SUIT_ITEMS} from './suit-layers.js';
 const node=(tag,text,cls)=>{const e=document.createElement(tag);if(text!=null)e.textContent=text;if(cls)e.className=cls;return e;};
 const control=(text,fn,cls)=>{const b=node('button',text,cls);b.type='button';b.onclick=fn;return b;};
-export function astronautBird(state,dust=0){
+export function astronautBird(state,dust=0,stage='healthy'){
  const cap=state.equipped.hat==='cap',crown=state.equipped.hat==='crown',scarf=state.equipped.gear==='scarf',pack=state.equipped.gear==='pack';
- return `<svg class="astro-bird" viewBox="0 0 360 320" role="img" aria-label="Pip, a round bird wearing an astronaut helmet${dust?', with a little dust on the visor':''}"><defs><radialGradient id="bird-glass"><stop stop-color="#b8e9f5" stop-opacity=".04"/><stop offset="1" stop-color="#b8e9f5" stop-opacity=".3"/></radialGradient></defs><ellipse cx="180" cy="281" rx="82" ry="13" fill="#1b2442" opacity=".18"/>${pack?'<rect x="82" y="166" width="48" height="70" rx="13" fill="#6eb7ac" stroke="#224458" stroke-width="4"/>':''}<g class="bird-body"><path d="M153 248v22m-12 5 12-5 12 5m37-27v22m-12 5 12-5 12 5" stroke="#3e405b" stroke-width="6" stroke-linecap="round" fill="none"/><ellipse cx="180" cy="190" rx="73" ry="68" fill="#e6eaf0" stroke="#324259" stroke-width="4"/><path d="M117 197q-16 24 7 31m113-31q19 25-5 31" fill="none" stroke="#324259" stroke-width="4"/><rect x="151" y="210" width="58" height="27" rx="8" fill="#a4c8d3"/><circle cx="167" cy="223" r="4" fill="#62897d"/><path d="M182 222h15" stroke="#34485f" stroke-width="3"/><circle cx="179" cy="139" r="89" fill="#f1f5fa" stroke="#34485f" stroke-width="5"/><circle cx="179" cy="139" r="75" fill="#d9e7ef"/><path d="M125 164q-19-73 45-77 63-7 64 65l-22 30-70-2z" fill="#fff4c9" stroke="#3f4259" stroke-width="3"/><ellipse cx="174" cy="160" rx="44" ry="36" fill="#fffbec"/><path d="m211 128 30 14-29 13z" fill="#f2a269" stroke="#614a42" stroke-width="3"/><circle cx="189" cy="131" r="7" fill="#30334c"/><circle cx="191" cy="129" r="2" fill="white"/><path d="M142 159q13 16 27 0" stroke="#e3c7a0" stroke-width="3" fill="none"/>${cap?'<path d="M123 111q12-43 60-28l23 29z" fill="#539e98"/><path d="M179 109h36" stroke="#285970" stroke-width="9" stroke-linecap="round"/>':''}${crown?'<path d="m139 106-5-28 22 14 15-27 15 27 24-14-8 28z" fill="#f2bd58" stroke="#a87837" stroke-width="3"/>':''}<circle cx="179" cy="139" r="75" fill="url(#bird-glass)" stroke="#badde4" stroke-width="3"/><path d="M123 108q16-30 49-30" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" opacity=".65"/><path d="M117 201q61 35 123-1" fill="none" stroke="#536986" stroke-width="15" stroke-linecap="round"/>${scarf?'<path d="M122 204q56 28 110 0l-3 16q-55 23-106-2z" fill="#e38d83"/><path d="m204 217 20 35 15-9-18-29" fill="#e38d83"/>':''}${Array.from({length:dust},(_,i)=>`<circle cx="${137+(i*29)%95}" cy="${112+(i*23)%72}" r="${4+i%3}" fill="#b69e80" opacity=".48"/>`).join('')}</g><path d="m63 91 4-9 4 9 9 4-9 4-4 9-4-9-9-4zm220 108 3-7 3 7 7 3-7 3-3 7-3-7-7-3z" fill="#d7bfe8"/></svg>`;
+ const tired=stage!=='healthy',low=stage==='needs-care';
+ return `<svg class="astro-bird bird-${stage}" viewBox="0 0 360 320" role="img" aria-label="Pip, a round white bird with a tiny eye, pointed beak and stick feet inside an astronaut helmet. ${stage==='needs-care'?'Needs care':stage}.${dust?' Dust on the visor.':''}"><defs><radialGradient id="bird-glass"><stop stop-color="#b8e9f5" stop-opacity=".02"/><stop offset="1" stop-color="#b8e9f5" stop-opacity=".22"/></radialGradient></defs><ellipse cx="177" cy="286" rx="90" ry="10" fill="#151b32" opacity=".24"/><g class="bird-body">${pack?'<rect x="60" y="165" width="45" height="65" rx="13" fill="#6eb7ac" stroke="#263040" stroke-width="4"/>':''}<path d="M153 241v35m-15 9 15-9 14 7m37-42v35m-14 8 14-8 15 9" stroke="#202738" stroke-width="5" stroke-linecap="round" fill="none"/><circle cx="178" cy="143" r="115" fill="#ecf6fb" stroke="#485e75" stroke-width="5"/><circle cx="178" cy="143" r="101" fill="#adc9d6"/><g transform="translate(0 ${low?9:tired?4:0})"><path d="M94 165C84 137 88 102 111 78C130 57 164 51 191 59C223 61 243 83 249 111C258 141 252 176 234 195C217 220 191 231 160 228C129 232 106 210 96 190Z" fill="${low?'#e3e2df':'#fffef5'}" stroke="#252833" stroke-width="4" stroke-linejoin="round"/><path d="m248 119 43 21-42 16" fill="#fff7de" stroke="#252833" stroke-width="4" stroke-linejoin="round"/>${tired?'<path d="M172 139q8 7 16 0" fill="none" stroke="#20222b" stroke-width="5" stroke-linecap="round"/>':'<path d="M178 130q-8 0-7 7-3 7 4 10 7 4 11-4 4-6-1-10z" fill="#20222b"/><circle cx="180" cy="135" r="2" fill="white"/>'}${low?'<path d="m119 80-6-12m17 7-1-15" stroke="#252833" stroke-width="3" stroke-linecap="round"/>':''}${cap?'<path d="M114 86q17-42 64-24l23 29z" fill="#539e98"/><path d="M174 89h36" stroke="#285970" stroke-width="8" stroke-linecap="round"/>':''}${crown?'<path d="m137 78-5-27 22 14 15-27 15 27 24-14-8 27z" fill="#f2bd58" stroke="#a87837" stroke-width="3"/>':''}</g><circle cx="178" cy="143" r="101" fill="url(#bird-glass)" stroke="#c6e6ec" stroke-width="3"/><path d="M96 107q17-45 64-52" fill="none" stroke="white" stroke-width="8" stroke-linecap="round" opacity=".65"/><path d="M114 235q64 28 128-2" fill="none" stroke="#536986" stroke-width="15" stroke-linecap="round"/>${scarf?'<path d="M119 238q59 25 116-2l-3 16q-55 23-111-1z" fill="#e38d83"/><path d="m214 249 15 31 14-8-15-28" fill="#e38d83"/>':''}${Array.from({length:dust},(_,i)=>`<circle cx="${105+(i*29)%140}" cy="${90+(i*23)%110}" r="${4+i%3}" fill="#b69e80" opacity=".5"/>`).join('')}</g><path d="m40 89 4-9 4 9 9 4-9 4-4 9-4-9-9-4zm270 119 3-7 3 7 7 3-7 3-3 7-3-7-7-3z" fill="#d7bfe8"/></svg>`;
 }
 export function initializeMission(){
  const root=document.getElementById('mission');if(!root)return;
  const css=document.createElement('link');css.rel='stylesheet';css.href='./mission.css';document.head.append(css);
- let state=newMission(),user=null,alias='',busy=false,section='care',generation=0,gameCleanup=null;
+ let state=newMission(),user=null,admin=false,alias='',busy=false,section='care',generation=0,gameCleanup=null;
  try{const saved=JSON.parse(localStorage.getItem('crewsafety-mission-guest')||'null');if(saved?.version===1&&Array.isArray(saved.actions))state=saved;}catch{}
  const status=node('p','Your next small step starts here.','mission-message');status.setAttribute('role','status');
  const main=node('div',null,'mission-content');root.append(status,main);
@@ -18,7 +19,7 @@ export function initializeMission(){
   if(busy)throw Error('One moment—your last action is saving.');busy=true;const run=generation;
   try{
    action={...action,id:action.id||crypto.randomUUID()};let next;
-   if(user){const result=await api('/api/mission/action','POST',action);next=result.state;alias=result.alias;}
+   if(user){const result=await api('/api/mission/action','POST',action);next=result.state;alias=result.alias;admin=result.admin===true;}
    else{next=applyMissionAction(state,action);localStorage.setItem('crewsafety-mission-guest',JSON.stringify(next));}
    if(run!==generation)throw Error('Account changed. Reload your mission.');state=next;return state;
   }finally{busy=false;}
@@ -26,9 +27,9 @@ export function initializeMission(){
  function tell(message){status.textContent=message;}
  async function doAction(action,message){try{await act(action);tell(message);render();}catch(e){tell(e.message);}}
  async function refreshUser(next){
-  generation++;gameCleanup?.();gameCleanup=null;user=next;alias='';
+  generation++;gameCleanup?.();gameCleanup=null;user=next;admin=false;alias='';
   if(!user){try{state=JSON.parse(localStorage.getItem('crewsafety-mission-guest'))||newMission();}catch{state=newMission();}render();return;}
-  const run=generation;try{const data=await api('/api/mission/state');if(run!==generation)return;state=data.state;alias=data.alias;tell('Mission synced. Your private check-in answers stay on this device.');render();}catch(e){state=newMission();render();tell(e.message);}
+  const run=generation;try{const data=await api('/api/mission/state');if(run!==generation)return;state=data.state;alias=data.alias;admin=data.admin===true;tell('Mission synced. Your private check-in answers stay on this device.');render();}catch(e){state=newMission();render();tell(e.message);}
  }
  window.addEventListener('crew-account-change',e=>refreshUser(e.detail));
  api('/api/auth/me').then(data=>{if(data.user&&!user)refreshUser(data.user);}).catch(()=>{});
@@ -38,20 +39,26 @@ export function initializeMission(){
  function render(){
   const info=missionSummary(state);main.replaceChildren();
   const bar=node('div',null,'mission-topline');bar.append(node('span',`STATION DAY ${info.day} · UTC`),node('span',user?`Synced · ${alias}`:'Guest flight · saved on this device'));main.append(bar);
-  const hero=node('div',null,'mission-hero'),pet=node('div',null,'mission-pet');pet.innerHTML=astronautBird(state,info.dust);
-  const speech=node('p',info.dust?'A little space dust. Any check-in will brighten Pip’s day.':'Hey, crewmate. One small step is plenty.','bird-speech');pet.append(speech);
+  const hero=node('div',null,'mission-hero'),pet=node('div',null,'mission-pet');const stage=admin&&state.birdStage&&state.birdStage!=='auto'?state.birdStage:info.dust>=4?'needs-care':info.dust>0?'tired':'healthy';const dust=admin&&state.birdStage&&state.birdStage!=='auto'?({healthy:0,tired:3,'needs-care':7})[stage]:info.dust;pet.innerHTML=astronautBird(state,dust,stage);
+  const speech=node('p',stage==='needs-care'?'A quiet day for Pip. A little care goes a long way.':stage==='tired'?'A little space dust. Any check-in will brighten Pip’s day.':'Hey, crewmate. One small step is plenty.','bird-speech');pet.append(speech);
   const intro=node('div',null,'mission-intro');intro.append(node('p','PIP’S EXPEDITION / 01','mission-kicker'),node('h2','A little care.\nA whole universe.'),node('p','Take care of yourself. Help your little explorer reach Mars. Every honest check-in counts.','mission-description'));
-  const stats=node('div',null,'mission-wallet');for(const [name,value,icon]of[['Flight fuel',state.fuel,'✦'],['Shop stars',state.coins,'✧'],['Mission streak',`${info.streak} d`,'☄']]){const box=node('div');box.append(node('span',icon),node('strong',String(value)),node('small',name));stats.append(box);}intro.append(stats);
+  const stats=node('div',null,'mission-wallet');for(const [name,value,icon]of[['Flight fuel',state.fuel,'✦'],['Shop stars',admin?'∞':state.coins,'✧'],['Mission streak',`${info.streak} d`,'☄']]){const box=node('div');box.append(node('span',icon),node('strong',String(value)),node('small',name));stats.append(box);}intro.append(stats);
   hero.append(intro,pet);main.append(hero);
   const journey=node('div',null,'mission-journey');journey.append(node('span','◉ Earth'),node('strong',`${info.percent}% to Mars · Expedition ${state.prestige+1}`),node('span','Mars ◉'));
   const progress=document.createElement('progress');progress.max=1000;progress.value=state.distance;progress.setAttribute('aria-label','Journey to Mars');journey.append(progress);
   journey.append(node('small',`Care tasks move your ship. ${state.prestige?`Prestige boost +${Math.min(state.prestige,5)*5}% distance.`:'1,000 distance to your first landing.'}`));
   if(state.distance>=1000)journey.append(control('Land on Mars & start a new expedition',()=>doAction({type:'prestige'},'Mars landing celebrated! Your outfits, stars and garden stay. Travel boost unlocked.'),'mission-primary'));
   main.append(journey);
+  if(admin)renderAdmin(main);
   const nav=node('div',null,'mission-tabs');nav.setAttribute('aria-label','Mission sections');for(const [id,label]of tabs){const b=control(label,()=>{section=id;render();});b.classList.toggle('selected',section===id);b.setAttribute('aria-pressed',String(section===id));nav.append(b);}main.append(nav);
   const content=node('div',null,'mission-section');main.append(content);
   if(section==='care')renderCare(content,info);if(section==='games')renderGames(content,info);if(section==='garden')renderGarden(content);if(section==='shop')renderShop(content);if(section==='board')renderBoard(content);
   main.append(node('p','Participation powers the mission. No points depend on a positive mood, a perfect suit inspection, physical ability, or a high game score.','mission-footnote'));
+ }
+ function renderAdmin(out){
+  const panel=node('section',null,'mission-admin');panel.append(node('h3','Admin simulation'),node('p','Your account has unlimited shop stars. Preview Pip’s care stages and fast-grow your garden. Simulations stay out of public rankings.','mission-muted'));
+  const stages=node('div',null,'admin-controls');for(const [id,label]of[['auto','Follow check-ins'],['healthy','Healthy bird'],['tired','Tired bird'],['needs-care','Needs care']]){const b=control(label,()=>doAction({type:'admin',stage:id},'Bird stage updated.'));b.setAttribute('aria-pressed',String((state.birdStage||'auto')===id));stages.append(b);}panel.append(stages);
+  const growth=node('div',null,'admin-controls');for(const [label,value]of[['Seed tray',0],['Sprouts',3],['Leafy garden',7],['Full bloom',18],['Grow +3',Math.min(100,state.garden+3)]])growth.append(control(label,()=>doAction({type:'admin',growth:value},'Garden simulation updated.')));panel.append(node('p','Garden growth: '+state.garden),growth);out.append(panel);
  }
  function renderCare(out,info){
   const head=node('div',null,'mission-section-head');head.append(node('h3','Today’s care orbit'),node('span',`${info.done.length} / ${MISSION_TASKS.length} check-ins`));out.append(head);
@@ -87,11 +94,12 @@ export function initializeMission(){
   out.append(node('p','Plants wait for you. Missed days never remove growth.','mission-muted'));
  }
  function renderShop(out){
-  out.append(node('h3','Outfitters'),node('p',`${state.coins} shop stars · cosmetic gear and a garden-only boost. Earn 15 stars for participating in a flight.`,'mission-muted'));
-  const grid=node('div',null,'mission-task-grid');for(const item of MISSION_SHOP){const owned=state.owned.includes(item.id),equipped=state.equipped[item.slot]===item.id;const card=node('article',null,'mission-task');card.append(node('span',item.icon,'shop-icon'),node('h4',item.name),node('p',item.description));const b=control(owned?(item.slot==='buff'?'Boost active':equipped?'Unequip':'Wear it'):`Unlock · ${item.cost} stars`,()=>doAction({type:owned?'equip':'buy',item:item.id},owned?'Outfit updated.':'Accessory unlocked!'));b.disabled=owned?item.slot==='buff':state.coins<item.cost;card.append(b);grid.append(card);}out.append(grid);
+  out.append(node('h3','Outfitters'),node('p',`${admin?'Unlimited':state.coins} shop stars · cosmetic gear and a garden-only boost. Earn 15 stars for participating in a flight.`,'mission-muted'));
+  const grid=node('div',null,'mission-task-grid');for(const item of MISSION_SHOP){const owned=state.owned.includes(item.id),equipped=state.equipped[item.slot]===item.id;const card=node('article',null,'mission-task');card.append(node('span',item.icon,'shop-icon'),node('h4',item.name),node('p',item.description));const b=control(owned?(item.slot==='buff'?'Boost active':equipped?'Unequip':'Wear it'):`Unlock · ${item.cost} stars`,()=>doAction({type:owned?'equip':'buy',item:item.id},owned?'Outfit updated.':'Accessory unlocked!'));b.disabled=owned?item.slot==='buff':!admin&&state.coins<item.cost;card.append(b);grid.append(card);}out.append(grid);
  }
  async function renderBoard(out){
   out.append(node('h3','Crew participation rankings'),node('p','20 ranking points per completed flight, whatever the game score. Up to six rewarded flights per UTC day. Public aliases never show wellness answers.','mission-muted'));
+  if(admin){out.append(node('p','Admin simulation accounts do not enter public rankings.'));return;}
   if(!user){out.append(node('p','Guest practice does not enter the global rankings.'),control('Sign in to join',()=>document.getElementById('account-button').click(),'mission-primary'));return;}
   out.append(node('p',`${alias} · ${state.rankPoints} participation points`));out.append(control(state.listed?'Leave public leaderboard':'Join public leaderboard with my bird alias',()=>doAction({type:'listing',listed:!state.listed},state.listed?'Your alias is no longer listed.':'Your bird alias and participation points are now visible.')));
   const table=node('table');table.className='mission-ranking';const caption=node('caption','Top 50 participating crewmates');table.append(caption);const header=node('tr');for(const s of ['Rank','Bird','Points'])header.append(node('th',s));const thead=node('thead');thead.append(header);table.append(thead);const body=node('tbody');table.append(body);out.append(table);

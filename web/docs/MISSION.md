@@ -13,3 +13,9 @@ Ranking is opt-in and displays a generated bird alias and participation points. 
 The shop offers a cap, crown, scarf, sample pack and garden light. The garden light only adds garden growth; prestige only changes journey distance. Neither changes health tracking or game performance.
 
 Validation: `npm test` and `npm run build`. Local launch: `npm start` (Node with `node:sqlite` support). Local credentials belong in ignored `web/.env`; production credentials belong in hosting environment settings. Never embed provider keys in browser assets or the iOS app. iOS requires an Xcode build and device check on macOS; it cannot be built from the Windows development environment.
+
+## Admin demonstrations
+
+A deployment can provision one mission admin through the secret `MISSION_ADMIN_ACCOUNT` JSON value (`id`, `username`, PBKDF2-SHA256 `salt` and `hash`, 100,000 iterations). Login creates the account if absent; an existing conflicting username is never overwritten. Authorization matches the immutable account ID, not a client flag or username alone. The secret must stay outside source control.
+
+The admin panel selects automatic, healthy, tired or needs-care bird appearance and garden growth presets. Shop purchases are free for that account. Admin simulation accounts cannot join the public leaderboard. The stages describe a fictional pet and never infer the crew member’s health. Native iOS Mission uses the same hosted account and controls.
