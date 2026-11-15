@@ -5,6 +5,7 @@ import { VISION_MODULE, VISION_WASM, POSE_MODEL } from './offline-config.js';
 import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
 import { initAccount, api } from './account.js';
+import { downscaleJpeg, webcamStill, groupByDay } from './journal-photo.js';
 
 const researchStyles = document.createElement('link');
 researchStyles.rel = 'stylesheet'; researchStyles.href = './research.css';
@@ -217,7 +218,7 @@ const themes = { sleep: ['sleep','slept','tired','rest','fatigue'], workload: ['
 function summarize(body) { const words = new Set(body.toLowerCase().match(/\b[a-z]+\b/g) || []); const found = Object.entries(themes).filter(([, terms]) => terms.some(term => words.has(term))).map(([theme]) => theme); return found.length ? `You wrote about: ${found.join(', ')}.` : 'No common themes were picked out of this entry.'; }
 // Guests keep entries in this browser. Signed-in users keep them in their account, where
 // each entry is embedded into the vector index that powers search and MUSE memory.
-let account = null, accountEntries = [], journalLoad = 0;
+let account = null, accountEntries = [], journalLoad = 0, pendingPhoto = null, dayIndex = 0;
 const journalNote = text => { element('journal-message').textContent = text; };
 function journalFailure(error, fallback) {
   if (error.status === 401) { accountControl.expire(); return 'Your session ended. Sign in again to reach your account journal.'; }
@@ -257,10 +258,20 @@ async function loadAccountJournal() {
 }
 function renderJournals() {
   renderStorage();
-  const list = account ? accountEntries : journals;
+  const all = account ? accountEntries : journals;
+  let list = all;
+  const days = account ? groupByDay(all) : [];
+  dayIndex = Math.min(dayIndex, Math.max(0, days.length - 1));
+  element('journal-days').hidden = !days.length; element('photo-privacy').hidden = !account;
+  if (days.length) {
+    list = days[dayIndex].items;
+    element('day-label').textContent = new Date(days[dayIndex].day + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+    element('day-prev').disabled = dayIndex >= days.length - 1; element('day-next').disabled = dayIndex === 0;
+  }
+  renderPhotoField();
   element('journal-search').hidden = !account;
   element('journal-entries').replaceChildren();
-  element('home-journal').textContent = account ? `${list.length} ${list.length === 1 ? 'entry' : 'entries'} in your account` : `${list.length} ${list.length === 1 ? 'entry' : 'entries'} in this browser`;
+  element('home-journal').textContent = account ? `${all.length} ${all.length === 1 ? 'entry' : 'entries'} in your account` : `${all.length} ${all.length === 1 ? 'entry' : 'entries'} in this browser`;
   if (!list.length) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = account ? 'No entries in your account yet' : 'Your entries will appear here'; element('journal-entries').append(p); }
   for (const entry of list) {
     const row = document.createElement('article'); row.className = 'entry';
@@ -277,17 +288,56 @@ function renderJournals() {
       head.append(remove);
     }
     const body = document.createElement('p'); body.textContent = entry.body;
+    let photoParts = [];
+    if (account && entry.hasPhoto) {
+      const image = document.createElement('img'); image.className = 'entry-photo'; image.alt = 'Journal photo from ' + new Date(entry.date).toLocaleDateString(); image.loading = 'lazy'; image.src = `/api/journal/entries/${entry.id}/photo`;
+      const dropPhoto = document.createElement('button'); dropPhoto.type = 'button'; dropPhoto.textContent = 'Remove photo';
+      dropPhoto.onclick = async () => {
+        dropPhoto.disabled = true;
+        try { await api(`/api/journal/entries/${entry.id}/photo`, 'DELETE'); journalNote('Photo removed.'); await loadAccountJournal(); }
+        catch (error) { dropPhoto.disabled = false; journalNote(journalFailure(error, 'Could not remove the photo.')); }
+      };
+      photoParts = [image, dropPhoto];
+    }
     const summary = document.createElement('p'); summary.className = 'tag'; summary.textContent = `${summarize(entry.body)} Summary of your words, not an assessment.`;
-    row.append(head,body,summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); row.append(museJournalElement(entry.body, { memory: Boolean(account) })); element('journal-entries').append(row);
+    row.append(head,...(photoParts.length ? [photoParts[0], body, photoParts[1]] : [body]),summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); row.append(museJournalElement(entry.body, { memory: Boolean(account) })); element('journal-entries').append(row);
   }
 }
 element('journal-tone-enabled').onchange = renderJournals;
+element('day-prev').onclick = () => { dayIndex++; renderJournals(); };
+element('day-next').onclick = () => { dayIndex = Math.max(0, dayIndex - 1); renderJournals(); };
+function renderPhotoField() {
+  const signed = Boolean(account);
+  element('journal-photo-file').disabled = !signed; element('journal-photo-cam').disabled = !signed || !navigator.mediaDevices?.getUserMedia;
+  if (!signed) pendingPhoto = null;
+  element('journal-photo-note').textContent = signed ? (pendingPhoto ? 'Ready to save with this entry.' : 'Photos are resized to 768 px, saved to your account on the server and not encrypted. You can delete them.') : 'Sign in to add photos.';
+  element('journal-photo-clear').hidden = !pendingPhoto; element('journal-photo-preview').hidden = !pendingPhoto;
+}
+async function attachPhoto(source) {
+  try {
+    const prepared = await downscaleJpeg(source);
+    if (pendingPhoto) URL.revokeObjectURL(pendingPhoto.url);
+    pendingPhoto = { ...prepared, url: URL.createObjectURL(prepared.blob) }; element('journal-photo-preview').src = pendingPhoto.url;
+  } catch (error) { pendingPhoto = null; journalNote(error.message || 'Could not read that photo.'); }
+  renderPhotoField();
+}
+element('journal-photo-file').onchange = async event => { const file = event.target.files[0]; event.target.value = ''; if (file) await attachPhoto(file); };
+element('journal-photo-cam').onclick = async () => { try { await attachPhoto(await webcamStill()); } catch { journalNote('Could not use the camera. Check permission, or choose a photo instead.'); } };
+element('journal-photo-clear').onclick = () => { if (pendingPhoto) URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; renderPhotoField(); };
 element('journal-dataset').textContent = sentimentMetadata.terms.toLocaleString() + ' rated terms · VADER lexicon · MIT license';
 element('journal-form').onsubmit = async event => {
   event.preventDefault(); const body = element('journal-body').value.trim(); if (!body) return;
   if (account) {
     const submit = event.target.querySelector('button'); submit.disabled = true; journalNote('Saving to your account…');
-    try { await api('/api/journal/entries', 'POST', { body }); if (element('journal-body').value.trim() === body) element('journal-body').value = ''; journalNote('Saved to your account and added to the vector index.'); await loadAccountJournal(); }
+    try {
+      const saved = await api('/api/journal/entries', 'POST', { body }); if (element('journal-body').value.trim() === body) element('journal-body').value = '';
+      let note = 'Saved to your account and added to the vector index.';
+      if (pendingPhoto) {
+        try { await api(`/api/journal/entries/${saved.entry.id}/photo`, 'PUT', { image: pendingPhoto.image, width: pendingPhoto.width, height: pendingPhoto.height }); URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; note += ' Photo attached.'; }
+        catch (error) { note += ` The entry was saved but the photo was not: ${journalFailure(error, 'upload failed.')}`; }
+      }
+      dayIndex = 0; journalNote(note); await loadAccountJournal();
+    }
     catch (error) { journalNote(`${journalFailure(error, 'Could not save.')} Your text has not been cleared.`); }
     finally { submit.disabled = false; }
     return;
@@ -323,7 +373,7 @@ element('journal-search').onsubmit = async event => {
   } catch (error) { results.textContent = journalFailure(error, 'Search failed.'); }
 };
 const accountControl = initAccount(user => {
-  account = user; accountEntries = []; journalLoad++;
+  account = user; accountEntries = []; journalLoad++; dayIndex = 0;
   element('home-account').textContent = user ? `@${user.username}` : 'Guest';
   element('hero-account').textContent = user ? 'Open journal' : 'Sign in';
   element('journal-matches').replaceChildren(); element('journal-index').textContent = '';

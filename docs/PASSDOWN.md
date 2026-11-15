@@ -182,3 +182,12 @@ tests; hiding it releases the camera and stops the session.
 4. Apply and verify hosted migrations/secrets before a separate deployment; a GitHub pull does not
    update the hosted site or the installed simulator app.
 5. A neural embedding API is optional follow-up, not a dependency of the present journal recall.
+
+## Roadmap progress — 2026-11-15 (branch `claude/muse-agent-features-7801dc`)
+
+Plan: `docs/ROADMAP_PLAN.md` (in worktree `crewsafety-roadmap-9c2217`, not yet committed).
+
+- **Phase 0 done.** The six `pbxproj` usage strings no longer say "possible fall". The iOS suite was not rerun for this string-only change.
+- **Phase 2 done (web).** Journal photos: migration `0002_journal_photos.sql`, photo routes in `web/account.mjs`, `web/dist/journal-photo.js`, a day-by-day history in the Journal tab, and `web/tests/journal-photo.test.mjs`. Web suite is now 46/46 on Node 22. Checked in the local browser with a synthetic image: upload, thumbnail and day navigation. Not verified: webcam still capture, hosted D1 migration, mobile camera capture.
+- **Not started:** Phase 1 (needs a live camera test with the user), Phase 3 (D1: confirm the Meta model accepts images first), Phase 4 (needs `ELEVENLABS_API_KEY`), Phase 5 (needs a NASA source for the suit layers, D6), Phase 6, Phase 7 (needs sensor hardware).
+- The Raspberry Pi 4 could not be found on the LAN (no mDNS name, no open SSH port) and no green activity LED was reported; likely not booting.

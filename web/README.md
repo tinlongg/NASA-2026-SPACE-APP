@@ -80,6 +80,16 @@ account journal. Server code is in `account.mjs`; tables are in `drizzle/0001_ac
 - Local `npm start` keeps accounts in ignored `web/.data/local.sqlite`; set `PORT` or `CREW_DB_PATH` to
   change the port or file. The FastAPI `/dashboard/` copy has no account routes, so it stays guest-only.
 
+### Journal photos
+
+Signed-in users can attach one JPEG to a journal entry (file picker or a single webcam still). The browser
+resizes it to at most 768 px and re-encodes it, which drops EXIF data, before upload. Photos live in the
+`journal_photos` table (`drizzle/0002_journal_photos.sql`; apply it to hosted D1 before deploying) as base64,
+unencrypted, capped at 60 per account and about 280 KB each. Routes: `PUT|GET|DELETE
+/api/journal/entries/:id/photo`; `GET /api/journal/entries` only reports `hasPhoto`. Photo responses send
+`Cache-Control: private, no-store` and are never cached by the service worker. Deleting an entry or all entries
+deletes its photos. Guests cannot add photos. The Journal tab groups account entries by day with earlier/later controls.
+
 ## Secrets and request limits
 
 Set `META_API_KEY` as a secret in Sites runtime settings and optionally `META_MODEL` (default
