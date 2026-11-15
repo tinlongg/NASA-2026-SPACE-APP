@@ -2,7 +2,7 @@
 
 ## Hosted connection — no local server required
 
-Open https://crew-safety-connected.lustrousbush32.chatgpt.site and select **Crew dashboard → Create pairing session**. Pull the latest `main` and rebuild iOS in Xcode. In **Dashboard → Settings → Website connection**, the hosted backend URL is prefilled; enter the website's pairing code and enable sharing. Keep the app open. The phone can use Wi-Fi or cellular; it no longer needs the computer's network.
+Open https://crew-safety.vercel.app and select **Crew dashboard → Create pairing session**. Pull the latest `main` and rebuild iOS in Xcode. In **Dashboard → Settings → Website connection**, the hosted backend URL is prefilled; enter the website's pairing code and enable sharing. Keep the app open. The phone can use Wi-Fi or cellular; it no longer needs the computer's network.
 
 The website is public, but each session's crew data requires its random pairing code. Sessions expire after 24 hours and can be revoked with **End shared session**. Hosted snapshots use D1; session tokens are stored hashed. Concurrent updates use revision checks so a stale phone upload cannot overwrite a browser acknowledgment. Camera frames, journals and chat are not part of sync. `web/sync.mjs` implements the same wire contract as FastAPI, with migrations in `web/drizzle`. The website serves `/sync/*` on its own HTTPS origin.
 

@@ -187,7 +187,14 @@ are excluded. Publish an isolated copy of this `web/` folder through the Sites s
 managed Site repository does not modify the parent GitHub history. A hosted deployment does not mean
 these changes have been committed/pushed to GitHub `main`.
 
-### Publishing an update
+### Vercel (https://crew-safety.vercel.app)
+The same Worker handler runs as one Vercel Function (`api/index.mjs`); `vercel.json` sends every path to it.
+Data lives in Turso (SQLite-compatible, added from the Vercel Marketplace), through the D1-style adapter in
+`turso-db.mjs`, which applies `drizzle/*.sql` on first use. Environment variables: `TURSO_DATABASE_URL`,
+`TURSO_AUTH_TOKEN` (set by the integration), `META_API_KEY`, `META_MODEL`. Deploy from `web/` with
+`vercel deploy --prod`; the project is `crew-safety` on the Tin'tastic Team.
+
+### Publishing an update to ChatGPT Sites
 1. `npm test`, then `npm run build`. The build writes `dist/server/index.js` (ignored by git) and gives the
    service worker a new cache version, so visitors get the new scripts instead of cached copies.
 2. In ChatGPT, open the Sites project in `.openai/hosting.json` and publish this `web/` folder with the

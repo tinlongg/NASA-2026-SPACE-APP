@@ -37,6 +37,12 @@ const hosting = JSON.parse(await readFile(new URL('../.openai/hosting.json', imp
 if (hosting.static) throw new Error('Worker deployment must not declare a static directory.');
 await mkdir(new URL('../dist/server/', import.meta.url), { recursive: true });
 await writeFile(new URL('../dist/server/index.js', import.meta.url), `${pageRoutes}\n${sync}\n${account}\n${missionRules}\n${mission}\n${webpush}\n${calls}\n${circle}\n${stations}\n${source}\nexport default createWorker(${JSON.stringify(assets)}, fetch);\n`);
+const folder = new URL('../drizzle/', import.meta.url), { readdir } = await import('node:fs/promises');
+const migrations = [];
+for (const name of (await readdir(folder)).filter(name => name.endsWith('.sql')).sort()) migrations.push([name, await readFile(new URL(name, folder), 'utf8')]);
+await writeFile(new URL('../dist/server/migrations.js', import.meta.url), `export default ${JSON.stringify(migrations)};\n`);
+await mkdir(new URL('../public/', import.meta.url), { recursive: true }); // Vercel needs a non-empty output folder; every other path goes to the function
+await writeFile(new URL('../public/_host.txt', import.meta.url), 'CrewSafety website. Pages are served by api/index.mjs.\n');
 console.log('Built Worker with embedded static assets. Runtime secrets are not included.');
 }
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) await build();
