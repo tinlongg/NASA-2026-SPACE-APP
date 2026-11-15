@@ -1,5 +1,6 @@
 # Preserve downloaded NASA source bytes for provenance and size/hash validation.
 data/nasa-osdr/raw/* -text
 data/nasa-osdr/tables/* -text
+data/nasa-lsda/raw/* -text
 
 web/data/sentiment/vader_lexicon.txt -text

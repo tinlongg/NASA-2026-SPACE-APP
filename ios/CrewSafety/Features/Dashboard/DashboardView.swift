@@ -82,6 +82,7 @@ struct DashboardView: View {
         VStack(alignment: .leading, spacing: Theme.Spacing.s) {
             sectionHeader("Apple Watch", badge: nil)
             WatchCard()
+            HealthComparisonCard()
         }
     }
 
