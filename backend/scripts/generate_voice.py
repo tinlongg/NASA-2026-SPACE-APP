@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 VOICE_DIR = ROOT / "ios" / "CrewSafety" / "Resources" / "Voice"
 WEB_VOICE_DIR = ROOT / "web" / "dist" / "voice"  # phrases named web-* are for the website, not the app
-DEFAULT_VOICE = "cjVigY5qzO86Huf0OWal"  # Eric - Smooth, Trustworthy: the voice of the CrewSafety Check-in agent
+DEFAULT_VOICE = "WAhoMTNdLdMoq1j3wf3I"  # Hope - Smooth talker: the voice of the CrewSafety Check-in agent (was Eric until 2026-11-15)
 
 
 def load_key() -> str:
@@ -56,7 +56,9 @@ def agent_voice(key: str):
         agent_id = os.environ.get("ELEVENLABS_AGENT_ID")
         if not agent_id:
             agents = api_get(key, "/v1/convai/agents").get("agents", [])
-            match = next((agent for agent in agents if "crewsafety" in (agent.get("name") or "").lower()), None)
+            named = lambda agent: (agent.get("name") or "").lower()
+            match = next((agent for agent in agents if "crewsafety" in named(agent) and "check" in named(agent)), None) \
+                or next((agent for agent in agents if "crewsafety" in named(agent)), None)
             agent_id = match["agent_id"] if match else None
         if not agent_id:
             return None
