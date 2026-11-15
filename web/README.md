@@ -1,15 +1,15 @@
 # CrewSafety web testing companion
 
 The user-requested Windows/Mac companion to the primary native SwiftUI app. It uses MediaPipe Pose
-Landmarker Lite, not Apple Vision. Run `npm start` here (Node 20+) and open
-[localhost](http://localhost:4173) in Chrome/Edge. `npm test` runs 29 checks; `npm run build` packages a
-Worker. The public test site is [CrewSafety Web Lab](https://crew-safety-web-lab.xron2245.chatgpt.site).
+Landmarker Lite, not Apple Vision. Run `npm start` here (Node 22.13+) and open
+[localhost](http://127.0.0.1:4173) in Chrome/Edge. `npm test` runs 32 checks; `npm run build` packages a
+Worker. The public test site is [CrewSafety Connected](https://crew-safety-connected.lustrousbush32.chatgpt.site).
 
 ## Camera and local features
 
 Camera access needs HTTPS or localhost. The browser webcam will not work over a LAN HTTP address; the paired dashboard and synthetic replay do work there. The hosted HTTPS link uses each visitor's own camera; no remote camera video is streamed. Start camera explicitly and grant access. Stop, navigating away from Monitor, hiding the tab, and closing the page release the webcam. Permission failures and model-download failures show recovery messages. Use synthetic replay rather than performing a fall.
 
-Camera frames are processed locally and never recorded/uploaded. MediaPipe JS/WASM and the model download from jsDelivr and Google. First use needs internet. Journal entries persist in localStorage on that browser; browser-generated events are session-only. Paired iPhone events persist on the local backend. Telemetry is generated and labelled Simulated.
+Camera frames are processed locally and never recorded/uploaded. MediaPipe JS/WASM and the model download from jsDelivr and Google. First use needs internet. Journal entries persist in localStorage on that browser; browser-generated events are session-only. Paired iPhone events persist in hosted D1 or the local FastAPI backend. Telemetry is generated and labelled Simulated.
 
 ## Paired iPhone dashboard
 

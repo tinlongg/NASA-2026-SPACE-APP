@@ -1,4 +1,5 @@
 import { answerResearch } from './research.mjs';
+import { handleCrewSync } from './sync.mjs';
 
 const MODEL = 'muse-spark-1.3';
 const PROMPT = `You are Camera Coach, the camera-debugging assistant for the CrewSafety prototype.
@@ -55,6 +56,7 @@ export function createWorker(assets = {}, fetchProvider = fetch, corpus = null) 
   let windowStart = 0, total = 0;
   return { async fetch(request, env = {}) {
     const url = new URL(request.url);
+    if (url.pathname.startsWith('/sync/')) return handleCrewSync(request, env);
     const allowGeneration = () => {
       const now = Date.now();
       if (now - windowStart >= 60000) { windowStart = now; total = 0; visitors.clear(); }
