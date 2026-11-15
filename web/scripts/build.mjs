@@ -18,7 +18,7 @@ export async function loadAssets() {
 async function build() {
 const assets = await loadAssets();
 const sync = await readFile(new URL('../sync.mjs', import.meta.url), 'utf8');
-const source = (await readFile(new URL('../worker.mjs', import.meta.url), 'utf8')).replace("import { handleCrewSync } from './sync.mjs';", '').replace("import { createAccounts, accountUser, journalRecall } from './account.mjs';", '');
+const source = (await readFile(new URL('../worker.mjs', import.meta.url), 'utf8')).replace("import { handleCrewSync } from './sync.mjs';", '').replace("import { createAccounts, accountUser, journalRecall, journalPhotosForCompare } from './account.mjs';", '');
 if (/^import /m.test(source)) throw new Error('worker.mjs has an import the bundle does not inline.');
 const account = await readFile(new URL('../account.mjs', import.meta.url), 'utf8');
 const hosting = JSON.parse(await readFile(new URL('../.openai/hosting.json', import.meta.url), 'utf8'));

@@ -9,7 +9,7 @@ Worker. The public test site is [CrewSafety Connected](https://crew-safety-conne
 
 Camera access needs HTTPS or localhost. The browser webcam will not work over a LAN HTTP address; the paired dashboard and synthetic replay do work there. The hosted HTTPS link uses each visitor's own camera; no remote camera video is streamed. Start camera explicitly and grant access. Stop, navigating away from Monitor, hiding the tab, and closing the page release the webcam. Permission failures and model-download failures show recovery messages. Use synthetic replay to test alerts without holding still for real.
 
-Camera frames are processed locally and never recorded/uploaded. MediaPipe JS/WASM and the model download from jsDelivr and Google. First use needs internet. Guest journal entries persist in localStorage; signed-in entries persist in the account database. Browser-generated events are session-only. Paired iPhone events persist in hosted D1 or the local backend. Any paired telemetry remains labelled Simulated.
+Camera frames are processed locally and never recorded. Only if you turn on the opt-in MUSE second look is one downscaled frame sent to the server and Meta when a live alert fires; it is not stored. MediaPipe JS/WASM and the model download from jsDelivr and Google. First use needs internet. Guest journal entries persist in localStorage; signed-in entries persist in the account database. Browser-generated events are session-only. Paired iPhone events persist in hosted D1 or the local backend. Any paired telemetry remains labelled Simulated.
 
 ## Paired iPhone dashboard
 
@@ -89,6 +89,14 @@ unencrypted, capped at 60 per account and about 280 KB each. Routes: `PUT|GET|DE
 /api/journal/entries/:id/photo`; `GET /api/journal/entries` only reports `hasPhoto`. Photo responses send
 `Cache-Control: private, no-store` and are never cached by the service worker. Deleting an entry or all entries
 deletes its photos. Guests cannot add photos. The Journal tab groups account entries by day with earlier/later controls.
+
+### MUSE vision
+
+Both routes call `muse-spark-1.3` on the Meta chat-completions endpoint with an `image_url` data URL (confirmed in the Meta media-understanding docs on 2026-11-15; not yet exercised against the live provider from this repo).
+
+- `POST /api/journal/photos/compare` `{ entryId, consent: true }` (sign-in required). The server picks the entry's photo plus the oldest and most recent earlier photos; the browser never supplies images. Replies describe visible differences only, with the fixed line "Describes visible differences only. Not a health assessment." No weight estimate, condition or advice.
+- `POST /api/coach/look` `{ source: 'live', frame }`: one JPEG of at most about 250 KB, live input only (replay is rejected). Off by default; the Monitor tab has the opt-in. The reply is attached to the event as `lookNote` beside the detector `snapshot` in the JSON export, so the team can compare MUSE with MediaPipe. It never raises, lowers, acknowledges or suppresses an alert, and the frame is not stored.
+- Both use the shared per-visitor generation rate limit.
 
 ## Secrets and request limits
 
