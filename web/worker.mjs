@@ -28,7 +28,7 @@ async function visionComplete(env, fetchProvider, prompt, images, text) {
   let response;
   try {
     response = await fetchProvider('https://api.meta.ai/v1/chat/completions', { method: 'POST', headers: { Authorization: `Bearer ${env.META_API_KEY}`, 'Content-Type': 'application/json' }, signal: AbortSignal.timeout(30000),
-      body: JSON.stringify({ model: env.META_MODEL || MODEL, reasoning_effort: 'low', max_completion_tokens: 1200, messages: [{ role: 'developer', content: prompt }, { role: 'user', content }] }) });
+      body: JSON.stringify({ model: env.META_MODEL || MODEL, reasoning_effort: 'low', max_completion_tokens: 4000, messages: [{ role: 'developer', content: prompt }, { role: 'user', content }] }) });
   } catch { return { error: 'MUSE could not be reached.', status: 504 }; }
   if (!response.ok) return { error: IMAGE_ERRORS[response.status] || 'MUSE could not describe the image.', status: response.status === 429 ? 429 : 502 };
   let result; try { result = await response.json(); } catch { return { error: 'MUSE returned an unreadable response.', status: 502 }; }
@@ -117,7 +117,7 @@ export function createWorker(assets = {}, fetchProvider = fetch) {
       try {
         response=await fetchProvider('https://api.meta.ai/v1/chat/completions',{
           method:'POST',headers:{Authorization:`Bearer ${env.META_API_KEY}`,'Content-Type':'application/json'},signal:AbortSignal.timeout(25000),
-          body:JSON.stringify({model:env.META_MODEL||MODEL,reasoning_effort:'low',max_completion_tokens:1200,messages:[{role:'developer',content:prompt},{role:'user',content:JSON.stringify(related.length?{entry:input.entry.trim(),relatedPastEntries:related.map(r=>({date:r.date,text:r.body.slice(0,600)}))}:{entry:input.entry.trim()})}]})
+          body:JSON.stringify({model:env.META_MODEL||MODEL,reasoning_effort:'low',max_completion_tokens:4000,messages:[{role:'developer',content:prompt},{role:'user',content:JSON.stringify(related.length?{entry:input.entry.trim(),relatedPastEntries:related.map(r=>({date:r.date,text:r.body.slice(0,600)}))}:{entry:input.entry.trim()})}]})
         });
       } catch {return fail('MUSE could not be reached. Local analysis is still available.',504);}
       if(!response.ok) return fail(response.status===401||response.status===403?'Meta rejected the server credential or model access.':response.status===429?'Meta usage limit reached. Try later.':'MUSE could not complete this reflection.',response.status===429?429:502);
@@ -174,7 +174,7 @@ export function createWorker(assets = {}, fetchProvider = fetch) {
         response = await fetchProvider('https://api.meta.ai/v1/chat/completions', {
           method: 'POST', headers: { 'Authorization': `Bearer ${env.META_API_KEY}`, 'Content-Type': 'application/json' },
           signal: AbortSignal.timeout(25000),
-          body: JSON.stringify({ model: env.META_MODEL || MODEL, reasoning_effort: 'low', max_completion_tokens: 1200,
+          body: JSON.stringify({ model: env.META_MODEL || MODEL, reasoning_effort: 'low', max_completion_tokens: 4000,
             messages: [{ role: 'developer', content: PROMPT }, { role: 'user', content: JSON.stringify({ ...input, observationAgeSeconds: ageSeconds }) }] }),
         });
       } catch { return fail('Meta could not be reached in time. Local detection is still available.', 504); }

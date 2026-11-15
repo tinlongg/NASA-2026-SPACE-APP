@@ -5,7 +5,7 @@ import { VISION_MODULE, VISION_WASM, POSE_MODEL } from './offline-config.js';
 import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
 import { initAccount, api } from './account.js';
-import { downscaleJpeg, webcamStill, groupByDay } from './journal-photo.js';
+import { downscaleJpeg, webcamStill, groupByDay, dayKey } from './journal-photo.js';
 import { GROUPS, ITEMS, SOURCE_NOTE, overallState, STATE_LABEL } from './suit-layers.js';
 
 const researchStyles = document.createElement('link');
@@ -239,7 +239,7 @@ const themes = { sleep: ['sleep','slept','tired','rest','fatigue'], workload: ['
 function summarize(body) { const words = new Set(body.toLowerCase().match(/\b[a-z]+\b/g) || []); const found = Object.entries(themes).filter(([, terms]) => terms.some(term => words.has(term))).map(([theme]) => theme); return found.length ? `You wrote about: ${found.join(', ')}.` : 'No common themes were picked out of this entry.'; }
 // Guests keep entries in this browser. Signed-in users keep them in their account, where
 // each entry is embedded into the vector index that powers search and MUSE memory.
-let account = null, accountEntries = [], journalLoad = 0, pendingPhoto = null, dayIndex = 0;
+let account = null, accountEntries = [], journalLoad = 0, pendingPhoto = null, selectedDay = null, calMonth = null;
 const journalNote = text => { element('journal-message').textContent = text; };
 function journalFailure(error, fallback) {
   if (error.status === 401) { accountControl.expire(); return 'Your session ended. Sign in again to reach your account journal.'; }
@@ -280,15 +280,17 @@ async function loadAccountJournal() {
 function renderJournals() {
   renderStorage();
   const all = account ? accountEntries : journals;
-  let list = all;
-  const days = account ? groupByDay(all) : [];
-  dayIndex = Math.min(dayIndex, Math.max(0, days.length - 1));
-  element('journal-days').hidden = !days.length; element('photo-privacy').hidden = !account;
-  if (days.length) {
-    list = days[dayIndex].items;
-    element('day-label').textContent = new Date(days[dayIndex].day + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
-    element('day-prev').disabled = dayIndex >= days.length - 1; element('day-next').disabled = dayIndex === 0;
+  const days = groupByDay(all);
+  if (account && (!selectedDay || !days.some(day => day.day === selectedDay))) selectedDay = days[0]?.day ?? null; // Accounts show one day at a time.
+  if (selectedDay && !days.some(day => day.day === selectedDay)) selectedDay = null;
+  const list = selectedDay ? all.filter(entry => dayKey(entry.date) === selectedDay) : all;
+  const at = days.findIndex(day => day.day === selectedDay);
+  element('photo-privacy').hidden = !account; element('journal-days').hidden = !account || !days.length;
+  if (account && days.length) {
+    element('day-label').textContent = dayLabel(selectedDay);
+    element('day-prev').disabled = at >= days.length - 1; element('day-next').disabled = at <= 0;
   }
+  renderCalendar(days);
   renderPhotoField(); renderPhotoTrend();
   element('journal-search').hidden = !account;
   element('journal-entries').replaceChildren();
@@ -344,8 +346,44 @@ function compareControl(entry) {
   };
   box.append(label, button, result); return box;
 }
-element('day-prev').onclick = () => { dayIndex++; renderJournals(); };
-element('day-next').onclick = () => { dayIndex = Math.max(0, dayIndex - 1); renderJournals(); };
+const dayLabel = key => new Date(key + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' });
+function stepDay(direction) {
+  const days = groupByDay(account ? accountEntries : journals), at = days.findIndex(day => day.day === selectedDay), next = days[at + direction];
+  if (next) { selectedDay = next.day; calMonth = null; renderJournals(); }
+}
+element('day-prev').onclick = () => stepDay(1);
+element('day-next').onclick = () => stepDay(-1);
+// Month grid: days with entries are marked (a ring for a photo). Click a day to read it.
+function renderCalendar(days) {
+  const box = element('journal-calendar'); box.replaceChildren(); box.hidden = !days.length; if (!days.length) return;
+  const byDay = new Map(days.map(day => [day.day, day.items]));
+  if (!calMonth) { const base = selectedDay ? new Date(selectedDay + 'T12:00:00') : new Date(); calMonth = new Date(base.getFullYear(), base.getMonth(), 1); }
+  const head = document.createElement('div'); head.className = 'cal-head';
+  const prev = document.createElement('button'), next = document.createElement('button'), title = document.createElement('strong');
+  prev.type = next.type = 'button'; prev.textContent = '‹'; next.textContent = '›'; prev.setAttribute('aria-label', 'Previous month'); next.setAttribute('aria-label', 'Next month');
+  title.textContent = calMonth.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
+  prev.onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1); renderCalendar(days); };
+  next.onclick = () => { calMonth = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1); renderCalendar(days); };
+  head.append(prev, title, next);
+  if (!account && selectedDay) { const all = document.createElement('button'); all.type = 'button'; all.className = 'link-button'; all.textContent = 'Show all'; all.onclick = () => { selectedDay = null; renderJournals(); }; head.append(all); }
+  const grid = document.createElement('div'); grid.className = 'cal-grid'; grid.setAttribute('role', 'grid');
+  for (const name of ['S', 'M', 'T', 'W', 'T', 'F', 'S']) { const cell = document.createElement('span'); cell.className = 'cal-dow'; cell.textContent = name; grid.append(cell); }
+  const first = calMonth.getDay(), count = new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 0).getDate(), today = dayKey(new Date().toISOString());
+  for (let blank = 0; blank < first; blank++) grid.append(document.createElement('span'));
+  for (let number = 1; number <= count; number++) {
+    const key = `${calMonth.getFullYear()}-${String(calMonth.getMonth() + 1).padStart(2, '0')}-${String(number).padStart(2, '0')}`, items = byDay.get(key);
+    const cell = document.createElement(items ? 'button' : 'span'); cell.textContent = number; cell.className = 'cal-day';
+    if (key === today) cell.classList.add('today');
+    if (items) {
+      cell.type = 'button'; cell.classList.add('has-entries'); if (items.some(entry => entry.hasPhoto)) cell.classList.add('has-photo');
+      if (key === selectedDay) { cell.classList.add('selected'); cell.setAttribute('aria-pressed', 'true'); }
+      cell.setAttribute('aria-label', `${dayLabel(key)}, ${items.length} ${items.length === 1 ? 'entry' : 'entries'}`);
+      cell.onclick = () => { selectedDay = !account && key === selectedDay ? null : key; renderJournals(); };
+    }
+    grid.append(cell);
+  }
+  box.append(head, grid);
+}
 function renderPhotoTrend() {
   const recent = account ? accountEntries.filter(entry => entry.hasPhoto).slice(0, 8).reverse() : [], box = element('photo-trend'); // oldest to newest
   element('photo-trend-box').hidden = !recent.length; box.replaceChildren();
@@ -387,7 +425,7 @@ element('journal-form').onsubmit = async event => {
         try { await api(`/api/journal/entries/${saved.entry.id}/photo`, 'PUT', { image: pendingPhoto.image, width: pendingPhoto.width, height: pendingPhoto.height }); URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; note += ' Photo attached.'; }
         catch (error) { note += ` The entry was saved but the photo was not: ${journalFailure(error, 'upload failed.')}`; }
       }
-      element('journal-sleep').value = ''; dayIndex = 0; journalNote(note); await loadAccountJournal();
+      element('journal-sleep').value = ''; selectedDay = null; calMonth = null; journalNote(note); await loadAccountJournal();
     }
     catch (error) { journalNote(`${journalFailure(error, 'Could not save.')} Your text has not been cleared.`); }
     finally { submit.disabled = false; }
@@ -424,7 +462,7 @@ element('journal-search').onsubmit = async event => {
   } catch (error) { results.textContent = journalFailure(error, 'Search failed.'); }
 };
 const accountControl = initAccount(user => {
-  account = user; accountEntries = []; journalLoad++; dayIndex = 0;
+  account = user; accountEntries = []; journalLoad++; selectedDay = null; calMonth = null;
   element('home-account').textContent = user ? `@${user.username}` : 'Guest';
   element('hero-account').textContent = user ? 'Open journal' : 'Sign in';
   element('journal-matches').replaceChildren(); element('journal-index').textContent = '';
@@ -548,7 +586,7 @@ function renderSuit() {
         const label = document.createElement('label'), input = document.createElement('input');
         input.type = 'radio'; input.name = 'suit-' + item.id; input.value = value; input.checked = suitStatus(item.id) === value;
         input.onchange = () => { suit[item.id] = { ...suit[item.id], status: value }; persistSuit(); renderSuitState(); };
-        label.append(input, ' ', text); seg.append(label);
+        label.append(input, text); seg.append(label);
       }
       const note = document.createElement('input'); note.type = 'text'; note.maxLength = 300; note.placeholder = 'Note, optional'; note.setAttribute('aria-label', 'Note for ' + item.name); note.value = suit[item.id]?.note || '';
       note.oninput = () => { suit[item.id] = { ...suit[item.id], status: suitStatus(item.id), note: note.value }; persistSuit(); };
