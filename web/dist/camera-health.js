@@ -13,13 +13,13 @@ export function visibilityGroups(landmarks) {
   return out;
 }
 
-/** Which of shoulders and hips are not reliably visible. Matches the detector's torso rule (0.3). */
+/** Shoulders are required for any tracking; missing hips only means upper-body tracking. */
 export function missingTorso(groups, minimum = 0.3) {
-  if (!groups) return ['shoulders', 'hips'];
-  return ['shoulders', 'hips'].filter(name => groups[name] < minimum);
+  if (!groups) return ['shoulders'];
+  return groups.shoulders < minimum ? ['shoulders'] : [];
 }
 
-/** Says what to do once shoulders or hips have been missing for more than FRAMING_SECONDS. */
+/** Says what to do once the shoulders have been missing for more than FRAMING_SECONDS. */
 export class FramingMonitor {
   constructor(seconds = FRAMING_SECONDS) { this.seconds = seconds; this.since = null; this.missing = []; }
   reset() { this.since = null; this.missing = []; }
@@ -28,7 +28,7 @@ export class FramingMonitor {
     if (!this.missing.length) { this.since = null; return null; }
     this.since ??= time;
     if (time - this.since <= this.seconds) return null;
-    return `Move back so your ${this.missing.join(' and ')} are visible`;
+    return 'Move so your shoulders are visible';
   }
 }
 

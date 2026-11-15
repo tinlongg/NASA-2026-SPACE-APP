@@ -15,20 +15,19 @@ test('visibility is reported per body group using the lowest landmark', () => {
 
 test('missing torso parts follow the detector threshold', () => {
   assert.deepEqual(missingTorso(visibilityGroups(pose({}))), []);
-  assert.deepEqual(missingTorso(visibilityGroups(pose({ 24: 0.2 }))), ['hips']);
-  assert.deepEqual(missingTorso(null), ['shoulders', 'hips']);
+  assert.deepEqual(missingTorso(visibilityGroups(pose({ 24: 0.2 }))), []); // hips alone no longer block tracking
+  assert.deepEqual(missingTorso(visibilityGroups(pose({ 12: 0.2 }))), ['shoulders']);
+  assert.deepEqual(missingTorso(null), ['shoulders']);
 });
 
-test('framing guidance appears only after shoulders or hips are missing for more than 2 seconds', () => {
-  const monitor = new FramingMonitor(), bad = visibilityGroups(pose({ 23: 0, 24: 0 })), good = visibilityGroups(pose({}));
+test('framing guidance appears only after the shoulders are missing for more than 2 seconds', () => {
+  const monitor = new FramingMonitor(), bad = visibilityGroups(pose({ 11: 0, 12: 0 })), good = visibilityGroups(pose({}));
   assert.equal(monitor.update(0, bad), null);
   assert.equal(monitor.update(2, bad), null);
-  assert.equal(monitor.update(2.1, bad), 'Move back so your hips are visible');
+  assert.equal(monitor.update(2.1, bad), 'Move so your shoulders are visible');
   assert.equal(monitor.update(3, good), null);        // recovers, and the timer restarts
   assert.equal(monitor.update(4, bad), null);
-  assert.equal(new FramingMonitor().update(0, null), null);
-  const both = new FramingMonitor(); both.update(0, null);
-  assert.equal(both.update(5, null), 'Move back so your shoulders and hips are visible');
+  assert.equal(monitor.update(10, visibilityGroups(pose({ 23: 0, 24: 0 }))), null, 'hidden hips need no guidance');
 });
 
 test('rest pause ends by itself and reports the time left', () => {
