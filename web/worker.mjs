@@ -2,7 +2,7 @@ import {PAGE_ROUTES,pageForPath} from './dist/page-routes.js';
 import { handleMission } from './mission.mjs';
 import { handleStations } from './stations.mjs';
 import { handleCircle } from './circle.mjs';
-import { handleCalls } from './calls.mjs';
+import { handleCalls, handleCheckinVoice } from './calls.mjs';
 import { handleCrewSync } from './sync.mjs';
 import { createAccounts, accountUser, journalRecall, journalPhotosForCompare } from './account.mjs';
 
@@ -119,6 +119,8 @@ export function createWorker(assets = {}, fetchProvider = fetch) {
     };
     const callsResponse = await handleCalls(request, env);
     if (callsResponse) return callsResponse;
+    const voiceResponse = await handleCheckinVoice(request, env, fetchProvider);
+    if (voiceResponse) return voiceResponse;
     const circleResponse = await handleCircle(request, env);
     if (circleResponse) return circleResponse;
     const stationsResponse = await handleStations(request, env);

@@ -39,6 +39,9 @@ final class CameraMonitorViewModel {
     private(set) var checkIn = CrewCheckIn(duration: CameraMonitorViewModel.checkInDuration)
     private(set) var isListening = false
     private(set) var heardText: String?
+    /// What the live voice agent last said, and whether a conversation with it is open.
+    private(set) var agentText: String?
+    private(set) var isTalkingWithAgent = false
     private(set) var lastOutcome: CheckInOutcome?
     private(set) var webCameraStatus: WebCameraClient.Status = .disconnected
     /// Web camera only: a shorter stillness wait so testing is quick.
@@ -54,6 +57,8 @@ final class CameraMonitorViewModel {
     @ObservationIgnored private var eventStore: EventStore?
     @ObservationIgnored private var crewStore: CrewStore?
     @ObservationIgnored private let voice = CheckInVoice()
+    @ObservationIgnored private var agent: AgentConversation?
+    @ObservationIgnored private var voiceAgentBase: URL?
     @ObservationIgnored private let webCamera = WebCameraClient()
     @ObservationIgnored private var countdownTask: Task<Void, Never>?
     @ObservationIgnored private var voiceTask: Task<Void, Never>?
@@ -90,6 +95,11 @@ final class CameraMonitorViewModel {
             default: return "Web camera · waiting for the camera page"
             }
         }
+    }
+
+    /// Opt-in live conversation. `base` is the website that issues the agent link; nil turns it off.
+    func configureVoiceAgent(enabled: Bool, base: URL?) {
+        voiceAgentBase = enabled ? base : nil
     }
 
     func attach(eventStore: EventStore, crewStore: CrewStore) {
@@ -300,6 +310,9 @@ final class CameraMonitorViewModel {
         voiceTask?.cancel()
         voiceTask = Task { [weak self] in
             guard let self else { return }
+            // Opt-in: talk with the ElevenLabs agent. If it cannot start, fall back to the recorded question.
+            if await self.startAgentConversation() { return }
+            guard !Task.isCancelled, self.checkIn.isAwaiting else { return }
             await self.voice.speak("No movement detected. Are you OK? Say I'm okay, or say help.")
             guard !Task.isCancelled, self.checkIn.isAwaiting else { return }
             // Only now may the web page listen, so it never hears the spoken prompt as an answer.
@@ -308,6 +321,35 @@ final class CameraMonitorViewModel {
                 self?.heard(transcript)
             }
         }
+    }
+
+    /// True when a conversation with the agent is now running (or the check-in ended while connecting).
+    private func startAgentConversation() async -> Bool {
+        guard let base = voiceAgentBase, AVAudioApplication.shared.recordPermission == .granted else { return false }
+        let conversation = AgentConversation()
+        do {
+            let link = try await AgentSignedURL.fetch(base: base)
+            guard !Task.isCancelled, checkIn.isAwaiting else { return true }
+            conversation.onUser = { [weak self] text in if !text.isEmpty { self?.heard(text) } }
+            conversation.onAgent = { [weak self] text in self?.agentText = text }
+            agent = conversation
+            try await conversation.start(url: link)
+            guard checkIn.isAwaiting, agent === conversation else { conversation.stop(); return true }
+            isTalkingWithAgent = true
+            isListening = true
+            return true
+        } catch {
+            conversation.stop()
+            if agent === conversation { agent = nil }
+            return false
+        }
+    }
+
+    private func endAgentConversation() {
+        agent?.stop()
+        agent = nil
+        isTalkingWithAgent = false
+        agentText = nil
     }
 
     private func heard(_ transcript: String) {
@@ -328,6 +370,7 @@ final class CameraMonitorViewModel {
         voiceTask?.cancel()
         voiceTask = nil
         voice.stop()
+        endAgentConversation()
         isListening = false
         if let watchCheckInID { WatchLink.shared.cancelCheckIn(id: watchCheckInID) }
         watchCheckInID = nil

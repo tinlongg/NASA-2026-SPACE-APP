@@ -1,6 +1,0 @@
-exercise | What does NASA describe about astronaut exercise and fitness?
-isolation,confinement | How can isolation and confinement affect crew performance?
-sleep | What stressors are associated with inadequate sleep and irregular schedules?
-teamwork | Why is teamwork important for mission success?
-osdr,datasets | What kinds of datasets does OSDR hold?
-bed rest,bedrest,osd-946 | What did the bed rest exercise study investigate?
