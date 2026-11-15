@@ -871,6 +871,9 @@ async function offlineSetup() {
   if (!('serviceWorker' in navigator)) { element('offline-status').textContent = 'Offline caching is not supported in this browser.'; return; }
   try {
     await navigator.serviceWorker.register('/sw.js', { type: 'module', updateViaCache: 'none' });
+    // A new deploy replaced the service worker while this page was open: reload to show it,
+    // unless the camera is running, so a session is never cut off.
+    if (navigator.serviceWorker.controller) navigator.serviceWorker.addEventListener('controllerchange', () => { if (mode !== 'live') location.reload(); }, { once: true });
     const registration = await navigator.serviceWorker.ready;
     if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
     const query = type => new Promise((resolve, reject) => {
