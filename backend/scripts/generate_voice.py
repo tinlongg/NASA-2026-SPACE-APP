@@ -6,7 +6,7 @@ exact text) and writes one mp3 per phrase next to it. Phrases named web-* go to 
     ELEVENLABS_API_KEY=... python backend/scripts/generate_voice.py [--force]
 
 The key is read from the environment or backend/.env (git-ignored). Optional: ELEVENLABS_VOICE_ID
-(default: Eric, the voice set on the CrewSafety Check-in agent) and ELEVENLABS_MODEL (default eleven_multilingual_v2).
+(default: the voice set on the CrewSafety Check-in agent, found through the API; Eric if that lookup fails) and ELEVENLABS_MODEL (default eleven_multilingual_v2).
 """
 import json
 import os
@@ -42,6 +42,27 @@ def tls_context() -> ssl.SSLContext:
         return ssl.create_default_context(cafile=system if os.path.exists(system) else None)
 
 
+def api_get(key: str, path: str):
+    request = urllib.request.Request(f"https://api.elevenlabs.io{path}", headers={"xi-api-key": key})
+    with urllib.request.urlopen(request, timeout=30, context=tls_context()) as response:
+        return json.loads(response.read())
+
+
+def agent_voice(key: str):
+    """The voice currently set on the CrewSafety Check-in agent (or ELEVENLABS_AGENT_ID), or None."""
+    try:
+        agent_id = os.environ.get("ELEVENLABS_AGENT_ID")
+        if not agent_id:
+            agents = api_get(key, "/v1/convai/agents").get("agents", [])
+            match = next((agent for agent in agents if "crewsafety" in (agent.get("name") or "").lower()), None)
+            agent_id = match["agent_id"] if match else None
+        if not agent_id:
+            return None
+        return api_get(key, f"/v1/convai/agents/{agent_id}")["conversation_config"]["tts"]["voice_id"]
+    except Exception:
+        return None
+
+
 def synthesize(key: str, voice: str, model: str, text: str) -> bytes:
     body = json.dumps({
         "text": text,
@@ -62,7 +83,13 @@ def main() -> int:
     if not key:
         print("Set ELEVENLABS_API_KEY in the environment or backend/.env.", file=sys.stderr)
         return 1
-    voice = os.environ.get("ELEVENLABS_VOICE_ID", DEFAULT_VOICE)
+    # Clips follow the voice set on the ElevenLabs agent, so changing the agent and re-running this
+    # script updates the app and the website. ELEVENLABS_VOICE_ID overrides; Eric is the fallback.
+    voice = os.environ.get("ELEVENLABS_VOICE_ID") or agent_voice(key) or DEFAULT_VOICE
+    try:
+        print(f"voice: {api_get(key, '/v1/voices/' + voice).get('name', voice)} ({voice})")
+    except Exception:
+        print(f"voice: {voice}")
     model = os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2")
     force = "--force" in sys.argv
     for phrase in json.loads((VOICE_DIR / "phrases.json").read_text()):

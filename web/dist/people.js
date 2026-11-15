@@ -66,6 +66,20 @@ export class MouthActivity {
   }
 }
 
+/** Counts a blink when the eyes go open, then closed, then open again (scores sampled a few times a second). */
+export class BlinkDetector {
+  constructor({ closed = 0.5, open = 0.3 } = {}) { this.closed = closed; this.open = open; this.state = 'unknown'; }
+  reset() { this.state = 'unknown'; }
+  /** Returns true on the sample where a blink completes. */
+  update(scores) {
+    if (!scores || scores.eyeBlinkLeft === undefined || scores.eyeBlinkRight === undefined) { this.state = 'unknown'; return false; }
+    const value = (scores.eyeBlinkLeft + scores.eyeBlinkRight) / 2;
+    if (value < this.open) { const blinked = this.state === 'closed'; this.state = 'open'; return blinked; }
+    if (value >= this.closed && this.state === 'open') this.state = 'closed';
+    return false;
+  }
+}
+
 /** Bounding box (0..1) of a face mesh, grown by a margin, for the close-up crop. */
 export function faceBox(landmarks, margin = 0.6) {
   if (!landmarks?.length) return null;
@@ -86,7 +100,7 @@ export function cropRect(box, videoWidth, videoHeight, aspect = 4 / 3) {
 }
 
 /** Plain-language readings for one person, from the rule-based detector and the face blendshapes. */
-export function describePerson({ tracked, upper, motion, threshold, stillFor, stillSeconds, alerted, eyes, mouth, replay }) {
+export function describePerson({ tracked, upper, motion, threshold, stillFor, stillSeconds, alerted, eyes, mouth, replay, faceActiveAgo }) {
   const lines = [];
   if (!tracked) return ['Not tracked right now. Shoulders need to be visible.'];
   lines.push(upper ? 'Tracking the upper body only (hips are not visible).' : 'Tracking the full body.');
@@ -97,6 +111,7 @@ export function describePerson({ tracked, upper, motion, threshold, stillFor, st
   else {
     lines.push(eyes?.state === 'open' ? 'Eyes look open.' : eyes?.state === 'closed' ? 'Eyes look closed.' : eyes?.state === 'unclear' ? 'The eyes give mixed readings.' : 'No clear view of the eyes.');
     lines.push(mouth?.state === 'moving' ? 'The mouth is moving.' : mouth?.state === 'still' ? 'The mouth is still.' : 'Mouth movement is not known yet.');
+    if (faceActiveAgo != null && faceActiveAgo < stillSeconds) lines.push(`Facial activity (talking or blinking) seen ${Math.max(0, Math.round(faceActiveAgo))} s ago. It counts as activity and restarts the stillness timer.`);
   }
   return lines;
 }

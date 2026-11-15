@@ -61,6 +61,8 @@ export function shapeChange(a, b) {
 export class InactivityDetector {
   constructor({ stillSeconds = STILL_SECONDS, threshold = MOVE_THRESHOLD } = {}) { this.stillSeconds = stillSeconds; this.threshold = threshold; this.reset(); }
   reset() { this.anchor = null; this.stillSince = null; this.lostSince = null; this.lastTime = -Infinity; this.alerted = false; this.motion = null; }
+  /** Something other than a joint moved (talking, blinking): restart the stillness timer without changing the shape. */
+  noteActivity(time) { if (!this.anchor) return; this.stillSince = time; this.alerted = false; }
   /** Seconds the tracked person has held still, or 0 when nobody is tracked. */
   stillFor(time) { return this.stillSince == null ? 0 : Math.max(0, time - this.stillSince); }
   process(time, measurement) {
