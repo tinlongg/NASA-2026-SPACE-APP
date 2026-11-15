@@ -22,6 +22,7 @@ export function initAccount(onChange) {
     el('account-mode').textContent = registering ? 'I already have an account' : 'Create an account instead';
     el('account-password').autocomplete = registering ? 'new-password' : 'current-password';
     el('account-password').minLength = registering ? 8 : 1;
+    el('account-phone-block').hidden = !registering;
     document.querySelector('label[for="account-password"]').textContent = registering ? 'Password, at least 8 characters' : 'Password';
     if (user) el('account-summary').textContent = `Signed in as @${user.username}${user.role==='admin'?' · Administrator across CrewSafety':''}. Journal entries you save are stored in your account and indexed for search and MUSE memory.`;
   }
@@ -35,8 +36,12 @@ export function initAccount(onChange) {
     event.preventDefault(); if (busy) return;
     busy = true; el('account-submit').disabled = true; message.textContent = registering ? 'Creating account…' : 'Signing in…';
     try {
+      const wantsPhone = registering && form.elements.phone.value.trim() !== '', consent = form.elements.phoneConsent.checked, phone = form.elements.phone.value;
+      if (wantsPhone && !consent) { message.textContent = 'Tick the box to agree to alert calls, or clear the phone number.'; return; }
       const data = await api(registering ? '/api/auth/register' : '/api/auth/login', 'POST', { username: form.elements.username.value, password: form.elements.password.value });
       form.reset(); message.textContent = ''; dialog.close(); set(data.user);
+      // The account exists now. The number goes through the same opt-in route as the Circle tab; a bad number never undoes sign-up.
+      if (wantsPhone) api('/api/calls/me', 'PUT', { phone, consent }).catch(error => alert(`Your account was created, but the phone number was not saved: ${error.message} You can add it on the Circle tab.`));
     } catch (error) { message.textContent = error.name === 'TimeoutError' ? 'The server took too long. Try again.' : error.message; form.elements.password.value = ''; }
     finally { busy = false; el('account-submit').disabled = false; }
   };
