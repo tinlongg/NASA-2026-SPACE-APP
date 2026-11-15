@@ -83,3 +83,26 @@ test('every browser module the app imports is served by the Worker and cached by
     }
   }
 });
+
+import { BlinkDetector } from '../dist/people.js';
+import { InactivityDetector } from '../dist/detector.js';
+test('a blink is open, then closed, then open again', () => {
+  const blink = new BlinkDetector(), score = value => ({ eyeBlinkLeft: value, eyeBlinkRight: value });
+  assert.equal(blink.update(score(0.05)), false);
+  assert.equal(blink.update(score(0.7)), false);
+  assert.equal(blink.update(score(0.1)), true);
+  assert.equal(blink.update(score(0.1)), false);
+  const staysClosed = new BlinkDetector(); staysClosed.update(score(0.05)); staysClosed.update(score(0.9));
+  assert.equal(staysClosed.update(score(0.9)), false, 'eyes held shut are not a blink');
+  assert.equal(new BlinkDetector().update(null), false);
+});
+
+test('facial activity restarts the stillness timer and the alert waits for 15 more seconds', () => {
+  const body = { points: { 11: [0.4, 0.3], 12: [0.6, 0.3], 23: [0.45, 0.6], 24: [0.55, 0.6] } };
+  const detector = new InactivityDetector();
+  for (let time = 0; time < 14; time += 0.5) assert.equal(detector.process(time, body), null);
+  detector.noteActivity(14);                                   // the person spoke
+  for (let time = 14; time < 28.5; time += 0.5) assert.equal(detector.process(time, body), null, `no alert at ${time}`);
+  assert.ok(detector.process(29, body), 'alert after 15 s with no activity at all');
+  assert.equal(new InactivityDetector().noteActivity(5), undefined, 'ignored when nobody is tracked');
+});

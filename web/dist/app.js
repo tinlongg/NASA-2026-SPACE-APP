@@ -4,7 +4,7 @@ import { REPLAYS, replayMeasurement } from './fixtures.js';
 import { VISION_MODULE, VISION_WASM, POSE_MODELS, FACE_MODEL } from './offline-config.js';
 import { visibilityGroups, FramingMonitor, MODEL_CHOICES } from './camera-health.js';
 import { onDeviceSupport, installLanguagePack, listenForAnswer, ANSWER_LABEL } from './voice-answer.js';
-import { PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthActivity, faceBox, cropRect, describePerson } from './people.js';
+import { BlinkDetector, PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthActivity, faceBox, cropRect, describePerson } from './people.js';
 import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
 import { initAccount, api } from './account.js';
@@ -30,7 +30,7 @@ const tracker = new PersonTracker(), people = new Map(), replayPerson = { id: 1,
 // People are found automatically: nobody is entered ahead of time. The only limit is how many the models look for per frame.
 const MAX_PEOPLE = 4;
 let selectedId = null, focusId = null, faceLandmarker = null, lastFace = 0;
-const newPerson = id => ({ id, detector: new InactivityDetector(), mouth: new MouthActivity(), face: null, result: null, pose: null, seen: 0 });
+const newPerson = id => ({ id, detector: new InactivityDetector(), mouth: new MouthActivity(), blink: new BlinkDetector(), face: null, result: null, pose: null, seen: 0, activeAt: null, activeReason: null, appliedAt: null });
 function resetPeople() { tracker.reset(); people.clear(); detector.reset(); replayPerson.mouth.reset(); replayPerson.face = null; replayPerson.result = null; focusId = null; selectedId = null; renderViews(true); }
 let stream, landmarker, animation, generation = 0, mode = 'idle', lastVideoTime = -1, lastInference = 0;
 const events = [];
@@ -199,7 +199,7 @@ function renderViews(force = false) {
     const name = document.createElement('strong'); name.textContent = mode === 'replay' ? 'Synthetic person' : `Person ${person.id}`;
     const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = result?.alerted ? 'Alert' : !result?.measurement ? 'Not tracked' : result.stillFor >= STILL_SECONDS / 3 ? 'Still' : 'Moving';
     head.append(name, chip); card.append(head);
-    const lines = describePerson({ tracked: Boolean(result?.measurement), upper: result?.upper, motion: result?.motion, threshold: result?.threshold, stillFor: result?.stillFor ?? 0, stillSeconds: STILL_SECONDS, alerted: result?.alerted, eyes: person.face?.eyes, mouth: person.face?.mouth, replay: mode === 'replay' });
+    const lines = describePerson({ tracked: Boolean(result?.measurement), upper: result?.upper, motion: result?.motion, threshold: result?.threshold, stillFor: result?.stillFor ?? 0, stillSeconds: STILL_SECONDS, alerted: result?.alerted, eyes: person.face?.eyes, mouth: person.face?.mouth, replay: mode === 'replay', faceActiveAgo: person.activeAt == null || mode === 'replay' || !element('face-activity-enabled').checked ? null : performance.now() / 1000 - person.activeAt });
     for (const line of lines) { const item = document.createElement('p'); item.textContent = line; card.append(item); }
     const look = events.find(event => event.personId === person.id && event.lookNote?.status === 'done');
     if (look) { const note = document.createElement('p'); note.className = 'look'; note.textContent = `MUSE second look (a description, not a decision): ${look.lookNote.text}`; card.append(note); }
@@ -222,6 +222,8 @@ function updateFaces(now, time, poses, ids) {
     if (!person) return;
     const scores = blendshapeScores(result.faceBlendshapes?.[index]?.categories);
     person.face = { eyes: eyeReading(scores), mouth: person.mouth.update(time, scores), box: faceBox(landmarks), at: time }; matched.add(person.id);
+    if (person.face.mouth.state === 'moving') { person.activeAt = time; person.activeReason = 'talking'; }
+    if (person.blink.update(scores)) { person.activeAt = time; person.activeReason = 'blinking'; }
   });
   for (const person of people.values()) if (!matched.has(person.id) && person.face && time - person.face.at > 1) { person.face = null; person.mouth.reset(); }
 }
@@ -247,7 +249,10 @@ function drawPose(pose, colour = '#5ccf8e') {
 
 // One person's detector step. Raises an event when the detector fires; the display is separate.
 function evaluatePerson(person, time, measurement) {
-  const d = person.detector, detection = d.process(time, measurement), stillFor = d.stillFor(time);
+  const d = person.detector, detection = d.process(time, measurement);
+  // Talking or blinking is activity: a person standing still while speaking is not unresponsive.
+  if (mode !== 'replay' && element('face-activity-enabled').checked && person.activeAt != null && person.activeAt !== person.appliedAt) { d.noteActivity(person.activeAt); person.appliedAt = person.activeAt; }
+  const stillFor = d.stillFor(time);
   // Coach and events get two numbers, never joint positions.
   const summary = measurement ? { motion: Number(Math.min(d.motion ?? 0, 9.99).toFixed(3)), stillFor: Number(stillFor.toFixed(1)) } : null;
   const snapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: summary, detection: detection && { stillFor: Number(detection.stillFor.toFixed(1)), threshold: detection.threshold } };
