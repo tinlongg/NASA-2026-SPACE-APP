@@ -15,11 +15,40 @@ const ACCT_MAX_ENTRY = 10000;
 const ACCT_MAX_SUIT_CHECKS = 50;
 const ACCT_MAX_PHOTOS = 60, ACCT_PHOTO_BODY = 400000, ACCT_PHOTO_BYTES = 280000;
 
-// Deployment-only bootstrap: salted hash and immutable user ID, never a plaintext password.
+// Intentionally public demo accounts for Git-based deployments, preserving local IDs.
+// Override MISSION_ADMIN_ACCOUNTS (set [] to disable) before using non-demo data.
+const ACCT_DEMO_ADMINS = [
+  {
+    "id": "90ee38f1-1e4c-4459-b995-c97d62d43620",
+    "username": "tinluong",
+    "salt": "35150f1dcc86fbd9eb1040d7ac5725a5",
+    "hash": "c5b2aa5a5136007452724e31a6afcf7f4ac5d04d34f83763bc6fb3066b0b7d31"
+  },
+  {
+    "id": "16bffe17-22f9-4abf-b689-d54308e51e8d",
+    "username": "andrewha",
+    "salt": "782be0b77fdda5cf3d796c29e0727922",
+    "hash": "9c64311089c691289c663b059089f4b716e0506a31e611b86f42905736f98664"
+  },
+  {
+    "id": "497fc0a6-ab4b-45aa-9bcf-73041d2cf960",
+    "username": "leonnguyen",
+    "salt": "f4e1cbcbcf8038feea1a4f7448632df1",
+    "hash": "39ad6bd5a4cd17b678c79298219d4daefdeabe31dc4ed0b677480948ec57b6f6"
+  },
+  {
+    "id": "e5620b4d-e45d-46f8-bfc0-756d97484a98",
+    "username": "henryluu",
+    "salt": "06052d1584e67976c2741fac18ccd8cf",
+    "hash": "5f7af8133c9703dc4cdd63422babffcd8d73e213e42e9b8cb0166af7f4613954"
+  }
+];
+
+// Bootstrap accounts by immutable ID on first login.
 export function missionAdminConfigs(env) {
   try {
     const legacy = JSON.parse(env.MISSION_ADMIN_ACCOUNT || 'null');
-    const configs = JSON.parse(env.MISSION_ADMIN_ACCOUNTS || '[]');
+    const configs = JSON.parse(env.MISSION_ADMIN_ACCOUNTS || JSON.stringify(ACCT_DEMO_ADMINS));
     return [...(legacy ? [legacy] : []), ...(Array.isArray(configs) ? configs : [])].filter(config => config && /^[a-f0-9-]{36}$/.test(config.id) && /^[a-z0-9._-]{3,30}$/.test(config.username) && /^[a-f0-9]{32}$/.test(config.salt) && /^[a-f0-9]{64}$/.test(config.hash));
   } catch { return []; }
 }
