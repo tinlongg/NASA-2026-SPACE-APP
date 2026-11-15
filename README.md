@@ -54,6 +54,27 @@ everything except the live camera; use **Monitor → Test → Synthetic Stops Mo
 cd ios && xcodebuild test -project CrewSafety.xcodeproj -scheme CrewSafety -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO
 ```
 
+The shipping `CrewSafety` scheme embeds the Apple Watch app, so it requires the watchOS simulator
+runtime. For iPhone-only unit tests that skip the Watch app entirely:
+
+```bash
+ios/scripts/test-ios-only.sh
+```
+
+or directly:
+
+```bash
+cd ios && xcodebuild test -project CrewSafetyIOSOnly.xcodeproj -scheme CrewSafety-iOSOnly \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' CODE_SIGNING_ALLOWED=NO
+```
+
+`CrewSafetyIOSOnly.xcodeproj` is generated from `ios/project-ios-only.yml`. Regenerate it after adding
+Swift files:
+
+```bash
+cd ios && xcodegen generate --spec project-ios-only.yml --project . --project-root .
+```
+
 ## Run the backend
 
 See `backend/README.md`. Short version:
