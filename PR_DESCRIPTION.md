@@ -20,5 +20,3 @@
 
 ## Tests
 Web 56/56 (Node 22), iOS 43/43 on iPhone 17 / iOS 26.5. Photo and sleep routes, vision routes (mocked provider, plus one live call with synthetic images) and suit-check logic are covered.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)

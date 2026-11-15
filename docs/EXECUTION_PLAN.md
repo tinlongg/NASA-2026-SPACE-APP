@@ -622,7 +622,7 @@ Deliverable: tag `demo-candidate`, installed on the demo iPhone and one backup i
 
 ## 7. Five independent AI coding prompts
 
-Each block is self-contained. Paste one into a fresh Claude Code or Codex session opened at the repository root. Prepend the master prompt from §10 when the tool allows a system or project prompt; otherwise paste §10 first, then the developer prompt.
+Each block is self-contained. Paste one into a fresh AI coding assistant session opened at the repository root. Prepend the master prompt from §10 when the tool allows a system or project prompt; otherwise paste §10 first, then the developer prompt.
 
 ### 7.1 Developer 1 — App shell, shared core, dashboard
 
@@ -1037,7 +1037,7 @@ Never describe a replay, a precomputed answer or the simulated chart as live or 
 
 ---
 
-## 10. Master implementation prompt for Claude Code / Codex
+## 10. Master implementation prompt for AI coding assistants
 
 ```text
 You are an implementation agent on a five-person hackathon team building "CrewSafety": a native

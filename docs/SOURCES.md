@@ -36,7 +36,7 @@ for regeneration steps. Review each exported answer before the presentation.
 
 ## Spacesuit checklist source (not in the MUSE corpus)
 
-The Suit check tab (`web/dist/suit-layers.js`) follows one NASA page, read on 2026-11-15 (by Claude Code and, separately, by a teammate), not by an
+The Suit check tab (`web/dist/suit-layers.js`) follows one NASA page, read on 2026-11-15 (by an AI coding assistant and, separately, by a teammate), not by an
 independent human reviewer: **Review status: Pending.**
 
 | Topic | Source | What it says |
@@ -49,7 +49,7 @@ An earlier search-result summary said 14 layers (and a NIAC report 3 + 2 + 9); t
 
 The Dashboard card (`ios/CrewSafety/Features/Telemetry/HealthComparison.swift`) compares Apple Watch daily
 readings with the wearer's own last 28 days and with two published in-flight figures. Read on 2026-11-15
-by Claude Code from the PubMed Central copy (the table was read as page text, not checked against the
+by an AI coding assistant from the PubMed Central copy (the table was read as page text, not checked against the
 PDF), not by an independent human reviewer: **Review status: Pending.**
 
 | Measurement | Figure used | Source | Where in the source |
@@ -60,7 +60,7 @@ PDF), not by an independent human reviewer: **Review status: Pending.**
 | Resting heart rate | 57.7 ± 4.8 bpm (mean ± SD worked out from six per-astronaut values) | NASA Life Sciences Data Archive, [Average Resting Data by Subject](https://nlsp.nasa.gov/explore/data/details/IDP-LSDA_DATASET-0000000000001059?dataType=DATASETS), experiment 178066, STS-40 and STS-58 | Table 2, "In flight" rows, HR column. File kept in `data/nasa-lsda/raw/` |
 | Breathing rate | 11.9 ± 0.4 breaths/min (mean ± SE, 62 measurements, 10 ISS crew); shown as ± 3.15 SD derived by us | NASA Life Sciences Data Archive, [Ventilation, Pulmonary Gas Exchange, VA/Q, and Pulmonary Perfusion](https://nlsp.nasa.gov/explore/data/details/IDP-LSDA_DATASET-0000000000001294?dataType=DATASETS), experiment 96-E044, ISS Expeditions 3 to 6 | "In-flight" row, fB column. File kept in `data/nasa-lsda/raw/` |
 
-The two NASA rows were downloaded from NASA's portal and read by Claude Code on 2026-11-15; details, hashes
+The two NASA rows were downloaded from NASA's portal and read by an AI coding assistant on 2026-11-15; details, hashes
 and what was not used are in `data/nasa-lsda/README.md`. **Review status: Pending** for these as well.
 
 Limits a reviewer should check and the demo should state:
@@ -81,7 +81,7 @@ Looked for and **not used**:
 ## Figures for adults on Earth (same card)
 
 The card also places each reading next to a published figure for adults on Earth, shown as mean ± 1 SD.
-Read on 2026-11-15 by Claude Code from the open-access pages (page text, not the PDFs), not by an
+Read on 2026-11-15 by an AI coding assistant from the open-access pages (page text, not the PDFs), not by an
 independent human reviewer: **Review status: Pending.**
 
 | Measurement | Figure used | Source | Where in the source |

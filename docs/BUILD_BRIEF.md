@@ -1,6 +1,6 @@
 # Crew Safety & Wellness — Hackathon Build Brief
 
-> **Audience:** Claude Code, Codex, and a five-person hackathon team  
+> **Audience:** AI coding assistants and a five-person hackathon team  
 > **Primary deliverable:** Native iPhone app in **Swift + SwiftUI**  
 > **Status:** Project specification and build checklist; not an assertion that features have been implemented
 
@@ -310,7 +310,7 @@ Treat this structure as a starting point; follow idiomatic Xcode project structu
 - Avoid continuously recording or transmitting sensitive camera/journal data without explicit permission.
 - Never describe simulated data as actual astronaut telemetry.
 
-## 12. Instructions for Claude Code / Codex
+## 12. Instructions for AI coding assistants
 
 You are an implementation assistant for a **five-person team building a native SwiftUI iOS hackathon app**.
 
