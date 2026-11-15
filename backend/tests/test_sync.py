@@ -103,8 +103,27 @@ def test_serves_dashboard_and_allows_only_configured_web_origins(setup):
     client, _ = setup
     assert client.get('/dashboard/').status_code == 200
     assert client.get('/dashboard/crew-sync.js').status_code == 200
-    assert client.get('/dashboard/data/nasa-research.json').json()['schemaVersion'] == 1
+    assert client.get('/dashboard/data/nasa-research.json').status_code == 404  # the research section was removed
     allowed = client.options('/sync/state', headers={'Origin':'http://localhost:4173', 'Access-Control-Request-Method':'PUT', 'Access-Control-Request-Headers':'authorization,content-type'})
     assert allowed.status_code == 200
     denied = client.options('/sync/state', headers={'Origin':'https://unrelated.example', 'Access-Control-Request-Method':'PUT'})
     assert denied.status_code == 400
+
+
+def test_optional_health_summary_is_validated_and_removed_when_not_sent(setup):
+    client, _ = setup
+    headers = pair(client)
+    body = snapshot()
+    body['health'] = {'updatedAt': 1794680000000, 'simulated': False,
+                      'metrics': [{'key': 'heartRate', 'value': 71, 'usualLow': 60, 'usualHigh': 78, 'standing': 'within'}]}
+    assert client.put('/sync/state', json=body, headers=headers).status_code == 200
+    assert client.get('/sync/state', headers=headers).json()['snapshot']['health']['metrics'][0]['value'] == 71
+    body.pop('health')
+    assert client.put('/sync/state', json=body, headers=headers).status_code == 200
+    assert client.get('/sync/state', headers=headers).json()['snapshot']['health'] is None
+    for bad in ({'key': 'ecg', 'value': 1}, {'key': 'heartRate', 'value': -1}, {'key': 'heartRate', 'standing': 'good'},
+                {'key': 'heartRate', 'notes': 'x'}):
+        body['health'] = {'updatedAt': 1, 'simulated': False, 'metrics': [bad]}
+        assert client.put('/sync/state', json=body, headers=headers).status_code == 422
+    body['health'] = {'updatedAt': 1, 'simulated': False, 'metrics': [{'key': 'heartRate'}, {'key': 'heartRate'}]}
+    assert client.put('/sync/state', json=body, headers=headers).status_code == 422

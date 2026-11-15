@@ -60,12 +60,41 @@ class Telemetry(WireModel):
     source: Literal["simulated", "healthKit"]
 
 
+HealthKey = Literal["heartRate", "restingHeartRate", "heartRateVariability", "respiratoryRate", "bloodOxygen"]
+Standing = Literal["below", "within", "above"]
+
+
+class HealthMetric(WireModel):
+    key: HealthKey
+    value: float | None = Field(default=None, ge=0, le=1000)
+    usualLow: float | None = Field(default=None, ge=0, le=1000)
+    usualHigh: float | None = Field(default=None, ge=0, le=1000)
+    standing: Standing | None = None
+    astronautLow: float | None = Field(default=None, ge=0, le=1000)
+    astronautHigh: float | None = Field(default=None, ge=0, le=1000)
+    astronautStanding: Standing | None = None
+
+
+class HealthSummary(WireModel):
+    """Optional, opt-in Watch summary: daily averages and ranges only. No ECG, no raw samples."""
+    updatedAt: float = Field(ge=0)
+    simulated: bool
+    metrics: list[HealthMetric] = Field(max_length=5)
+
+    @model_validator(mode="after")
+    def unique_keys(self):
+        if len({m.key for m in self.metrics}) != len(self.metrics):
+            raise ValueError("Duplicate health metrics")
+        return self
+
+
 class Snapshot(WireModel):
     deviceID: UUID
     crew: list[Crew] = Field(min_length=1, max_length=50)
     monitoredCrewMemberID: UUID
     events: list[Event] = Field(max_length=500)
     telemetry: list[Telemetry] = Field(max_length=200)
+    health: HealthSummary | None = None
 
     @model_validator(mode="after")
     def validate_references(self):

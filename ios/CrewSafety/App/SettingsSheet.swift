@@ -28,6 +28,7 @@ struct SettingsSheet: View {
                         .autocorrectionDisabled()
                         .disabled(settings.dashboardSyncEnabled)
                     Toggle("Share with website dashboard", isOn: $settings.dashboardSyncEnabled)
+                    Toggle("Include Watch health summary", isOn: $settings.shareHealthSummary)
                     Text(dashboardSync.status).font(.footnote)
                     if let date = dashboardSync.lastSynced {
                         Text("Last synced: \(date.formatted(date: .omitted, time: .standard))").font(.caption)
@@ -35,7 +36,7 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Website connection")
                 } footer: {
-                    Text("Open the website, create a pairing session, and enter its code here. The website address is already set; change it under Advanced only to test against another server. Shares crew names, safety events and labeled telemetry while this app is open. Website acknowledgements sync back. Video and journal stay outside this connection. Pairing is not saved when the app closes.")
+                    Text("Open the website, create a pairing session, and enter its code here. The website address is already set; change it under Advanced only to test against another server. Shares crew names, safety events and labeled telemetry while this app is open. Website acknowledgements sync back. Video and journal stay outside this connection. The Watch health summary is off by default: when on, it sends five daily averages (heart rate, resting heart rate, heart rate variability, breathing rate, blood oxygen) with your usual range and the astronaut range, once you have turned on the comparison on the Dashboard. ECG and raw readings are never sent. Pairing is not saved when the app closes.")
                 }
                 Section {
                     Toggle("Talk with the voice agent", isOn: $settings.voiceAgentEnabled)

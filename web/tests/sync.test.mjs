@@ -51,3 +51,14 @@ test('Apple Watch readings, check-in requests and answers travel through the ses
  assert.equal((await call('wearable','PUT',code,reading({deviceID:crypto.randomUUID()}))).status,409);
  assert.equal((await call('checkin','POST',code,{id:'x',seconds:999})).status,422);
 });
+test('an opted-in Watch health summary is validated, stored, and dropped again when not sent',async()=>{
+ const {call}=setup(); const {pairingCode:code}=await (await call('sessions','POST')).json();
+ const health={updatedAt:Date.now(),simulated:false,metrics:[{key:'heartRate',value:71,usualLow:60,usualHigh:78,standing:'within',astronautLow:66.4,astronautHigh:82.8,astronautStanding:'within'},{key:'bloodOxygen',value:97}]};
+ assert.equal((await call('state','PUT',code,{...fixture(),health})).status,200);
+ const stored=(await (await call('state','GET',code)).json()).snapshot.health;
+ assert.equal(stored.metrics[0].value,71); assert.equal(stored.metrics[1].usualLow,null); assert.equal(stored.simulated,false);
+ assert.equal((await call('state','PUT',code,fixture())).status,200);
+ assert.equal((await (await call('state','GET',code)).json()).snapshot.health,undefined,'turning sharing off removes it');
+ const bad=[{...health,ecg:'Sinus rhythm'},{...health,metrics:[{key:'ecg',value:1}]},{...health,metrics:[{key:'heartRate',value:-1}]},{...health,metrics:[{key:'heartRate'},{key:'heartRate'}]},{...health,metrics:[{key:'heartRate',standing:'good'}]},{...health,metrics:[{key:'heartRate',notes:'x'}]},{...health,simulated:'no'}];
+ for(const item of bad) assert.equal((await call('state','PUT',code,{...fixture(),health:item})).status,422,JSON.stringify(item).slice(0,60));
+});

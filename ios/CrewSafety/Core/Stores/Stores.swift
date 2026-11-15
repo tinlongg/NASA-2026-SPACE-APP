@@ -64,6 +64,10 @@ final class AppSettings {
     var dashboardSyncEnabled = false
     var dashboardBaseURL = "https://crew-safety-connected.lustrousbush32.chatgpt.site"
     var dashboardPairingCode = ""
+    /// Opt-in: send a small Watch health summary (daily averages and ranges, no ECG) to the paired website.
+    var shareHealthSummary = UserDefaults.standard.bool(forKey: "shareHealthSummary") {
+        didSet { UserDefaults.standard.set(shareHealthSummary, forKey: "shareHealthSummary") }
+    }
     /// Opt-in: talk with the ElevenLabs check-in agent. The microphone audio is sent to ElevenLabs while a check-in is open.
     var voiceAgentEnabled = UserDefaults.standard.bool(forKey: "voiceAgentEnabled") {
         didSet { UserDefaults.standard.set(voiceAgentEnabled, forKey: "voiceAgentEnabled") }

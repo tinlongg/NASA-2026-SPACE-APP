@@ -37,6 +37,31 @@ export async function requestWatchCheckIn(id, seconds) {
 }
 export function cancelWatchCheckIn(id) { if (paired) syncCall(paired, 'checkin', 'POST', { id, cancel: true }).catch(() => {}); }
 
+
+// Watch health summary the wearer chose to share from the iPhone. A description of numbers, not an assessment.
+const HEALTH = { heartRate: ['Heart rate', 'bpm', 0], restingHeartRate: ['Resting heart rate', 'bpm', 0], heartRateVariability: ['Heart rate variability', 'ms', 0], respiratoryRate: ['Breathing rate', 'breaths/min', 1], bloodOxygen: ['Blood oxygen', '%', 0] };
+const STANDING = { below: 'Below', within: 'Within', above: 'Above' };
+export function healthLines(metric) {
+  const [title, unit, digits] = HEALTH[metric.key] || [metric.key, '', 0], fmt = v => `${v.toFixed(digits)}${unit === '%' ? '%' : ' ' + unit}`, range = (a, b) => `${a.toFixed(digits)}–${b.toFixed(digits)}${unit === '%' ? '%' : ' ' + unit}`;
+  const own = metric.usualLow != null && metric.usualHigh != null ? `${metric.standing ? STANDING[metric.standing] : 'Shown against'} their usual range (${range(metric.usualLow, metric.usualHigh)})` : 'Not enough earlier days for a usual range';
+  const astro = metric.astronautLow != null && metric.astronautHigh != null ? `${metric.astronautStanding ? STANDING[metric.astronautStanding] : 'Reported for'} the range reported for astronauts in flight (${range(metric.astronautLow, metric.astronautHigh)})` : null;
+  return { title, value: metric.value != null ? fmt(metric.value) : 'No recent reading', own, astro };
+}
+function renderHealth(box, health) {
+  box.replaceChildren();
+  if (!health || !health.metrics.length) { box.hidden = true; return; }
+  box.hidden = false;
+  const head = make('h3', 'Apple Watch summary'); if (health.simulated) head.append(' ', make('span', 'Simulated', 'micro'));
+  box.append(head, make('p', `Shared from the iPhone · updated ${new Date(health.updatedAt).toLocaleTimeString()} · daily averages from the Watch`, 'micro'));
+  for (const metric of health.metrics) {
+    const lines = healthLines(metric), row = make('article', null, 'entry');
+    row.append(make('strong', `${lines.title}: ${lines.value}`), make('p', lines.own, 'micro'));
+    if (lines.astro) row.append(make('p', lines.astro, 'micro'));
+    box.append(row);
+  }
+  box.append(make('p', 'A description of numbers, not a health assessment. These never decide an alert.', 'micro'));
+}
+
 export function initializeCrewSync() {
   const panel = make('section', null, 'panel crew-sync');
   panel.setAttribute('aria-label', 'iPhone connection');
@@ -46,7 +71,7 @@ export function initializeCrewSync() {
     <div class="sync-actions"><button type="button" class="primary" data-create>Create pairing session</button><button type="submit">Connect with code</button><button type="button" data-disconnect hidden>Disconnect browser</button><button type="button" data-end hidden>End shared session</button></div></form>
     <p class="sync-help">Enter the pairing code in the iPhone app under Dashboard → Settings → Website connection. Keep the app open to send updates. Anyone with the code can view this session and acknowledge its alerts.</p>
     <p class="sync-status" role="status">Not connected. Pair the iPhone app to see its crew, events and telemetry here.</p>
-    <div class="sync-data" hidden><div class="sync-crew"></div><div class="sync-telemetry"></div><h3>iPhone safety events</h3><div class="sync-events"></div></div>`;
+    <div class="sync-data" hidden><div class="sync-crew"></div><div class="sync-telemetry"></div><div class="sync-health" hidden></div><h3>iPhone safety events</h3><div class="sync-events"></div></div>`;
   document.getElementById('dashboard').prepend(panel);
   const form = panel.querySelector('form'), baseInput = form.elements.backend, codeInput = form.elements.code;
   const status = panel.querySelector('.sync-status'), data = panel.querySelector('.sync-data');
@@ -86,6 +111,7 @@ export function initializeCrewSync() {
       crew.append(card);
     }
     const latest = [...snapshot.telemetry].filter(t => t.crewMemberID === snapshot.monitoredCrewMemberID).sort((a,b) => b.timestamp-a.timestamp)[0];
+    renderHealth(panel.querySelector('.sync-health'), snapshot.health);
     const telemetry = panel.querySelector('.sync-telemetry');
     telemetry.replaceChildren(make('h3', latest?.heartRateBPM != null ? `${Math.round(latest.heartRateBPM)} BPM` : 'No heart-rate sample'), make('p', latest ? `${latest.source === 'simulated' ? 'Simulated by the iOS app, not measured' : 'HealthKit sample'} · ${new Date(latest.timestamp).toLocaleString()}` : 'No telemetry received.'));
     // Keep focused acknowledgement controls stable across heartbeat polls.

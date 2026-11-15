@@ -1,4 +1,5 @@
 import Foundation
+import HealthKit
 import Observation
 
 /// Foreground-only, opt-in sync. No camera frames, journal text or chat is encoded.
@@ -24,6 +25,8 @@ final class DashboardSync {
         let monitoredCrewMemberID: UUID
         let events: [SafetyEvent]
         let telemetry: [TelemetrySample]
+        /// Only present when the wearer turned on "Share Watch health summary".
+        let health: HealthSummary?
     }
     private struct CheckInRequest: Decodable { let id: String; let expiresAt: Double }
     private struct RemoteState: Decodable { let events: [SafetyEvent]; let checkInRequest: CheckInRequest? }
@@ -41,6 +44,23 @@ final class DashboardSync {
         let answer: Answer?
     }
     private struct Reply: Decodable { let snapshot: RemoteState }
+
+    private var healthCache: (summary: HealthSummary, loadedAt: Date)?
+
+    /// The opt-in Watch summary, refreshed every five minutes. Never asks for Health access itself: it only
+    /// reads once the wearer has already turned on the comparison card on the Dashboard.
+    private func healthSummary(settings: AppSettings) async -> HealthSummary? {
+        guard settings.shareHealthSummary, UserDefaults.standard.bool(forKey: "healthComparisonEnabled") else {
+            healthCache = nil
+            return nil
+        }
+        if let cached = healthCache, Date().timeIntervalSince(cached.loadedAt) < 300 { return cached.summary }
+        let provider: any HealthReadingsProviding = HKHealthStore.isHealthDataAvailable() ? HealthKitReadingsProvider() : SimulatedHealthReadingsProvider()
+        let snapshot = await provider.load(now: .now)
+        let summary = HealthSummary.make(from: HealthComparison.compareAll(snapshot.readings, now: .now), simulated: snapshot.simulated, at: .now)
+        healthCache = (summary, .now)
+        return summary
+    }
 
     func run(settings: AppSettings, crew: CrewStore, events: EventStore, services: AppServices) async {
         guard settings.dashboardSyncEnabled else { status = "Not connected"; return }
@@ -64,7 +84,8 @@ final class DashboardSync {
                 let payload = Payload(deviceID: deviceID, crew: crew.crew,
                                       monitoredCrewMemberID: crew.monitoredCrewMemberID,
                                       events: Array(events.events.prefix(500)),
-                                      telemetry: services.telemetry.samples(for: crew.monitoredCrewMemberID, last: 30 * 60, now: .now))
+                                      telemetry: services.telemetry.samples(for: crew.monitoredCrewMemberID, last: 30 * 60, now: .now),
+                                      health: await healthSummary(settings: settings))
                 var request = URLRequest(url: base.appendingPathComponent("sync/state"))
                 request.httpMethod = "PUT"
                 request.timeoutInterval = 10

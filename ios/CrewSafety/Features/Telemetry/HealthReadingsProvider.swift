@@ -17,8 +17,8 @@ protocol HealthReadingsProviding: Sendable {
     func load(now: Date) async -> HealthSnapshot
 }
 
-/// Reads daily averages that the Apple Watch saved to Health on this iPhone. Everything stays on the
-/// device: the snapshot is not synced to the website and takes no part in alerts.
+/// Reads daily averages that the Apple Watch saved to Health on this iPhone. The snapshot takes no part in alerts and
+/// is not synced; only an opt-in summary (see `HealthSummary`) can go to the website.
 ///
 /// Health never reveals whether read access was refused, so "refused" and "nothing recorded" look the
 /// same. When there is nothing at all, the simulated provider's numbers are returned, labelled simulated.

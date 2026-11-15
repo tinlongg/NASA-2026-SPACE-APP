@@ -6,9 +6,24 @@ const syncNumber = (v, max = Number.MAX_SAFE_INTEGER) => typeof v === 'number' &
 function syncFields(o, keys) { return o && typeof o === 'object' && !Array.isArray(o) && Object.keys(o).every(k => keys.includes(k)); }
 function syncText(v, max, min = 0) { return typeof v === 'string' && v.length >= min && v.length <= max; }
 function syncID(v) { return typeof v === 'string' && syncUUID.test(v); }
+// Optional Watch health summary the wearer chose to share: five daily averages, their own usual range and the
+// published astronaut range. No ECG, no raw samples. Titles and units are fixed on the page, not sent.
+const SYNC_HEALTH_KEYS = ['heartRate','restingHeartRate','heartRateVariability','respiratoryRate','bloodOxygen'], SYNC_STANDING = ['below','within','above'];
+function syncHealth(h) {
+  if (!syncFields(h, ['updatedAt','simulated','metrics']) || !syncNumber(h.updatedAt) || typeof h.simulated !== 'boolean' || !Array.isArray(h.metrics) || h.metrics.length > SYNC_HEALTH_KEYS.length) throw syncError(422,'Invalid health summary');
+  const seen = new Set(), number = v => v == null || syncNumber(v, 1000), standing = v => v == null || SYNC_STANDING.includes(v);
+  for (const m of h.metrics) {
+    if (!syncFields(m, ['key','value','usualLow','usualHigh','standing','astronautLow','astronautHigh','astronautStanding']) || !SYNC_HEALTH_KEYS.includes(m.key) || seen.has(m.key)
+      || !number(m.value) || !number(m.usualLow) || !number(m.usualHigh) || !number(m.astronautLow) || !number(m.astronautHigh) || !standing(m.standing) || !standing(m.astronautStanding)) throw syncError(422,'Invalid health metric');
+    seen.add(m.key);
+    for (const k of ['value','usualLow','usualHigh','astronautLow','astronautHigh','standing','astronautStanding']) m[k] ??= null;
+  }
+  return h;
+}
 export function validateSyncSnapshot(s) {
-  if (!syncFields(s, ['deviceID','crew','monitoredCrewMemberID','events','telemetry']) || !syncID(s.deviceID) || !syncID(s.monitoredCrewMemberID)) throw syncError(422,'Invalid snapshot');
+  if (!syncFields(s, ['deviceID','crew','monitoredCrewMemberID','events','telemetry','health']) || !syncID(s.deviceID) || !syncID(s.monitoredCrewMemberID)) throw syncError(422,'Invalid snapshot');
   if (!Array.isArray(s.crew) || !s.crew.length || s.crew.length > 50 || !Array.isArray(s.events) || s.events.length > 500 || !Array.isArray(s.telemetry) || s.telemetry.length > 200) throw syncError(422,'Invalid snapshot size');
+  if (s.health != null) syncHealth(s.health); else delete s.health;
   const ids = new Set();
   for (const c of s.crew) {
     if (!syncFields(c,['id','displayName','role','status','lastUpdated']) || !syncID(c.id) || !syncText(c.displayName,100,1) || !syncText(c.role,100) || !['nominal','attention','alert'].includes(c.status) || !syncNumber(c.lastUpdated)) throw syncError(422,'Invalid crew member');

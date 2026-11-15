@@ -70,7 +70,7 @@ struct HealthComparisonCard: View {
                     }
                     .buttonStyle(.borderedProminent)
                 }
-                Text("A description of numbers, not a health assessment. Readings stay on this iPhone and never decide an alert.")
+                Text("A description of numbers, not a health assessment. Readings stay on this iPhone unless you turn on the Watch health summary in Settings, and they never decide an alert.")
                     .font(.footnote)
                     .foregroundStyle(Theme.secondaryText)
             }
