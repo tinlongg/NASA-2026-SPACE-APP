@@ -307,3 +307,25 @@ Built without the live test (that still needs a person in front of the camera; s
 - Built `web/calls.mjs` (opt-in own number, consent, masked display, cooldown and daily cap, test call) and the Circle tab block. Serious alerts from station cameras and the live monitor call opted-in members through ElevenLabs' Twilio outbound-call API (`POST /v1/convai/twilio/outbound-call`, body shape taken from ElevenLabs' API reference). Migration `0007_calls.sql`; secrets `ELEVENLABS_API_KEY`, `ELEVENLABS_ALERT_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID`. Web suite 117/117 with a fake ElevenLabs.
 - Account state found with the user's key on 2026-11-15: the CrewSafety Alert agent exists with the Twilio number assigned (outbound supported), but its prompt and first message are still the dashboard defaults with no variables. The script is in `docs/ALERT_CALL_AGENT.md`; the user must paste it.
 - **Not verified: any real call.** The request body was checked against the docs only; the API-key permission needed is not stated by ElevenLabs.
+
+### iPhone: Watch readings compared with own baseline and astronaut figures (2026-11-15)
+
+- New Dashboard card "Watch comparison" under Apple Watch (`Features/Telemetry/HealthComparison.swift`, `HealthReadingsProvider.swift`, `HealthComparisonCard.swift`). After a tap it reads daily averages from Health for heart rate, resting heart rate, HRV (SDNN), breathing rate and blood oxygen, plus the newest ECG recording's Apple label. Each value is described as above, within or below the wearer's own usual range (10th to 90th percentile of up to 28 earlier days, at least 7 needed) and, for heart rate and HRV only, the mean ± 1 SD published for 7 ISS astronauts (Otsuka et al. 2019; see `docs/SOURCES.md`, review Pending).
+- Apple Watch does not stream ECG to apps, so there is no "ECG level" to compare: the card shows the label of the last recording taken in Apple's ECG app.
+- Readings stay on the iPhone (not synced to the website) and take no part in alerts. Wording is tested to avoid health judgements. With no Health data, generated numbers are shown with the Simulated badge.
+- The Health permission text in both Xcode projects and `project-ios-only.yml` now lists the extra types. The four new files were added to `CrewSafetyIOSOnly.xcodeproj` by hand because `xcodegen` is not installed on this Mac.
+- Tests: iOS 60/60 on iPhone 17 / iOS 26.5 with the iPhone-only scheme (12 new); the shipping `CrewSafety` scheme with the Watch app builds. Checked in the simulator with generated numbers.
+- **Not verified:** the real Health path. The simulator build is unsigned, so the Health permission sheet never appeared and no real Watch reading or ECG recording has been through the card. Needs a signed build on an iPhone with a paired Watch. No astronaut figure for resting heart rate, breathing rate or blood oxygen.
+
+### NASA archive figures added to the Watch comparison (2026-11-15)
+
+- Found NASA's Life Sciences Portal (nlsp.nasa.gov, the Life Sciences Data Archive): 136 datasets match "heart rate", 133 marked available online. With the user's go-ahead, three spreadsheets were downloaded without sign-in and are kept in `data/nasa-lsda/raw/` with hashes in `data/nasa-lsda/README.md`.
+- The card now shows a NASA figure for resting heart rate (six Spacelab astronauts in flight, 57.7 ± 4.8 bpm, worked out in code from the per-astronaut values) and breathing rate (ten ISS crew, 11.9 ± 0.4 SE over 62 measurements; the range uses an SD we derived from the SE). Heart rate and HRV still use the Otsuka paper. Blood oxygen has no astronaut figure.
+- These are small summary tables from decades-old experiments, measured awake at rest; the card states the differences from how the Watch measures. NASA's open repositories have no continuous wearable or ECG data.
+- iOS 61/61 on the iPhone-only scheme. The `.xls` files were read through Quick Look's HTML rendering; a second person should open them and confirm the numbers. The real Health path is still unverified on a device.
+
+### Figures for adults on Earth added to the Watch comparison (2026-11-15)
+
+- At the user's request the card now also compares each reading with a published figure for adults on Earth, shown between the wearer's own range and the astronaut range. All five measurements have one, including blood oxygen (which still has no astronaut figure). Sources and limits are in `docs/SOURCES.md` under "Figures for adults on Earth"; review Pending.
+- `SpaceflightReference` was renamed `PublishedReference` and is used for both lists (`spaceflightReferences`, `everydayReferences`). The Swedish heart-rate figure is combined in code from the paper's separate rows for men and women.
+- iOS 62/62 on the iPhone-only scheme. The real Health path is still unverified on a device.
