@@ -1,7 +1,8 @@
 // Spoken answers to a possible-unresponsive alert, recognised on this device only.
 // The words are matched to one of two meanings; the text itself is not kept.
 
-const HELP = /\b(help|emergency|hurt|injured|pain|not (ok|okay|fine|alright|all right)|i'?m not|am not (ok|okay|fine))\b/;
+// Help wins over okay, so "not really, I feel dizzy" or "okay... I can't breathe" counts as asking for help.
+const HELP = /\b(help|emergency|hurt|hurts|injured|pain|bleeding|dizzy|faint|sick|nauseous|can'?t breathe|cannot breathe|can'?t move|cannot move|chest|send (someone|somebody|help)|come (here|quick|now)|get (someone|somebody|help)|not (ok|okay|fine|alright|all right|really|good|great)|i'?m not|am not (ok|okay|fine)|no\b(?! problem| worries))\b/;
 const OK = /\b(i'?m|i am|all)\s*(ok|okay|fine|good|alright|all right)\b|\b(ok|okay|fine|alright|all right|yes|yeah|yep)\b/;
 
 /** 'help' when the words ask for help or say they are not okay, 'ok' when they say they are okay, else null. */

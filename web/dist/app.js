@@ -12,7 +12,7 @@ import { initCircle } from './circle-ui.js';
 import { onDeviceSupport, installLanguagePack, listenForAnswer, ANSWER_LABEL } from './voice-answer.js';
 import { BlinkDetector, PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthMotion, lipAperture, faceBox, cropRect, describePerson } from './people.js';
 import { startVoiceActivity } from './voice-activity.js';
-import { startAgentConversation } from './voice-agent.js';
+import { startAgentConversation, agentOutcome } from './voice-agent.js';
 import { initializeCrewSync, onWearable, requestWatchCheckIn, cancelWatchCheckIn, sendPhoneAlert } from './crew-sync.js';
 import { initAccount, api } from './account.js';
 import { downscaleJpeg, webcamStill, groupByDay, dayKey } from './journal-photo.js';
@@ -375,7 +375,7 @@ async function beginAgentCheckIn(person, fallback) {
     const id = person.id, session = startAgentConversation({
       signedUrl,
       onUser: (text, answer) => { agentHeard(text ? `You: ${text}` : ''); const ended = answer && checkIns.answer(id, answer); if (ended) finishCheckIn(ended); },
-      onAgent: text => agentHeard(text ? `Agent: ${text}` : ''),
+      onAgent: text => { agentHeard(text ? `Agent: ${text}` : ''); const decided = agentOutcome(text), ended = decided && checkIns.answer(id, decided); if (ended) finishCheckIn(ended); },
       onState: state => agentStatus(state === 'connecting' ? 'Connecting to the voice agent…' : state === 'speaking' ? 'The agent is speaking.' : state === 'listening' ? 'Listening. Say that you are okay, or ask for help.' : 'Voice conversation ended.')
     });
     agentSession = { id, ...session };
@@ -1038,6 +1038,9 @@ element('setup-cancel').onclick = () => element('setup-dialog').close();
 // so a test isn't spoiled by a blink, a sound or a MUSE guess.
 function noteFaceActivity(person, time, reason, source = 'face') {
   if (mode === 'live' && sensitivity.preset === 'quick' && source !== 'watch') return false;
+  // During an "Are you OK?" check-in the answer decides: talking, lips, the microphone or MUSE must not end it,
+  // or saying "help" (or hearing the voice agent) would close it as "moved" and no alert would follow.
+  if (checkIns.has(person.id) && source !== 'watch') return false;
   if (time <= (person.detector.stillSince ?? -Infinity) || time <= (person.activeAt ?? -Infinity)) return false;
   person.activeAt = time; person.activeReason = reason; showRestart(reason); return true;
 }
@@ -1189,7 +1192,7 @@ function mouthPatchDiff(person, landmarks) {
 async function startMic() {
   const session = generation; micGeneration = session; micState = 'starting'; renderMic();
   try {
-    const handle = await startVoiceActivity({ margin: 15, minSpeech: 0.5, isMuted: () => clipsPlaying > 0, onSpeech: time => {
+    const handle = await startVoiceActivity({ margin: 15, minSpeech: 0.5, isMuted: () => clipsPlaying > 0 || Boolean(agentSession), onSpeech: time => {
       if (mode !== 'live') return;
       const inView = [...people.values()].filter(person => person.pose);
       const speakers = inView.length === 1 ? inView : inView.filter(person => person.mouthMovedAt != null && time - person.mouthMovedAt <= 1);
