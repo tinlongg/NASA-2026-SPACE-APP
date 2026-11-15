@@ -9,6 +9,19 @@ function setup(){
  wirePet(pet,()=>speech);return{pet,bird,speech,children,classes};
 }
 const pointer=(x=0,y=0)=>({pointerId:1,button:0,clientX:x,clientY:y});
+test('tap and keyboard happiness restore the normal eye after a moment',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const {pet,classes}=setup();pet.onpointerdown(pointer());pet.onpointerup(pointer());assert.ok(classes.has('pip-happy'));assert.ok(!classes.has('pip-dizzy'));
+ t.mock.timers.tick(1601);assert.ok(!classes.has('pip-happy'));
+ pet.onkeydown({key:'Enter',preventDefault(){}});assert.ok(classes.has('pip-happy'));
+});
+test('extended dragging makes the eye dizzy without a small drag doing so',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const {pet,classes,bird}=setup();pet.onpointerdown(pointer());pet.onpointermove(pointer(20));assert.ok(!classes.has('pip-dizzy'));
+ pet.onpointermove(pointer(150));pet.onpointermove(pointer(-150));assert.ok(classes.has('pip-dizzy'));
+ pet.onpointerup(pointer(-150));assert.equal(bird.style.transform,'');assert.ok(classes.has('pip-dizzy'));
+ t.mock.timers.tick(2601);assert.ok(!classes.has('pip-dizzy'));
+});
 test('every rapid tap responds without a cooldown and hearts stay bounded',()=>{
  const {pet,children,speech}=setup();for(let i=0;i<20;i++){pet.onpointerdown(pointer());pet.onpointerup(pointer());}
  assert.equal(children.length,12);assert.match(speech.textContent,/Boop/);
