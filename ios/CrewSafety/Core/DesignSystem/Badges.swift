@@ -1,5 +1,13 @@
 import SwiftUI
 
+/// Small status dot, used in event rows and the camera status line.
+struct StatusDot: View {
+    let color: Color
+    var body: some View {
+        Circle().fill(color).frame(width: 6, height: 6).accessibilityHidden(true)
+    }
+}
+
 struct StatusBadge: View {
     let status: CrewStatus
 

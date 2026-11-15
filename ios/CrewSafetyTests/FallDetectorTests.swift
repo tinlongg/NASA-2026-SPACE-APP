@@ -94,4 +94,60 @@ final class FallDetectorTests: XCTestCase {
             XCTAssertEqual(count, fixture.label == "fall" ? 1 : 0, fixture.name)
         }
     }
+
+    // MARK: Easy test detection (web camera only)
+
+    func testSideLeanIsIgnoredByStandardThresholds() {
+        var detector = HeuristicFallDetector(frameAspectRatio: 16.0 / 9.0)
+        XCTAssertTrue(detections(SyntheticPoses.leanToSide(), detector: &detector).isEmpty)
+    }
+
+    func testSideLeanTriggersEasyTestDetection() {
+        var detector = HeuristicFallDetector(config: .easyTesting, frameAspectRatio: 16.0 / 9.0)
+        XCTAssertEqual(detections(SyntheticPoses.leanToSide(), detector: &detector).count, 1)
+    }
+
+    func testEasyTestDetectionStillIgnoresSittingDown() {
+        var detector = HeuristicFallDetector(config: .easyTesting, frameAspectRatio: 16.0 / 9.0)
+        XCTAssertTrue(detections(SyntheticPoses.sitDown(), detector: &detector).isEmpty)
+    }
+
+    // MARK: Live reading
+
+    func testReadingTracksAFallThroughHoldingToCooldown() {
+        var detector = HeuristicFallDetector()
+        var phases: [HeuristicFallDetector.Reading.Phase] = []
+        var maxHeld: TimeInterval = 0
+        var detected = false
+        for frame in SyntheticPoses.fall() {
+            if detector.process(frame) != nil { detected = true }
+            phases.append(detector.reading.phase)
+            maxHeld = max(maxHeld, detector.reading.held)
+        }
+        XCTAssertTrue(detected)
+        XCTAssertEqual(phases.first, .upright)
+        XCTAssertTrue(phases.contains(.holding))
+        XCTAssertEqual(phases.last, .cooldown)
+        XCTAssertGreaterThan(maxHeld, 1.5)
+    }
+
+    func testReadingReportsConfidenceAngleAndDrop() throws {
+        var detector = HeuristicFallDetector()
+        let frames = SyntheticPoses.fall()
+        _ = detector.process(frames[0])
+        XCTAssertEqual(try XCTUnwrap(detector.reading.poseConfidence), 0.9, accuracy: 0.001)
+        XCTAssertEqual(try XCTUnwrap(detector.reading.torsoAngleDeg), 0, accuracy: 0.5)
+        XCTAssertEqual(try XCTUnwrap(detector.reading.hipDrop), 0, accuracy: 0.001)
+        for frame in frames.prefix(30).dropFirst() { _ = detector.process(frame) }
+        // After the drop the hips are well below the upright reference.
+        XCTAssertGreaterThan(try XCTUnwrap(detector.reading.hipDrop), 0.2)
+    }
+
+    func testReadingIsEmptyWithoutAPerson() {
+        var detector = HeuristicFallDetector()
+        _ = detector.process(PoseFrame(t: 0, joints: [:]))
+        XCTAssertEqual(detector.reading.phase, .noPerson)
+        XCTAssertNil(detector.reading.poseConfidence)
+        XCTAssertNil(detector.reading.torsoAngleDeg)
+    }
 }

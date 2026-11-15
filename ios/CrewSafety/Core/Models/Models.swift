@@ -20,7 +20,22 @@ enum EventSeverity: Int, Codable, Sendable, Comparable {
 }
 
 /// Where the event came from. Shown in the UI so replayed/simulated events are never mistaken for live ones.
-enum EventSource: String, Codable, Sendable { case liveCamera, replay, simulated }
+enum EventSource: String, Codable, Sendable { case liveCamera, replay, simulated, webCamera }
+
+/// What happened when the app asked "Are you OK?" after a possible fall.
+enum CheckInOutcome: Codable, Hashable, Sendable {
+    case respondedOK(after: TimeInterval)
+    case requestedHelp(after: TimeInterval)
+    case noResponse(after: TimeInterval)
+
+    var summary: String {
+        switch self {
+        case .respondedOK(let s): "Responded OK after \(Int(s.rounded())) s"
+        case .requestedHelp(let s): "Asked for help after \(Int(s.rounded())) s"
+        case .noResponse(let s): "No response after \(Int(s.rounded())) s"
+        }
+    }
+}
 
 struct SafetyEvent: Identifiable, Codable, Hashable, Sendable {
     let id: UUID
@@ -35,13 +50,17 @@ struct SafetyEvent: Identifiable, Codable, Hashable, Sendable {
     let details: String
     var acknowledged: Bool
     var acknowledgedAt: Date?
+    /// Result of the "Are you OK?" check-in, when one ran.
+    var checkIn: CheckInOutcome?
 
     init(id: UUID = UUID(), crewMemberID: UUID, type: SafetyEventType, timestamp: Date = .now,
          severity: EventSeverity, source: EventSource, heuristicScore: Double? = nil,
-         details: String, acknowledged: Bool = false, acknowledgedAt: Date? = nil) {
+         details: String, acknowledged: Bool = false, acknowledgedAt: Date? = nil,
+         checkIn: CheckInOutcome? = nil) {
         self.id = id; self.crewMemberID = crewMemberID; self.type = type; self.timestamp = timestamp
         self.severity = severity; self.source = source; self.heuristicScore = heuristicScore
         self.details = details; self.acknowledged = acknowledged; self.acknowledgedAt = acknowledgedAt
+        self.checkIn = checkIn
     }
 }
 
