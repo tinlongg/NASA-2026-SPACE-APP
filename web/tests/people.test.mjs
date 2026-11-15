@@ -75,7 +75,7 @@ test('every browser module the app imports is served by the Worker and cached by
   const { loadAssets } = await import('../scripts/build.mjs');
   const { SHELL_ASSETS } = await import('../dist/offline-config.js');
   const assets = await loadAssets();
-  for (const file of ['app.js', 'camera-health.js', 'people.js', 'voice-answer.js', 'detector.js', 'fixtures.js', 'journal-photo.js', 'suit-layers.js', 'account.js']) {
+  for (const file of ['app.js', 'camera-health.js', 'people.js', 'voice-answer.js', 'checkin.js', 'detector.js', 'fixtures.js', 'journal-photo.js', 'suit-layers.js', 'account.js']) {
     const source = await readFile(new URL(`../dist/${file}`, import.meta.url), 'utf8');
     for (const [, path] of source.matchAll(/from '\.\/([\w.-]+)'/g)) {
       assert.ok(assets[`/${path}`], `${file} imports ./${path}, which the Worker does not serve`);

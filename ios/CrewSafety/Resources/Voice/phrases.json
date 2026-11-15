@@ -6,5 +6,9 @@
   {
     "name": "web-alert",
     "text": "Alert. Possible unresponsive crew member. Please check on them now."
+  },
+  {
+    "name": "web-checkin",
+    "text": "No movement detected. Are you OK? Say I'm okay, or say help."
   }
 ]

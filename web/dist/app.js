@@ -3,6 +3,7 @@ import { InactivityDetector, measurePose, STILL_SECONDS } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
 import { VISION_MODULE, VISION_WASM, POSE_MODELS, FACE_MODEL } from './offline-config.js';
 import { visibilityGroups, FramingMonitor, MODEL_CHOICES } from './camera-health.js';
+import { CheckIns, CHECKIN_SECONDS, GRACE_SECONDS, RAISES_ALERT } from './checkin.js';
 import { onDeviceSupport, installLanguagePack, listenForAnswer, ANSWER_LABEL } from './voice-answer.js';
 import { BlinkDetector, PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthActivity, faceBox, cropRect, describePerson } from './people.js';
 import { initializeResearch } from './research.js';
@@ -60,7 +61,7 @@ function setCameraState(label, live) {
 function stopSession(message = 'Session stopped. Camera released.') {
   generation++; cancelAnimationFrame(animation);
   if (stream) stream.getTracks().forEach(track => track.stop());
-  stream = null; video.srcObject = null; mode = 'idle'; resetPeople(); resetDiagnostics();
+  stream = null; video.srcObject = null; mode = 'idle'; if (typeof cancelCheckIns === 'function') cancelCheckIns(); resetPeople(); resetDiagnostics();
   context.clearRect(0, 0, canvas.width, canvas.height);
   element('camera-placeholder').hidden = false; element('start').disabled = false; element('stop').disabled = true;
   setCameraState('Camera off', false);
@@ -258,13 +259,62 @@ function evaluatePerson(person, time, measurement) {
   const snapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: summary, detection: detection && { stillFor: Number(detection.stillFor.toFixed(1)), threshold: detection.threshold } };
   person.result = { measurement, summary, stillFor, alerted: d.alerted, detection, snapshot, upper: Boolean(measurement?.upper), threshold: d.threshold, motion: d.motion};
   if (!detection) return;
+  // Live: ask "Are you OK?" first. Replays and the unchecked setting raise the event straight away.
+  if (mode === 'live' && element('checkin-enabled').checked) { startCheckIn(person, detection, snapshot); return; }
+  raiseEvent(person, detection, snapshot);
+}
+
+function raiseEvent(person, detection, snapshot, why = '') {
   const who = mode === 'replay' ? '' : `Person ${person.id}: `;
-  const details = `${who}No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`;
+  const details = `${who}${why || `No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`}`;
   events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', personId: mode === 'replay' ? null : person.id, type: 'Possible unresponsive', details, snapshot: structuredClone(snapshot), eyes: person.face?.eyes?.state ?? null, mouth: person.face?.mouth?.state ?? null, acknowledged: false, lookNote: null });
   if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
-  if (element('voice-answer-enabled').checked && mode === 'live') listenAfterAlert(events[0]); else speakAlert();
-  element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${who}${events[0].source}. ${details}`;
+  if (element('voice-answer-enabled').checked && mode === 'live' && !why) listenAfterAlert(events[0]); else speakAlert();
+  element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${events[0].source}. ${details}`;
   renderEvents();
+}
+
+// "Are you OK?" check-in: a spoken and written question with a countdown. Saying or tapping OK, or moving
+// again, ends it quietly; asking for help or no answer raises the alert. Voice answers are on-device only.
+const checkIns = new CheckIns({ seconds: CHECKIN_SECONDS }), checkInTimers = new Map(), checkInListeners = new Map();
+function startCheckIn(person, detection, snapshot) {
+  if (!checkIns.start(person.id, { person, detection, snapshot }, Date.now())) return;
+  checkInTimers.set(person.id, setInterval(() => { renderCheckIns(); for (const ended of checkIns.tick(Date.now(), id => Boolean(people.get(id)?.detector.alerted))) finishCheckIn(ended); }, 500));
+  playClip('/voice/web-checkin.mp3', { respectToggle: false }).then(async () => {
+    if (!checkIns.has(person.id) || !element('voice-answer-enabled').checked) return;
+    const listener = listenForAnswer({ seconds: checkIns.secondsLeft(person.id, Date.now()) });
+    checkInListeners.set(person.id, listener);
+    const answer = await listener;
+    const ended = checkIns.answer(person.id, answer); if (ended) finishCheckIn(ended);
+  });
+  renderCheckIns();
+}
+function answerCheckIn(id, kind) { const ended = checkIns.answer(id, kind); if (ended) finishCheckIn(ended); }
+function finishCheckIn({ id, outcome, info }) {
+  clearInterval(checkInTimers.get(id)); checkInTimers.delete(id); checkInListeners.get(id)?.stop?.(); checkInListeners.delete(id);
+  const { person, detection, snapshot } = info, now = Date.now();
+  if (RAISES_ALERT[outcome]) raiseEvent(person, detection, snapshot, outcome === 'help' ? `Person ${id} asked for help at the check-in. Go to them now.` : `Person ${id} did not answer the "Are you OK?" check-in for ${CHECKIN_SECONDS} s after ${Math.round(detection.stillFor)} s without movement. Check in with them.`);
+  else {
+    // Said OK, or showed activity again: log it quietly. After OK, give a longer grace before asking again.
+    if (outcome === 'ok') person.detector.noteActivity(performance.now() / 1000 + GRACE_SECONDS); // the detector clock is performance.now() in seconds
+    events.unshift({ id: crypto.randomUUID(), date: new Date(now).toISOString(), source: 'Live webcam', personId: id, type: 'Check-in answered', details: outcome === 'ok' ? `Person ${id} said they are okay.` : `Person ${id} moved or spoke during the check-in.`, snapshot: structuredClone(snapshot), acknowledged: true, manual: true, lookNote: null });
+    renderEvents();
+  }
+  renderCheckIns();
+}
+function cancelCheckIns() { checkIns.cancelAll(); for (const timer of checkInTimers.values()) clearInterval(timer); for (const listener of checkInListeners.values()) listener.stop?.(); checkInTimers.clear(); checkInListeners.clear(); renderCheckIns(); }
+function renderCheckIns() {
+  const box = element('checkin-box'); box.hidden = !checkIns.size; box.replaceChildren();
+  for (const [id, entry] of checkIns.active) {
+    const card = document.createElement('article'); card.className = 'checkin-card';
+    const title = document.createElement('h3'); title.textContent = `Person ${id}: are you OK?`;
+    const count = document.createElement('div'); count.className = 'count'; count.textContent = `${checkIns.remaining(id, Date.now())} s`;
+    const note = document.createElement('p'); note.textContent = `No movement for ${Math.round(entry.info.detection.stillFor)} s. If there is no answer, the alert is raised. Say "I'm okay" or "help" if voice answers are on, or use the buttons.`;
+    const answers = document.createElement('div'); answers.className = 'answers';
+    const ok = document.createElement('button'); ok.className = 'primary'; ok.textContent = "I'm OK"; ok.onclick = () => answerCheckIn(id, 'ok');
+    const help = document.createElement('button'); help.className = 'help'; help.textContent = 'I need help'; help.onclick = () => answerCheckIn(id, 'help');
+    answers.append(ok, help); card.append(title, count, note, answers); box.append(card);
+  }
 }
 
 // The person the session panel, close-up and coach follow: someone with an alert, else the person who
@@ -332,17 +382,18 @@ function replay(kind) {
 
 // Recorded ElevenLabs voice for new events. A browser may block audio until the page has been
 // used; the written banner and event log are always the primary alert.
-let alertAudio = null;
-function speakAlert() { // resolves when the clip has finished, or straight away if it cannot play
+const clips = {};
+function playClip(src, { respectToggle = true } = {}) { // resolves when the clip has finished, or straight away if it cannot play
   return new Promise(resolve => {
-    if (!element('voice-enabled').checked) return resolve();
+    if (respectToggle && !element('voice-enabled').checked) return resolve();
     try {
-      alertAudio ??= new Audio('/voice/web-alert.mp3'); alertAudio.currentTime = 0;
-      alertAudio.onended = () => resolve(); alertAudio.onerror = () => resolve();
-      alertAudio.play().catch(() => resolve());
+      const audio = clips[src] ??= new Audio(src); audio.currentTime = 0;
+      audio.onended = () => resolve(); audio.onerror = () => resolve();
+      audio.play().catch(() => resolve());
     } catch { resolve(); }
   });
 }
+const speakAlert = () => playClip('/voice/web-alert.mp3');
 // Spoken answers, recognised on this device only. The words are classified and discarded; only the
 // meaning is recorded on the event. Nothing is kept for events that nobody answers.
 const answerStatus = text => { element('voice-answer-status').textContent = text; };
