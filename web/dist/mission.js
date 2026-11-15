@@ -52,14 +52,14 @@ function rocketBird(state){return `<svg viewBox="0 0 220 130" aria-hidden="true"
 export function wirePet(pet,getSpeech){
  pet.tabIndex=0;pet.setAttribute('role','button');pet.setAttribute('aria-label','Pet Pip. Tap to hop, swipe to pet, or hold and drag to shake.');
  const bird=pet.querySelector('.astro-bird');let pointer=null,holdTimer=null,eyeTimer=null,returnTimer=null,holding=false,moved=false;
- const react=emotion=>{clearTimeout(eyeTimer);pet.classList.remove('pip-happy','pip-dizzy');pet.classList.add('pip-'+emotion);eyeTimer=setTimeout(()=>pet.classList.remove('pip-happy','pip-dizzy'),emotion==='dizzy'?2600:1600);};
+ const react=emotion=>{clearTimeout(eyeTimer);pet.classList.remove(emotion==='happy'?'pip-dizzy':'pip-happy');pet.classList.add('pip-'+emotion);eyeTimer=setTimeout(()=>{if(!holding||!pet.isConnected)pet.classList.remove('pip-happy','pip-dizzy');},emotion==='dizzy'?2600:1600);};
  const heart=()=>{const hearts=pet.querySelectorAll('.pet-heart');if(hearts.length>=12)hearts[0].remove();const h=node('span','♡','pet-heart');h.setAttribute('aria-hidden','true');h.style.left=(50+Math.random()*25)+'%';pet.append(h);setTimeout(()=>h.remove(),1400);};
  const play=(swipe)=>{pet.classList.remove('pip-hop','pip-petted');void pet.offsetWidth;pet.classList.add(swipe?'pip-petted':'pip-hop');react('happy');getSpeech().textContent=swipe?'Chirp! Thanks for the helmet scritches.':'Boop! Ready for our next little adventure.';heart();};
- const reset=()=>{clearTimeout(holdTimer);holdTimer=null;if(moved){clearTimeout(returnTimer);pet.classList.add('pip-returning');returnTimer=setTimeout(()=>pet.classList.remove('pip-returning'),1800);}pointer=null;holding=false;moved=false;pet.classList.remove('pip-held');bird.style.transform='';};
+ const reset=()=>{clearTimeout(holdTimer);holdTimer=null;if(holding)react(pointer?.dizzy?'dizzy':'happy');if(moved){clearTimeout(returnTimer);pet.classList.add('pip-returning');returnTimer=setTimeout(()=>pet.classList.remove('pip-returning'),1800);}pointer=null;holding=false;moved=false;pet.classList.remove('pip-held');bird.style.transform='';};
  pet.onpointerdown=e=>{
   if(e.button!==0||pointer)return;
   const time=e.timeStamp??performance.now();
-  pointer={id:e.pointerId,x:e.clientX,y:e.clientY,sampleX:e.clientX,sampleY:e.clientY,started:time,sampleAt:time,velocity:null,dizzy:false};moved=false;
+  pointer={id:e.pointerId,x:e.clientX,y:e.clientY,sampleX:e.clientX,sampleY:e.clientY,started:time,sampleAt:time,velocity:null,dizzy:false,happy:false,jolts:0,lastJolt:null};moved=false;
   pet.setPointerCapture(e.pointerId);
   holdTimer=setTimeout(()=>{if(!pointer||!pet.isConnected)return;holding=true;pet.classList.remove('pip-hop','pip-petted');pet.classList.add('pip-held');getSpeech().textContent='Got me! Move side to side to give Pip a wiggle.';},400);
  };
@@ -70,20 +70,25 @@ export function wirePet(pet,getSpeech){
   // Compare velocities over short time windows so event frequency and total distance do not cause dizziness.
   if(elapsed>=24){
    const velocity={x:(e.clientX-pointer.sampleX)/elapsed,y:(e.clientY-pointer.sampleY)/elapsed,interval:elapsed};
-   if(pointer.velocity&&elapsed<=120&&time-pointer.started>=180){
+   if(pointer.velocity&&elapsed<=120&&time-pointer.started>=350){
     const acceleration=Math.hypot(velocity.x-pointer.velocity.x,velocity.y-pointer.velocity.y)/((elapsed+pointer.velocity.interval)/2);
-    if(acceleration>=.022&&Math.hypot(velocity.x,velocity.y)>=.7){pointer.dizzy=true;react('dizzy');}
+    if(acceleration>=.055&&Math.hypot(velocity.x,velocity.y)>=1.4&&Math.hypot(e.clientX-pointer.sampleX,e.clientY-pointer.sampleY)>=36){
+     if(pointer.lastJolt===null||time-pointer.lastJolt>650)pointer.jolts=0;
+     // Require two distinct strong jolts, rather than one small flick or several samples of the same jolt.
+     if(pointer.lastJolt===null||time-pointer.lastJolt>=100){pointer.jolts++;pointer.lastJolt=time;}
+     if(pointer.jolts>=2){pointer.dizzy=true;react('dizzy');}
+    }
    }
    pointer.velocity=elapsed<=120?velocity:null;pointer.sampleAt=time;pointer.sampleX=e.clientX;pointer.sampleY=e.clientY;
   }
   if(!holding&&Math.hypot(dx,dy)>5){clearTimeout(holdTimer);holding=true;pet.classList.remove('pip-hop','pip-petted');pet.classList.add('pip-held');}
-  if(holding){moved=true;bird.style.transform='translate('+dx+'px,'+dy+'px) rotate('+Math.max(-18,Math.min(18,dx*.12))+'deg)';getSpeech().textContent=pointer.dizzy?'Whoooa! The stars are spinning!':'Wheee! A little zero-gravity wiggle!';}
+  if(holding){moved=true;if(!pointer.dizzy&&!pointer.happy){pointer.happy=true;react('happy');}bird.style.transform='translate('+dx+'px,'+dy+'px) rotate('+Math.max(-18,Math.min(18,dx*.12))+'deg)';getSpeech().textContent=pointer.dizzy?'Whoooa! The stars are spinning!':'Wheee! A little zero-gravity wiggle!';}
  };
  pet.onpointerup=e=>{
   if(!pointer||pointer.id!==e.pointerId)return;
   const swipe=Math.hypot(e.clientX-pointer.x,e.clientY-pointer.y)>25,wasHolding=holding,wasMoved=moved,wasDizzy=pointer.dizzy;
   reset();if(pet.hasPointerCapture(e.pointerId))pet.releasePointerCapture(e.pointerId);
-  if(wasHolding){if(wasDizzy)react('dizzy');getSpeech().textContent=wasDizzy?'Whoooa! Give me a moment to find my space legs.':wasMoved?'Whew! Back on my little feet.':'Chirp! Ready for another boop.';heart();}else play(swipe);
+  if(wasHolding){getSpeech().textContent=wasDizzy?'Whoooa! Give me a moment to find my space legs.':wasMoved?'Whew! Back on my little feet.':'Chirp! Ready for another boop.';heart();}else play(swipe);
  };
  pet.onpointercancel=reset;pet.onlostpointercapture=reset;pet.onblur=reset;
  pet.oncontextmenu=e=>e.preventDefault();pet.ondragstart=e=>e.preventDefault();
