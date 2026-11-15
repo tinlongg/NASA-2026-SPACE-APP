@@ -25,6 +25,8 @@ struct AlertsView: View {
                             }
                         }
                     }
+                    .scrollContentBackground(.hidden)
+                    .background(Theme.screenBackground)
                 }
             }
             .navigationTitle("Alerts")
@@ -55,17 +57,22 @@ struct AlertsView: View {
                 }
                 Text("\(crewName(event.crewMemberID)) · \(event.timestamp.formatted(date: .abbreviated, time: .standard))")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
+                if let checkIn = event.checkIn {
+                    Text(checkIn.summary)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(event.severity.color)
+                }
                 if let score = event.heuristicScore {
                     Text("Heuristic score \(Int((score * 100).rounded()))%")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
         }
         .swipeActions(edge: .trailing) {
             if !event.acknowledged {
-                Button("Acknowledge") { eventStore.acknowledge(event.id) }.tint(.green)
+                Button("Acknowledge") { eventStore.acknowledge(event.id) }.tint(Theme.accent)
             }
         }
     }
@@ -90,6 +97,9 @@ struct AlertDetailView: View {
                     LabeledContent("Time", value: event.timestamp.formatted(date: .abbreviated, time: .standard))
                     LabeledContent("Source", value: event.source.displayName)
                     LabeledContent("Severity", value: event.severity.displayName)
+                    if let checkIn = event.checkIn {
+                        LabeledContent("Check-in", value: checkIn.summary)
+                    }
                     if let score = event.heuristicScore {
                         LabeledContent("Heuristic score", value: "\(Int((score * 100).rounded()))%")
                     }
@@ -112,6 +122,8 @@ struct AlertDetailView: View {
                     Text("This is an alert, not a diagnosis. It cannot tell whether anyone is hurt.")
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.screenBackground)
             .navigationTitle(event.type.displayName)
             .navigationBarTitleDisplayMode(.inline)
         } else {

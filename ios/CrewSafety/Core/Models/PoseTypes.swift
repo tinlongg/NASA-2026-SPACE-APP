@@ -24,6 +24,18 @@ struct FallDetectorConfig: Codable, Sendable {
     var cooldown: TimeInterval = 15.0       // minimum gap between two detections
 }
 
+extension FallDetectorConfig {
+    /// Much easier to trigger, for testing with the web camera without really falling:
+    /// bend your knees a little, lean far to one side and hold it for a second.
+    /// Never used for the iPhone camera.
+    static let easyTesting = FallDetectorConfig(
+        fallenMinTorsoAngleDeg: 45,
+        minHipDropFraction: 0.05,
+        maxDropDuration: 1.5,
+        lowPostureHold: 1.0,
+        cooldown: 10)
+}
+
 struct FallDetection: Hashable, Sendable {
     let t: TimeInterval
     let score: Double          // 0...1 heuristic score
