@@ -39,6 +39,8 @@ def test_pair_upload_acknowledge_and_offline_retry(setup):
     headers = pair(client)
     assert client.get('/sync/state', headers=headers).json() == {'snapshot': None}
     payload = snapshot()
+    payload['events'][0]['source'] = 'webCamera'
+    payload['events'][0]['checkIn'] = {'requestedHelp': {'after': 12.5}}
     assert client.put('/sync/state', headers=headers, json=payload).status_code == 200
     event_id = payload['events'][0]['id']
     assert client.post(f'/sync/events/{event_id}/acknowledge', headers=headers).status_code == 200

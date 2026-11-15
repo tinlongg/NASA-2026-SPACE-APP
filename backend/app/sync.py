@@ -27,17 +27,28 @@ class Crew(WireModel):
     lastUpdated: float = Field(ge=0)
 
 
+class CheckInTiming(WireModel):
+    after: float = Field(ge=0)
+
+
 class Event(WireModel):
     id: UUID
     crewMemberID: UUID
     type: Literal["possibleFall", "manualTest"]
     timestamp: float = Field(ge=0)
     severity: int = Field(ge=0, le=2)
-    source: Literal["liveCamera", "replay", "simulated"]
+    source: Literal["liveCamera", "replay", "simulated", "webCamera"]
     heuristicScore: float | None = Field(default=None, ge=0, le=1)
     details: str = Field(max_length=4000)
     acknowledged: bool = False
     acknowledgedAt: float | None = Field(default=None, ge=0)
+    checkIn: dict[Literal["respondedOK", "requestedHelp", "noResponse"], CheckInTiming] | None = None
+
+    @model_validator(mode="after")
+    def validate_check_in(self):
+        if self.checkIn is not None and len(self.checkIn) != 1:
+            raise ValueError("Expected one check-in outcome")
+        return self
 
 
 class Telemetry(WireModel):

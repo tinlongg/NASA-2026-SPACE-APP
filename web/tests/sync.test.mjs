@@ -9,7 +9,7 @@ test('hosted pairing persists, syncs and preserves acknowledgement on stale retr
   const {call,DB}=setup(); const created=await call('sessions','POST'); assert.equal(created.status,201); const {pairingCode}=await created.json();
   assert.match(pairingCode,/^[a-f0-9]{32}$/); assert.equal(DB.sqlite.prepare('SELECT token FROM crew_sessions').get().token.includes(pairingCode),false);
   assert.deepEqual(await (await call('state','GET',pairingCode)).json(),{snapshot:null});
-  const input=fixture(); assert.equal((await call('state','PUT',pairingCode,input)).status,200);
+  const input=fixture(); input.events[0].source='webCamera'; input.events[0].checkIn={requestedHelp:{after:12.5}}; assert.equal((await call('state','PUT',pairingCode,input)).status,200);
   assert.equal((await call(`events/${event}/acknowledge`,'POST',pairingCode)).status,200);
   const retried=await (await call('state','PUT',pairingCode,input)).json(); assert.equal(retried.snapshot.events[0].acknowledged,true);
   assert.ok(retried.snapshot.receivedAt>0); assert.equal((await call('state','PUT',pairingCode,{...input,deviceID:crypto.randomUUID()})).status,409);
