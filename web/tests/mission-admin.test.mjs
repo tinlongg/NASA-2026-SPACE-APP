@@ -42,6 +42,11 @@ test('provisioned admin authenticates by hashed password and ID; client flags ca
  assert.equal((await regular('/api/mission/action',action('admin',{bots:true}))).status,403);
  await a('/api/mission/action',action('admin',{bots:false}));assert.equal((await(await a('/api/mission/leaderboard')).json()).demo,false);
  await regular('/api/mission/action',action('listing',{listed:true}));
+ const renamed=await(await regular('/api/mission/action',action('rename',{name:'Captain Chirp'}))).json();assert.equal(renamed.state.birdName,'Captain Chirp');assert.equal(renamed.alias,'Captain Chirp');
+ const persisted=await(await regular('/api/mission/state')).json();assert.equal(persisted.alias,'Captain Chirp');
+ const namedBoard=await(await regular('/api/mission/leaderboard')).json();assert.equal(namedBoard.rows.find(r=>r.self).alias,'Captain Chirp');
+ for(const name of ['', '<script>', 'x'.repeat(25)])assert.equal((await regular('/api/mission/action',action('rename',{name}))).status,400);
+
  for(let i=0;i<12;i++)DB.sqlite.prepare('INSERT INTO mission_profiles (user_id,state,revision,points,listed,alias) VALUES (?,?,0,?,1,?)').run(randomUUID(),JSON.stringify(newMission()),100+i,'Test-'+i);
  const ranked=await(await regular('/api/mission/leaderboard')).json();assert.equal(ranked.rows.length,10);assert.equal(ranked.self.rank,13);assert.equal(ranked.self.points,0);
  DB.sqlite.close();

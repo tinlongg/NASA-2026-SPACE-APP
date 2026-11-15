@@ -15,11 +15,11 @@ test('every rapid tap responds without a cooldown and hearts stay bounded',()=>{
 });
 test('hold then move shakes the bird and releasing resets its transform',async()=>{
  const {pet,bird,speech,classes}=setup();pet.onpointerdown(pointer());await new Promise(r=>setTimeout(r,430));assert.ok(classes.has('pip-held'));
- pet.onpointermove(pointer(60,10));assert.match(bird.style.transform,/36px,10px/);assert.match(speech.textContent,/Wheee/);
+ pet.onpointermove(pointer(60,10));assert.match(bird.style.transform,/60px,10px/);assert.match(speech.textContent,/Wheee/);
  pet.onpointerup(pointer(60,10));assert.equal(bird.style.transform,'');assert.ok(!classes.has('pip-held'));
  pet.onpointerdown(pointer());pet.onpointercancel();await new Promise(r=>setTimeout(r,430));assert.ok(!classes.has('pip-held'));
 });
-test('quick swipes still pet Pip, and NASA garment groups are separate from equipment checks',()=>{
- const {pet,speech}=setup();pet.onpointerdown(pointer());pet.onpointermove(pointer(60));pet.onpointerup(pointer(60));assert.match(speech.textContent,/scritches/);
+test('rapid drag follows the pointer immediately in both directions, and NASA groups remain separate',()=>{
+ const {pet,speech}=setup();pet.onpointerdown(pointer());pet.onpointermove(pointer(160,45));assert.match(pet.querySelector().style.transform,/160px,45px/);pet.onpointermove(pointer(-120,-40));assert.match(pet.querySelector().style.transform,/-120px,-40px/);pet.onpointerup(pointer(-120,-40));assert.equal(pet.querySelector().style.transform,'');
  assert.equal(LAYER_ITEMS.length,6);assert.deepEqual(LAYER_ITEMS.map(i=>i.id),['nasa-cooling','nasa-bladder','nasa-restraint','nasa-ripstop','nasa-insulation','nasa-outer']);assert.equal(new Set(ITEMS.map(i=>i.id)).size,9);assert.equal(SYSTEM_ITEMS.length,3);
 });
