@@ -2,7 +2,7 @@
 
 The user-requested Windows/Mac companion to the primary native SwiftUI app. It uses MediaPipe Pose
 Landmarker Lite, not Apple Vision. Run `npm start` here (Node 22.13+) and open
-[localhost](http://127.0.0.1:4173) in Chrome/Edge. `npm test` runs 39 checks; `npm run build` packages a
+[localhost](http://127.0.0.1:4173) in Chrome/Edge. `npm test` runs the web checks; `npm run build` packages a
 Worker. The public test site is [CrewSafety Connected](https://crew-safety-connected.lustrousbush32.chatgpt.site).
 
 ## Camera and local features
@@ -46,7 +46,7 @@ sent. Replies identify their input source/time and do not modify deterministic a
 - 25-second upstream/30-second browser timeouts; failures leave local monitoring available.
 
 MUSE Research (the cited NASA question-answering tab and the Worker's `/chat` route) was removed from
-the website. The FastAPI backend still serves `/chat` for the iOS app. The simulated heart-rate cards and
+the website. The FastAPI research `/chat` route and source corpus have also been removed. The simulated heart-rate cards and
 chart were removed too; the Crew tab shows only the paired iPhone's data and the archived NASA
 measurements.
 
@@ -70,13 +70,19 @@ account journal. Server code is in `account.mjs`; tables are in `drizzle/0001_ac
   wording and those listed themes. It is **not** a neural semantic model; unrelated vocabulary for the
   same idea will not match. Replace `embedText` and bump `VEC_MODEL` to plug in a real embedding API;
   older rows are re-embedded on the next recall.
-- **MUSE memory (RAG)**: signed-in users see a per-entry checkbox, on by default, labelled on the button
-  itself. When ticked, `/api/journal/analyze` receives `memory:true`, the server retrieves up to three
-  related entries (similarity ≥ 0.2, never the entry itself, never another user's) and sends them to
-  Meta with the chosen entry. The reply lists which dated entries were attached. The browser cannot
-  supply history itself. Guests and unticked requests send one entry, as before.
-- **Privacy change**: account entries are stored on the server in plain text, unlike guest entries, which
-  stay in localStorage. Browser entries move to the account only when the user clicks the move link.
+- **MUSE reflections**: every new journal save requests collective feedback automatically, using up
+  to 12 dated entries within 14 days. Selection is chronological, including positive entries, rather
+  than similarity-based. Sentiment is backend-only. Saving and retrying explicitly disclose text
+  sharing with CrewSafety and Meta. Entries 1–2 get a brief reflection; 3+ within 14 days unlock
+  collective suggestions. Failure leaves the note saved with a retry button.
+- **Astronaut demo**: Journal → Run astronaut demo presents three fictional entries and requests
+  real MUSE feedback via `/api/journal/demo`. It never reads or writes personal entries or Mission
+  progress. The same provider configuration is required; there is no fabricated fallback.
+- **Privacy**: account entries and public reflections persist on the server in plain text; guest
+  entries and public reflections persist in localStorage. Both send dated text for MUSE processing.
+  Browser entries move to an account only on the move action. See [JOURNAL](../docs/JOURNAL.md).
+- **Migration**: apply `drizzle/0008_journal_reflections.sql` before deploying the new Worker. The
+  account API returns only public feedback; internal sentiment and provider reasoning are excluded.
 - Local `npm start` keeps accounts in ignored `web/.data/local.sqlite`; set `PORT` or `CREW_DB_PATH` to
   change the port or file. The FastAPI `/dashboard/` copy has no account routes, so it stays guest-only.
 
@@ -192,4 +198,8 @@ References: [MediaPipe web pose API](https://developers.google.com/edge/mediapip
 
 ## Journal sentiment
 
-The website journal uses the MIT-licensed VADER lexicon (7,506 unique rated terms) with a custom local wording heuristic. Guest entries stay in browser storage; account entries are server-stored. Sentiment analysis runs locally and its scores are not sent to Meta or iPhone sync. The optional MUSE action sends the selected entry and, when enabled for a signed-in user, up to three related account entries. Toggle local analysis on or off and expand the explanation for matched words. It is not the full VADER algorithm and does not assess mood, health or risk. See [dataset provenance](data/sentiment/README.md). The iOS journal remains a separate on-device theme summarizer.
+The MIT-licensed VADER lexicon (7,506 unique rated terms) supplies an imperfect wording hint only
+inside the server. Its scores go to MUSE as internal context, never to the writer or iPhone sync.
+Both web and native saves automatically request MUSE; collective suggestions require three recent
+entries. No local sentiment toggle or user-facing theme summary remains. See the current
+[journal contract](../docs/JOURNAL.md) and [dataset provenance](data/sentiment/README.md).

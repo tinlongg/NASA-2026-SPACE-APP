@@ -1,5 +1,7 @@
 # Crew Safety & Wellness — Hackathon Build Brief
 
+> **Journal direction update (2026-11-15):** The user now requires automatic collective MUSE reflection on website and native iPhone saves. Dated text is sent to the server and Meta with clear disclosure; summaries/sentiment are backend-only. [Current journal contract](docs/JOURNAL.md) overrides older optional-MUSE/on-device-only journal guidance below.
+
 > **Audience:** AI coding assistants and a five-person hackathon team  
 > **Primary deliverable:** Native iPhone app in **Swift + SwiftUI**  
 > **Status:** Project specification and build checklist; not an assertion that features have been implemented

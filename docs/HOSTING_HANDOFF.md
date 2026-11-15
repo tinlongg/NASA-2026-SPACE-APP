@@ -16,7 +16,7 @@ For whoever manages the hosted deployment (Vercel). This lists what the latest c
 
 Redeploy after changing them. Set them for Production, not only Preview.
 
-## 2. Database: apply `web/drizzle/0007_calls.sql`
+## 2. Database: apply migrations 0007 and 0008
 
 Phone calls need two new tables. Run this once on the production database (all earlier migrations `0000` to `0006` must already be applied):
 
@@ -37,7 +37,17 @@ CREATE TABLE call_log (
 CREATE INDEX call_log_user ON call_log(user_id, created);
 ```
 
-The `0007` file is the same SQL with `--> statement-breakpoint` lines between statements; remove those if your tool does not understand them. Nothing else changed in the schema this round.
+The `0007` file is the same SQL with `--> statement-breakpoint` lines between statements; remove those if your tool does not understand them. The collective-journal update also requires `web/drizzle/0008_journal_reflections.sql`
+before deploying the new Worker:
+
+```sql
+ALTER TABLE journal_entries ADD COLUMN reflection TEXT;
+```
+
+This stores only public MUSE feedback next to the account entry. Internal sentiment and provider
+reasoning are not stored. Apply each migration once through your deployment's migration tooling;
+local Node startup applies pending migrations automatically. See [JOURNAL.md](JOURNAL.md) for the
+new payloads, three-entry threshold and astronaut demo.
 
 ## 3. ElevenLabs dashboard (one time)
 
@@ -46,6 +56,8 @@ The `0007` file is the same SQL with `--> statement-breakpoint` lines between st
 
 ## 4. Check it works
 
+- Open `/api/journal/status`; it should return `{"configured":true}`. In Journal, **Run astronaut demo**
+  should produce live MUSE feedback on three fictional entries and show the optional cat-video links.
 - Open `/api/checkin/voice/status` on the live site. It should return `{"configured":true}`.
 - Sign in, open the Circle tab, add a number with the consent box ticked, then press "Send me a test call".
 - If the Phone calls section shows an error, the migration in step 2 has not been applied.

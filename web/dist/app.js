@@ -1,6 +1,7 @@
 import {PAGE_ROUTES,pageForPath} from './page-routes.js';
 import { initializeMission } from './mission.js';
-import { journalToneElement, museJournalElement, sentimentMetadata } from './journal-sentiment.js';
+import { openJournalDemo } from './journal-demo.js';
+import { deviceJournalPayload, journalReflectionElement } from './journal-reflection.js';
 import { InactivityDetector, measurePose, STILL_SECONDS } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
 import { VISION_MODULE, VISION_WASM, POSE_MODELS, FACE_MODEL } from './offline-config.js';
@@ -48,7 +49,7 @@ const events = [];
 let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, detection: null };
 let coachPending = false;
 let journals = [];
-try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
+try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => entry && typeof entry.body === 'string' && typeof entry.date === 'string').map(entry=>({...entry,id:entry.id||crypto.randomUUID()})); } catch {}
 const titles = { mission: ['Mission', 'Care for yourself and your astronaut companion'], home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], circle: ['Circle', 'People who are told when an alert is raised'], stations: ['Stations', 'Phones linked as cameras around a simulated station'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded; MUSE sees close-up screenshots only if you allow it'], dashboard: ['Crew', 'Paired iPhone and Apple Watch status, events and heart rate'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
 function showTab(tab,{historyMode='push',path=null}={}) {
   if (!titles[tab]) return;
@@ -564,11 +565,11 @@ function renderEvents() {
   }
 }
 
-const themes = { sleep: ['sleep','slept','tired','rest','fatigue'], workload: ['work','task','schedule','deadline','busy','shift'], exercise: ['exercise','workout','run','training','gym'], isolation: ['alone','lonely','isolated','homesick'], 'family and home': ['family','home','partner','kids','friend','friends'], food: ['food','meal','eat','dinner','lunch','breakfast'], 'crew and teamwork': ['crew','team','together','commander'], stress: ['stress','stressed','pressure','overwhelmed','worried'], 'physical comfort': ['pain','ache','headache','sore','nausea','dizzy'] };
-function summarize(body) { const words = new Set(body.toLowerCase().match(/\b[a-z]+\b/g) || []); const found = Object.entries(themes).filter(([, terms]) => terms.some(term => words.has(term))).map(([theme]) => theme); return found.length ? `You wrote about: ${found.join(', ')}.` : 'No common themes were picked out of this entry.'; }
-// Guests keep entries in this browser. Signed-in users keep them in their account, where
-// each entry is embedded into the vector index that powers search and MUSE memory.
 let account = null, accountEntries = [], journalLoad = 0, pendingPhoto = null, selectedDay = null, calMonth = null;
+let journalRevision = 0;
+const journalReflectionStates = new Map();
+const reflectionKey = entry => `${account?.username || 'guest'}:${entry.id}`;
+element('journal-demo-button').onclick=()=>openJournalDemo();
 const journalNote = text => { element('journal-message').textContent = text; };
 function journalFailure(error, fallback) {
   if (error.status === 401) { accountControl.expire(); return 'Your session ended. Sign in again to reach your account journal.'; }
@@ -578,10 +579,10 @@ function renderStorage() {
   const note = element('journal-storage'); note.replaceChildren();
   if (!account) {
     const signIn = document.createElement('button'); signIn.type = 'button'; signIn.className = 'link-button'; signIn.textContent = 'Sign in'; signIn.onclick = () => accountControl.open();
-    note.append('Guest · entries are saved in this browser only. ', signIn, ' to keep them in an account, search them, and give MUSE memory of related entries.');
+    note.append('Guest · entries and reflections are saved in this browser. ', signIn, ' to keep and search them in an account.');
     return;
   }
-  note.append(`@${account.username} · new entries are saved to your account and indexed for search and MUSE memory.`);
+  note.append(`@${account.username} · entries and reflections are saved to your account.`);
   if (!journals.length) return;
   const upload = document.createElement('button'); upload.type = 'button'; upload.className = 'link-button'; upload.textContent = 'Move them to my account';
   upload.onclick = async () => {
@@ -602,7 +603,7 @@ async function loadAccountJournal() {
     const data = await api('/api/journal/entries');
     if (load !== journalLoad || !account) return;
     accountEntries = data.entries;
-    element('journal-index').textContent = `Vector index · ${data.entries.length} of ${data.index.limit} entries · ${data.index.dimensions}-dimension ${data.index.model} embeddings. Matches similar wording and listed themes; it is not a neural language model.`;
+    element('journal-index').textContent = `${data.entries.length} saved entries. Search your own words.`;
   } catch (error) { if (load === journalLoad) journalNote(journalFailure(error, 'Could not load your account journal.')); }
   renderJournals();
 }
@@ -634,7 +635,7 @@ function renderJournals() {
       remove.onclick = async () => {
         if (!confirm('Delete this entry from your account? This cannot be undone.')) return;
         remove.disabled = true;
-        try { await api(`/api/journal/entries/${entry.id}`, 'DELETE'); journalNote('Entry deleted.'); element('journal-matches').replaceChildren(); await loadAccountJournal(); }
+        try { await api(`/api/journal/entries/${entry.id}`, 'DELETE'); journalRevision++; journalReflectionStates.clear(); journalNote('Entry deleted.'); element('journal-matches').replaceChildren(); await loadAccountJournal(); }
         catch (error) { remove.disabled = false; journalNote(journalFailure(error, 'Could not delete the entry.')); }
       };
       head.append(remove);
@@ -652,11 +653,35 @@ function renderJournals() {
       photoParts = [image, dropPhoto, compareControl(entry)];
     }
     const slept = document.createElement('p'); slept.className = 'tag'; slept.textContent = entry.sleepHours == null ? '' : `You logged ${entry.sleepHours} h of sleep.`; slept.hidden = entry.sleepHours == null;
-    const summary = document.createElement('p'); summary.className = 'tag'; summary.textContent = `${summarize(entry.body)} Summary of your words, not an assessment.`;
-    row.append(head,...(photoParts.length ? [photoParts[0], body, photoParts[1], photoParts[2]] : [body]),slept,summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); row.append(museJournalElement(entry.body, { memory: Boolean(account) })); element('journal-entries').append(row);
+    row.append(head,...(photoParts.length ? [photoParts[0], body, photoParts[1], photoParts[2]] : [body]),slept,
+      journalReflectionElement(entry.reflection,journalReflectionStates.get(reflectionKey(entry)),()=>reflectOnEntry(entry)));
+    element('journal-entries').append(row);
   }
 }
-element('journal-tone-enabled').onchange = renderJournals;
+async function reflectOnEntry(entry) {
+  const key=reflectionKey(entry), revision=journalRevision, owner=account?.username;
+  if(journalReflectionStates.get(key)?.pending) return;
+  const payload=owner?{entryId:entry.id,consent:true}:deviceJournalPayload(entry,journals);
+  journalReflectionStates.set(key,{pending:true}); renderJournals();
+  try {
+    const reflection=await api('/api/journal/analyze','POST',payload,35000);
+    if(revision!==journalRevision || owner!==account?.username) return;
+    if(owner) {
+      const current=accountEntries.find(item=>item.id===entry.id);
+      if(current) current.reflection=reflection;
+    } else {
+      if(!journals.some(item=>item.id===entry.id)) return;
+      const updated=journals.map(item=>item.id===entry.id?{...item,reflection}:item);
+      localStorage.setItem('crewsafety-journal',JSON.stringify(updated));journals=updated;
+    }
+    journalReflectionStates.delete(key);
+  } catch(error) {
+    if(revision===journalRevision && owner===account?.username) journalReflectionStates.set(key,{error:`Your entry is saved. ${error.name==='TimeoutError'?'MUSE took too long. Please retry.':error.message || 'MUSE is unavailable. Please retry.'}`});
+  } finally {
+    if(journalReflectionStates.get(key)?.pending) journalReflectionStates.delete(key);
+    if(revision===journalRevision && owner===account?.username) renderJournals();
+  }
+}
 function compareControl(entry) {
   const box = document.createElement('div'); box.className = 'compare-box';
   const label = document.createElement('label'); label.className = 'toggle';
@@ -741,37 +766,39 @@ async function attachPhoto(source) {
 element('journal-photo-file').onchange = async event => { const file = event.target.files[0]; event.target.value = ''; if (file) await attachPhoto(file); };
 element('journal-photo-cam').onclick = async () => { try { await attachPhoto(await webcamStill()); } catch { journalNote('Could not use the camera. Check permission, or choose a photo instead.'); } };
 element('journal-photo-clear').onclick = () => { if (pendingPhoto) URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; renderPhotoField(); };
-element('journal-dataset').textContent = sentimentMetadata.terms.toLocaleString() + ' rated terms · VADER lexicon · MIT license';
 const sleepHours = () => { const raw = element('journal-sleep').value; const value = raw === '' ? NaN : Number(raw); return Number.isFinite(value) && value >= 0 && value <= 24 ? Math.round(value * 10) / 10 : null; };
 element('journal-form').onsubmit = async event => {
-  event.preventDefault(); const body = element('journal-body').value.trim(); if (!body) return;
+  event.preventDefault(); const body = element('journal-body').value.trim(); if (!body || element('journal-submit').disabled) return;
+  const owner=account?.username;
   if (account) {
-    const submit = event.target.querySelector('button'); submit.disabled = true; journalNote('Saving to your account…');
+    const submit = element('journal-submit'); submit.disabled = true; journalNote('Saving to your account…');
     try {
-      const saved = await api('/api/journal/entries', 'POST', { body, ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }); window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'journal'})); if (element('journal-body').value.trim() === body) element('journal-body').value = '';
-      let note = 'Saved to your account and added to the vector index.';
+      const saved = await api('/api/journal/entries', 'POST', { body, ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }); if(owner!==account?.username) return; window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'journal'})); if (element('journal-body').value.trim() === body) element('journal-body').value = '';
+      let note = 'Entry saved. MUSE reflection requested.';
       if (pendingPhoto) {
         try { await api(`/api/journal/entries/${saved.entry.id}/photo`, 'PUT', { image: pendingPhoto.image, width: pendingPhoto.width, height: pendingPhoto.height }); URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; note += ' Photo attached.'; window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'photo'})); }
         catch (error) { note += ` The entry was saved but the photo was not: ${journalFailure(error, 'upload failed.')}`; }
       }
-      element('journal-sleep').value = ''; selectedDay = null; calMonth = null; journalNote(note); await loadAccountJournal();
+      element('journal-sleep').value = ''; selectedDay = null; calMonth = null; journalNote(note); await loadAccountJournal(); if(owner===account?.username) await reflectOnEntry(saved.entry);
     }
     catch (error) { journalNote(`${journalFailure(error, 'Could not save.')} Your text has not been cleared.`); }
     finally { submit.disabled = false; }
     return;
   }
-  const updated = [{ body, date: new Date().toISOString(), ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }, ...journals];
-  try { localStorage.setItem('crewsafety-journal', JSON.stringify(updated)); journals = updated; element('journal-body').value = ''; element('journal-sleep').value = ''; journalNote('Saved on this browser only.'); renderJournals(); window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'journal'})); } catch { journalNote('Browser storage is unavailable or full. Your text has not been cleared.'); }
+  const updated = [{ id:crypto.randomUUID(), body, date: new Date().toISOString(), ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }, ...journals];
+  let savedLocally=false;
+  try { localStorage.setItem('crewsafety-journal', JSON.stringify(updated)); journals = updated; savedLocally=true; element('journal-body').value = ''; element('journal-sleep').value = ''; journalNote('Entry saved in this browser. MUSE reflection requested.'); renderJournals(); window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'journal'})); } catch { journalNote('Browser storage is unavailable or full. Your text has not been cleared.'); }
+  if(savedLocally) {element('journal-submit').disabled=true; try {await reflectOnEntry(updated[0]);} finally {element('journal-submit').disabled=false;}}
 };
 element('clear-journal').onclick = async () => {
   if (account) {
     if (!accountEntries.length || !confirm('Delete every journal entry in your account? This cannot be undone.')) return;
-    try { await api('/api/journal/entries', 'DELETE'); journalNote('All account entries deleted.'); element('journal-matches').replaceChildren(); await loadAccountJournal(); }
+    try { await api('/api/journal/entries', 'DELETE'); journalRevision++; journalReflectionStates.clear(); journalNote('All account entries deleted.'); element('journal-matches').replaceChildren(); await loadAccountJournal(); }
     catch (error) { journalNote(journalFailure(error, 'Could not delete your entries.')); }
     return;
   }
   if (!journals.length || !confirm('Delete all journal entries from this browser?')) return;
-  try { localStorage.removeItem('crewsafety-journal'); journals = []; renderJournals(); } catch { journalNote('Could not clear browser storage.'); }
+  try { localStorage.removeItem('crewsafety-journal'); journals = []; journalRevision++; journalReflectionStates.clear(); renderJournals(); } catch { journalNote('Could not clear browser storage.'); }
 };
 element('journal-search').onsubmit = async event => {
   event.preventDefault(); const query = element('journal-query').value.trim(), results = element('journal-matches'); if (!query) return;
@@ -803,7 +830,7 @@ const accountControl = initAccount(user => {
   window.dispatchEvent(new CustomEvent('crew-account-change', {detail:user}));
   stationsUi.userChanged(user);
   circleUi.userChanged(user);
-  account = user; accountEntries = []; journalLoad++; selectedDay = null; calMonth = null;
+  journalRevision++; journalReflectionStates.clear(); account = user; accountEntries = []; journalLoad++; selectedDay = null; calMonth = null;
   element('home-account').textContent = user ? `@${user.username}` : 'Guest';
   element('hero-account').textContent = user ? 'Open journal' : 'Sign in';
   element('journal-matches').replaceChildren(); element('journal-index').textContent = '';

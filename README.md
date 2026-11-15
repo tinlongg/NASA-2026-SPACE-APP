@@ -1,11 +1,11 @@
 # CrewSafety — NASA Space Apps 2026
 
 A native SwiftUI iPhone prototype for a **simulated** space crew: a crew dashboard,
-camera-based possible-unresponsive alerts with an "Are you OK?" check-in, an on-device wellness journal, and MUSE, which only does
-image recognition and journal-entry analysis.
+camera-based possible-unresponsive alerts with an "Are you OK?" check-in, and a wellness journal with
+collective MUSE reflections. MUSE handles images and journals; ElevenLabs provides opt-in live voice check-ins.
 
 **Not a medical device.** Detections mean a crew member *stopped moving*, from a simple heuristic. Heart-rate values
-are simulated and labelled. Journal summaries list themes you wrote about; they are not assessments.
+are simulated and labelled. Journal feedback reflects your own words and offers gentle suggestions; it does not diagnose conditions.
 
 ## Setting and detection
 
@@ -92,8 +92,15 @@ remains primary; the browser companion uses MediaPipe for Windows/Mac testing. X
 26.5 simulator now run on this Mac. Current test results and interactive QA are in
 [PASSDOWN.md](docs/PASSDOWN.md).
 
-MUSE only does image recognition (journal photos, station camera frames) and journal-entry analysis. It has no
-document question-and-answer: the NASA-grounded research chat, `/chat`, the source corpus and the iOS demo answers were removed.
-The browser has Camera Coach, an optional MUSE journal reflection, and accounts with server-side journal storage and
-lexical vector recall. Guest entries and the native journal stay local unless a browser user explicitly sends or moves an entry.
-Optional related account entries can accompany a MUSE reflection when selected. Keys stay server-side.
+MUSE handles images and journal-entry analysis. The NASA research chat, `/chat`, and its source
+corpus have been removed. Both journals automatically request a MUSE reflection after saving, using
+the current entry and up to 11 recent entries within 14 days. Saving discloses that text is sent
+through the server to Meta. Sentiment and internal analysis stay behind the API; supportive feedback
+is shown on every save; collective suggestions start after 3 entries within 14 days.
+Both journals include a fictional astronaut demo with real MUSE feedback. Failures preserve the entry and offer retry. Native and guest
+entries persist locally; account entries persist on the server. Keys remain server-side.
+See the [current journal contract](docs/JOURNAL.md) for privacy, API and migration details.
+
+Main also includes opt-in live voice check-ins, native Watch comparisons, public Mission rankings,
+and habitat/cosmetic updates. Real-device and live-provider checks remain outstanding; see
+[PASSDOWN.md](docs/PASSDOWN.md) for verification and deployment status.

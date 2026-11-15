@@ -56,6 +56,8 @@ test('failed model download never advertises offline camera readiness',async()=>
 test('built shell contains every offline dependency and a versioned worker',async()=>{
   const assets=await loadAssets();
   for(const path of SHELL_ASSETS) assert.ok(assets[path==='/'?'/index.html':path],path);
+  assert.equal(assets['/journal-sentiment.js'],undefined);
+  assert.equal(assets['/sentiment-lexicon.js'],undefined);
   assert.match(assets['/sw.js'].body,/crewsafety-[a-f0-9]{16}/);
   assert.ok(!assets['/styles.css'].body.includes('fonts.googleapis.com'));
 });

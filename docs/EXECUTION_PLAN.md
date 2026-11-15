@@ -1,5 +1,7 @@
 # Crew Safety & Wellness — Technical Execution Plan
 
+> **Journal direction update (2026-11-15):** The user now requires automatic collective MUSE reflection on website and native iPhone saves. Dated text is sent to the server and Meta with clear disclosure; summaries/sentiment are backend-only. [Current journal contract](JOURNAL.md) overrides older optional-MUSE/on-device-only journal guidance below.
+
 > **Source of requirements:** `CREW_SAFETY_HACKATHON.md` ("the brief"). Where this plan goes beyond or deviates from the brief, it says so.
 > **Status (updated 2026-11-14):** This is the original architecture and acceptance plan. See `docs/PASSDOWN.md` for current results, product changes and remaining checks. Native SwiftUI stays primary. Later work added the browser companion, Meta, the NASA/OSDR sources, paired sync, browser accounts and opt-in journal reflections. PR #4 replaced fall detection and its event type with possible-unresponsive detection. The website no longer serves research `/chat` or consumes an exported Python index; FastAPI still provides the native §5.3 API. The historical Swift snippets below are not the current camera contract: read `Core/Models/PoseTypes.swift` and `Models.swift` before integration. Do not revert merged contracts to the historical snippets.
 > **Historical verification done when this plan was written:** the Swift contracts in §5 were type-checked with `swiftc -typecheck` (Apple Swift 6.4.2) in both Swift 5 and Swift 6 language modes and compile cleanly. Nothing else here has been built or run.

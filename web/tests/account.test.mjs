@@ -100,26 +100,34 @@ test('rows from an older embedder are re-embedded on recall', async () => {
   assert.equal(DB.sqlite.prepare('SELECT model FROM journal_entries').get().model, 'hashed-lexical-v1');
 });
 
-test('MUSE memory sends only server-retrieved entries from the signed-in user', async () => {
-  let sent;
-  const { client } = setup(async (url, options) => { sent = JSON.parse(options.body); return Response.json({ choices: [{ finish_reason: 'stop', message: { content: 'Tiredness comes up again.' } }] }); });
-  const ada = client(), ben = client(), env = { env: { META_API_KEY: 'test-key' } };
-  const entry = 'Exhausted again and could not sleep.';
-  assert.equal((await ada('/api/journal/analyze', 'POST', { entry, consent: true, memory: true }, env)).status, 401);
-  await ada('/api/auth/register', 'POST', { username: 'ada', password: secret() });
-  await ben('/api/auth/register', 'POST', { username: 'ben', password: secret() });
-  await ben('/api/journal/entries', 'POST', { body: 'BEN PRIVATE: tired, no sleep, exhausted.' });
-  for (const body of ['Slept badly, so tired all shift.', 'Treadmill workout felt great.', entry]) await ada('/api/journal/entries', 'POST', { body });
-  assert.equal((await ada('/api/journal/analyze', 'POST', { entry, consent: true, memory: 'yes' }, env)).status, 400);
-  assert.equal((await ada('/api/journal/analyze', 'POST', { entry, consent: true, relatedPastEntries: ['forged'] }, env)).status, 400);
-  const response = await ada('/api/journal/analyze', 'POST', { entry, consent: true, memory: true }, env), result = await response.json();
-  assert.equal(response.status, 200);
-  const payload = JSON.parse(sent.messages[1].content);
-  assert.equal(payload.entry, entry);
-  assert.deepEqual(payload.relatedPastEntries.map(related => related.text), ['Slept badly, so tired all shift.']); // not itself, not unrelated, not Ben's
-  assert.equal(result.memory.length, 1); assert.ok(result.memory[0].score > 0.2);
-  assert.match(sent.messages[0].content, /relatedPastEntries/);
-  await ada('/api/journal/analyze', 'POST', { entry, consent: true }, env); // Without the opt-in nothing extra is attached.
-  assert.deepEqual(JSON.parse(sent.messages[1].content), { entry });
-  assert.doesNotMatch(sent.messages[0].content, /relatedPastEntries/);
+test('collective MUSE history stays owner-scoped, chronological and deletion-safe', async () => {
+  let sent, duringGeneration=async()=>{};
+  const feedback={message:'You have described feeling low more than once, and enjoyed a workout.',suggestions:['Check in with a trusted person.'],question:'What helped during the better day?'};
+  const { DB, client } = setup(async (url, options) => { sent=JSON.parse(options.body);await duringGeneration();return Response.json({choices:[{finish_reason:'stop',message:{content:JSON.stringify({...feedback,summary:'hidden',sentiment:-1})}}]}); });
+  const ada=client(), ben=client(), env={env:{META_API_KEY:'test-key'}};
+  const target=crypto.randomUUID();
+  assert.equal((await ada('/api/journal/analyze','POST',{entryId:target,consent:true},env)).status,401);
+  await ada('/api/auth/register','POST',{username:'ada',password:secret()});
+  await ben('/api/auth/register','POST',{username:'ben',password:secret()});
+  const benEntry=(await (await ben('/api/journal/entries','POST',{body:'BEN PRIVATE'})).json()).entry;
+  assert.equal((await ada('/api/journal/analyze','POST',{entryId:benEntry.id,consent:true},env)).status,404);
+  const bodies=['old note','sad again','Great workout today!','sad again'], entries=[];
+  for(const [index,body] of bodies.entries()) entries.push((await (await ada('/api/journal/entries','POST',{body,date:new Date(Date.now()-[20,3,2,0][index]*86400000).toISOString()})).json()).entry);
+  const input={entryId:entries.at(-1).id,consent:true};
+  assert.equal((await ada('/api/journal/analyze','POST',{...input,history:[]},env)).status,400);
+  const response=await ada('/api/journal/analyze','POST',input,env),result=await response.json();
+  assert.equal(response.status,200);
+  assert.deepEqual(JSON.parse(sent.messages[1].content).entries.map(e=>e.text),bodies.slice(1));
+  assert.equal(result.context.entryCount,3);assert.doesNotMatch(JSON.stringify(result),/hidden|sentiment|summary|score|BEN/);
+  let saved=(await (await ada('/api/journal/entries')).json()).entries;
+  assert.deepEqual(saved[0].reflection,result);
+  assert.doesNotMatch(DB.sqlite.prepare('SELECT reflection FROM journal_entries WHERE id = ?').get(input.entryId).reflection,/hidden|sentiment|summary|score/);
+  await ada('/api/journal/entries/'+entries[1].id,'DELETE');
+  assert.equal((await (await ada('/api/journal/entries')).json()).entries[0].reflection,null);
+  // Delete a contextual entry while the provider is running: don't store stale feedback.
+  duringGeneration=()=>ada('/api/journal/entries/'+entries[2].id,'DELETE');
+  assert.equal((await ada('/api/journal/analyze','POST',input,env)).status,409);
+  assert.equal((await (await ada('/api/journal/entries')).json()).entries[0].reflection,null);
+  const failure=await ada('/api/journal/analyze','POST',input);assert.equal(failure.status,503);
+  assert.ok((await (await ada('/api/journal/entries')).json()).entries.some(e=>e.id===input.entryId),'provider failure preserves saved entry');
 });

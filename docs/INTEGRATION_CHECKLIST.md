@@ -1,5 +1,11 @@
 # Integration checklist
 
+Current journal acceptance supersedes older local-summary checks: see [JOURNAL](JOURNAL.md).
+- [ ] Deploy the Worker with migration 0008 and configured Meta access before distributing the new iPhone build.
+- [ ] On both clients, save several synthetic entries with mixed feelings; verify automatic collective feedback and no visible sentiment/summary panel.
+- [ ] Disconnect networking; verify the note stays saved and its MUSE reflection offers retry.
+- [ ] Verify a live Meta response after deployment; mocks do not establish provider availability.
+
 Updated 2026-11-14 against `main` at `19906a1` plus the local QA fixes described in
 [PASSDOWN](PASSDOWN.md). Checked items below were verified in this pass. Physical iPhone and Windows
 acceptance remain pending; synthetic replays do not validate real-person detection.

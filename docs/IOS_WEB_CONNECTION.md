@@ -1,5 +1,10 @@
 # Connect the iPhone app and dashboard
 
+Journal reflections use the same configured website URL but a separate `/api/journal/analyze` API.
+They send dated text to the Worker and Meta on save/retry; they are not part of crew sync. The native
+journal remains a separate local store. Deploy the updated Worker and journal migration before using
+the new app; the old FastAPI dashboard address does not provide this endpoint. See [JOURNAL](JOURNAL.md).
+
 ## Hosted connection — no local server required
 
 Open https://crew-safety-connected.lustrousbush32.chatgpt.site and select **Crew dashboard → Create pairing session**. Pull the latest `main` and rebuild iOS in Xcode. In **Dashboard → Settings → Website connection**, the hosted backend URL is prefilled; enter the website's pairing code and enable sharing. Keep the app open. The phone can use Wi-Fi or cellular; it no longer needs the computer's network.
@@ -25,14 +30,14 @@ python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 
 Windows without activation: use `.venv\Scripts\python.exe` instead of `python`.
 macOS: use `.venv/bin/python`. Create the environment first with `python3 -m venv .venv` if needed.
-These are the sync/extractive-MUSE dependencies. The optional generated MUSE mode additionally needs the SDK and credentials described in the backend README.
+These dependencies serve crew sync. Journal MUSE requires the Node/Worker website and its server-side Meta configuration; the former research-chat backend has been removed.
 
 1. Find your computer's Wi-Fi IPv4 address (`ipconfig` on Windows; network settings on macOS).
 2. Open `http://COMPUTER-IP:8000/dashboard/` on the computer. Select **Crew dashboard**.
-3. Click **Create pairing session**. The backend address and 32-character pairing code appear in the form.
+3. Click **Create pairing session**. The 32-character pairing code appears in the form. The website uses its own server address.
 4. Build and run the updated iOS project in Xcode. On the phone, open **Dashboard → gear → Website connection**.
-5. Enter the exact backend address `http://COMPUTER-IP:8000` (without `/dashboard/`) and pairing code. Turn on **Share with website dashboard**.
-6. Keep the app open. The website replaces its browser-demo cards with the iPhone's crew, telemetry and events. NASA research remains available underneath.
+5. Expand **Advanced: website address** and enter the exact backend address `http://COMPUTER-IP:8000` (without `/dashboard/`) and pairing code. Turn on **Share with website dashboard**.
+6. Keep the app open. The website replaces its browser-demo cards with the iPhone's crew, telemetry and events. The NASA research section has been removed.
 7. Run **Monitor → Replay** in iOS. A possible-unresponsive event should appear on the website within roughly six seconds under normal LAN conditions. Choose **Acknowledge on all devices** on the website; the app should acknowledge it on its next sync.
 
 Do not enter `localhost` on the physical iPhone: it means the phone itself. Both devices must use the same Wi-Fi or hotspot. Guest/campus Wi-Fi may block device-to-device traffic. If prompted, allow iOS Local Network access and allow the backend through the computer's private-network firewall. No firewall rules are changed automatically. Use an appropriate trusted local network for this HTTP prototype; use HTTPS before hosting remotely.

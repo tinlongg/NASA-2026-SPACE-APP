@@ -1,5 +1,131 @@
 # Passdown — 2026-11-15
 
+## Main integration for the journal update
+
+The journal changes are based on teammate `main` at **`618c200`**. Conflict resolution preserves the
+new grouped/mobile navigation, sign-up phone consent, admin handling, lunar Mission physics and
+accessories, opt-in Watch health-summary sync, and removal of the NASA research section. The journal/demo assets remain in the Worker
+and offline shell; removed research assets do not. No teammate account or Mission logic was replaced.
+
+This update includes the collective journal, three-entry suggestions, astronaut demo and cat-video
+breaks for website/iPhone, plus the updated [journal contract](JOURNAL.md). Hosting handoff now also
+lists migration **0008**, required before deploying the new account-journal API. GitHub publication
+and website deployment are separate; the Connected-site access blocker below still applies.
+
+Integration verification: **178/178 web tests**, **6/6 backend tests**, and **10/10 focused iPhone
+tests** (JournalReflectionTests and HealthSummaryTests) pass. Worker build and generated-module
+syntax check pass; the updated iPhone-only app and test bundle compile. The full native suite
+previously passed 75/75 before integration; this run targeted the journal and new health-summary
+paths instead of repeating the full suite. The final upstream commit only changes documentation
+and ignores tool-local files; those cleanups were preserved after the tests without changing code.
+
+## Latest addition: optional cute-cat videos
+
+- Website and native iPhone reflections covering 3+ entries now include **A little cat break**:
+  two fixed Cole & Marmalade YouTube videos, also shown after the astronaut demo's live reflection.
+  This is optional entertainment, with no treatment claim or automatic playback.
+- No journal text goes into the link and no embedded third-party content loads in the journal.
+  Web links open separately with referrer suppression; native uses SwiftUI `Link`.
+- Updated the journal contract. Included in this GitHub main update; the existing Sites-access
+  blocker still prevents updating the public Connected website.
+- Validation: **170/170 existing web tests pass**; Worker build and syntax check pass; iPhone
+  simulator build succeeds. Native tests were not rerun for this link-only UI change (previous run:
+  75/75). Browser QA found and fixed inherited sidebar styling on the cat card; final narrow-screen
+  layout and the links are checked in the live astronaut demo. YouTube playback itself was not tested.
+
+## Latest addition: three-entry suggestions and astronaut demo
+
+- **Website and native iPhone:** MUSE still reviews every save. Entries 1–2 receive a brief reflection
+  and question plus a progress message. Collective suggestions unlock at **3 entries within 14 days**,
+  regardless of whether every entry is negative. The server enforces the suggestions-array threshold;
+  clients also suppress older saved suggestions below three. This is a product rule, not a clinical
+  threshold. Immediate human-support wording is never delayed for explicit danger.
+- **Run astronaut demo** shows a clearly fictional astronaut becoming homesick, lonely and very low
+  across three preset entries, then requests **real MUSE**. The illustration does not analyze camera
+  emotions. Demo notes and results never enter personal journals or Mission progress.
+- `POST /api/journal/demo` accepts only `{consent:true}`, uses server-owned dated text, does not access
+  the account database, and returns `demo:true`. Clients cancel on close and show retry if MUSE fails.
+  There is no canned AI fallback. Native uses its configured Website connection URL.
+- Added demo presentation/data modules and offline-shell asset registration. Updated the shared
+  journal contract, READMEs, sentiment provenance notes and demo script to match the current behavior.
+- Web: **170/170 tests pass**, Worker build and syntax check pass. Live browser demo successfully
+  returned a real `muse-spark-1.3` reflection on all three fictional entries with practical suggestions.
+  Separate live MUSE calls for one and two synthetic entries both returned empty suggestion arrays.
+  Existing one/two-entry reflections show progress instead of their old suggestions.
+- iPhone: **75/75 tests pass** on the iPhone 17 / iOS 26.5 simulator, including the three new
+  threshold/demo tests. The updated native UI compiles; its demo presentation has not been manually
+  exercised on a physical iPhone. Website demo was visually checked at narrow and wide browser sizes.
+- These changes are included in this GitHub main update. The local preview is **http://127.0.0.1:4178/journal**.
+  Public deployment remains blocked by Connected-site editor access, as detailed below.
+
+## Latest follow-up: collective journal — website and iPhone
+
+Pulled `main` from `5aee9bd` to **`ff3b559`**, preserving the collective-journal work. The journal
+changes are included in this GitHub main update; they are **not deployed** to the public website.
+This section supersedes the historical journal/privacy/QA notes below. The user's new direction is
+recorded in [JOURNAL.md](JOURNAL.md), with override notes in the original briefs and execution plan.
+
+- Both save flows automatically request MUSE using the selected entry and up to 11 recent entries
+  within 14 days, including positive entries and repeated wording. Feedback acknowledges tentative
+  patterns and offers small practical suggestions after three entries, without diagnosing a condition.
+- Removed user-facing theme summaries, sentiment scores and optional text-MUSE controls. Internal
+  sentiment is generated only on the server for the agent. Only public reflection fields cross the
+  API; provider reasoning and extra model-generated analysis fields are discarded.
+- Entries save before MUSE runs. Failures/offline/missing configuration leave a pending reflection
+  with retry. Native context is same-crew only, account context is owner-only, and deleted context
+  cannot be restored by an in-flight reflection. Guest/native feedback persists locally; account
+  feedback persists in D1/SQLite. Photo comparison remains separately optional.
+- Added `web/journal.mjs`, `web/journal-analysis.mjs`, `web/dist/journal-reflection.js`, and migration
+  `0008_journal_reflections.sql`. Updated the existing native journal store, view and public models.
+- Web after the main merge: **167/167 tests pass** on Node 22.23.5. Worker build and generated-module
+  syntax check pass. The reduced FastAPI suite is **5/5** after upstream removed research chat.
+- iOS after the main merge: **72/72 tests pass** on Xcode 26.6, iPhone 17 / iOS 26.5 using the
+  iPhone-only project. The five new journal tests cover history, API privacy, provider/disk failure,
+  persistence and deletion; upstream contributes the voice and Watch-comparison tests.
+- Browser: three synthetic preview notes produced real MUSE feedback covering 1 → 2 → 3 entries.
+  MUSE considered both
+  difficult feelings and positive experiences, returned practical suggestions, and displayed no
+  sentiment scores or internal summaries. A separate real-provider API check used three dated
+  synthetic entries and returned HTTP 200. No private journal data, images or camera captures were sent.
+- The original journal QA used a labelled mock. The latest localhost preview uses real Meta access,
+  held only in the server process; it is not a production deployment.
+
+### Latest main changes retained
+
+Ten upstream commits add live opt-in ElevenLabs voice check-ins, native Watch comparison cards and
+reference data, multiple provisioned admins, public Mission rankings, habitat animation and fitted
+cosmetics. The old NASA research-chat backend and corpus were removed upstream. Merge conflicts in
+README, the offline shell list and Worker asset bundling were resolved by retaining both the voice
+agent and collective-journal assets. No detector or voice behavior was changed by the journal merge.
+
+The supplied screenshot is a functional example, not a requirement to copy its layout or condition
+labels. Public MUSE feedback and suggestions remain below each saved entry; private analysis stays
+server-side. The local updated site runs at `http://127.0.0.1:4178/journal` while its server is running.
+This is not the shared Windows/phone URL. The production site remains unchanged by this chat.
+
+### Rollout still required
+
+1. Apply migration 0008 to the existing Connected site's D1 and deploy the new Worker, preserving
+   its project ID and audience. Do not deploy this code to the older Web Lab site by mistake.
+2. Confirm the production Meta configuration after access is restored. The updated local endpoint
+   returned **HTTP 200 from real `muse-spark-1.3`** using three synthetic dated entries: it recognized
+   repeated difficult feelings, considered the positive entry and returned two practical suggestions.
+   The user-supplied key was passed on hidden stdin and exists only in the preview server memory;
+   no credential was written into repository files or client code.
+3. Rebuild/distribute the native app after the API deploy. Settings → Website connection must point
+   to the Worker/Node website; FastAPI `/chat` does not provide this journal endpoint.
+
+**Hosting blocker:** the connected Sites account can read the public Connected site metadata but has
+no editor role; privileged project operations return `project_not_found`. Its editable-site list omits
+Connected. The owner must grant this account edit access or connect the owning account/workspace.
+The user asked us to handle this, but available plugin tools cannot switch the owning account and
+computer use explicitly refuses access to Codex account settings. No permissions or account settings
+were changed. The hosted site is unchanged by this follow-up (latest observed version: 12). This is an account-access blocker, not a failed code build.
+
+---
+
+## Earlier follow-up (historical)
+
 Starting point for this follow-up: `main` at `19906a1`, which merged PR #4 and commit `e7c5db7`. The station detector,
 accounts and journal recall are already merged; do not open another PR for that old branch.
 This file is the current operational handoff. Read it first, then `README.md` → *Setting and detection*.

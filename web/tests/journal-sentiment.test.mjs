@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {analyzeJournalTone,sentimentMetadata,normalizeJournalWord} from '../dist/journal-sentiment.js';
+import {analyzeJournalTone,sentimentMetadata,normalizeJournalWord} from '../journal-analysis.mjs';
 test('uses a substantial pinned human-rated dataset',()=>{assert.ok(sentimentMetadata.terms>7000);assert.match(sentimentMetadata.sha256,/^[a-f0-9]{64}$/);});
 test('positive, negative and mixed reflections are distinguished',()=>{
  assert.equal(analyzeJournalTone('I feel happy and grateful today.').label,'Positive tone');

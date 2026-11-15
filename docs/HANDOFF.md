@@ -1,5 +1,7 @@
 # Handoff — CrewSafety
 
+> **Journal direction update (2026-11-15):** The user now requires automatic collective MUSE reflection on website and native iPhone saves. Dated text is sent to the server and Meta with clear disclosure; summaries/sentiment are backend-only. [Current journal contract](JOURNAL.md) overrides older optional-MUSE/on-device-only journal guidance below.
+
 > **Historical snapshot. Start with [PASSDOWN.md](PASSDOWN.md) for current status.** PR #4 merged the
 > station detector, accounts and journal recall into `main` at `19906a1`. The old test counts, fall
 > acceptance cases, browser research/export instructions and hosted `/chat` advice below no longer

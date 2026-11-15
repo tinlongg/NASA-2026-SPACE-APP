@@ -2,8 +2,8 @@
 // so this script never sees or stores a token; passwords are only ever posted to the server.
 const el = id => document.getElementById(id);
 
-export async function api(path, method = 'GET', body) {
-  const response = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(15000) });
+export async function api(path, method = 'GET', body, timeout = 15000) {
+  const response = await fetch(path, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined, cache: 'no-store', credentials: 'same-origin', signal: AbortSignal.timeout(timeout) });
   let data;
   try { data = await response.json(); } catch { throw new Error('Accounts need the hosted site or the local Node server.'); }
   if (!response.ok) throw Object.assign(new Error(typeof data.error === 'string' ? data.error : 'Accounts need the hosted site or the local Node server.'), { status: response.status });

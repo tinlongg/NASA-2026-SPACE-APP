@@ -93,6 +93,27 @@ struct JournalEntry: Identifiable, Codable, Hashable, Sendable {
     let crewMemberID: UUID
     let timestamp: Date
     var body: String
+    // Legacy local summaries remain decodable but are no longer produced or displayed.
     var summary: JournalSummary?
+    var reflection: JournalReflection? = nil
 }
 
+
+/// Only user-facing feedback crosses the API. Sentiment and analysis stay on the server.
+struct JournalReflection: Codable, Hashable, Sendable {
+    static let minimumEntries = 3
+    var collectiveSuggestionsReady: Bool { context.entryCount >= Self.minimumEntries }
+    struct Context: Codable, Hashable, Sendable {
+        let entryCount: Int
+        var minimumEntries: Int? = nil
+        let from: String
+        let to: String
+    }
+    let message: String
+    let suggestions: [String]
+    let question: String
+    let context: Context
+    let model: String
+    let generatedAt: String
+    var demo: Bool? = nil
+}

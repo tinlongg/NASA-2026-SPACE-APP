@@ -269,8 +269,8 @@ export function createAccounts() {
       const user = await accountUser(request, env);
       if (!user) throw acctError(401, 'Sign in to use your account journal.');
       if (path === '/api/journal/entries' && method === 'GET') {
-        const { results } = await db.prepare('SELECT e.id, e.created, e.body, e.sleep_hours, (SELECT 1 FROM journal_photos p WHERE p.entry_id = e.id) AS has_photo FROM journal_entries e WHERE e.user_id = ? ORDER BY e.created DESC LIMIT ?').bind(user.id, ACCT_MAX_ENTRIES).all();
-        return acctJSON({ entries: results.map(row => ({ id: row.id, date: new Date(row.created).toISOString(), body: row.body, hasPhoto: Boolean(row.has_photo), sleepHours: row.sleep_hours ?? null })), index: { model: VEC_MODEL, dimensions: VEC_DIM, limit: ACCT_MAX_ENTRIES } });
+        const { results } = await db.prepare('SELECT e.id, e.created, e.body, e.sleep_hours, e.reflection, (SELECT 1 FROM journal_photos p WHERE p.entry_id = e.id) AS has_photo FROM journal_entries e WHERE e.user_id = ? ORDER BY e.created DESC LIMIT ?').bind(user.id, ACCT_MAX_ENTRIES).all();
+        return acctJSON({ entries: results.map(row => ({ id: row.id, date: new Date(row.created).toISOString(), body: row.body, hasPhoto: Boolean(row.has_photo), sleepHours: row.sleep_hours ?? null, reflection: row.reflection ? JSON.parse(row.reflection) : null })), index: { model: VEC_MODEL, dimensions: VEC_DIM, limit: ACCT_MAX_ENTRIES } });
       }
       if (path === '/api/journal/entries' && method === 'POST') {
         const body = await acctReadJSON(request, 49152);
@@ -327,6 +327,7 @@ export function createAccounts() {
         const removed = await db.prepare('DELETE FROM journal_entries WHERE id = ? AND user_id = ?').bind(entryMatch[1].toLowerCase(), user.id).run();
         if (!removed.meta.changes) throw acctError(404, 'Entry not found.');
         await db.prepare('DELETE FROM journal_photos WHERE entry_id = ? AND user_id = ?').bind(entryMatch[1].toLowerCase(), user.id).run();
+        await db.prepare('UPDATE journal_entries SET reflection = NULL WHERE user_id = ?').bind(user.id).run();
         return acctJSON({ deleted: true });
       }
       if (path === '/api/suit/checks') {
@@ -361,4 +362,21 @@ export function createAccounts() {
       throw acctError(405, 'Unsupported journal operation.');
     } catch (error) { return acctJSON({ error: error.status ? error.message : 'Accounts are temporarily unavailable.' }, error.status || 503); }
   };
+}
+
+// Chronological context, never similarity-filtered. Repeated identical entries still count.
+export async function journalReflectionContext(env, userId, entryId) {
+  const db = acctDB(env);
+  const current = await db.prepare('SELECT id, created, body FROM journal_entries WHERE id = ? AND user_id = ?').bind(entryId, userId).first();
+  if (!current) return null;
+  const {results} = await db.prepare('SELECT id, created, body FROM journal_entries WHERE user_id = ? AND id <> ? AND created >= ? AND created <= ? ORDER BY created DESC, id DESC LIMIT 11').bind(userId, entryId, current.created - 14*86400000, current.created).all();
+  return [...results.reverse(), current].map(row => ({id:row.id, date:new Date(row.created).toISOString(), body:row.body}));
+}
+export async function saveJournalReflection(env, userId, entryId, context, reflection) {
+  const db = acctDB(env);
+  // A deletion during generation must not leave a reflection quoting deleted text.
+  // One SQL statement makes the existence check and write atomic, including on D1.
+  const ids = context.map(entry => entry.id);
+  const saved = await db.prepare(`UPDATE journal_entries SET reflection = ? WHERE id = ? AND user_id = ? AND (SELECT COUNT(*) FROM journal_entries WHERE user_id = ? AND id IN (${ids.map(()=>'?').join(',')})) = ?`).bind(JSON.stringify(reflection), entryId, userId, userId, ...ids, ids.length).run();
+  return saved.meta.changes > 0;
 }
