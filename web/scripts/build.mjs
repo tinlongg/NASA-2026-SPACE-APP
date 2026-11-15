@@ -1,10 +1,11 @@
+import './build-sentiment.mjs';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 
 export async function loadAssets() {
   const assets = {};
-  for (const [name, type] of Object.entries({ 'index.html': 'text/html', 'styles.css': 'text/css', 'app.js': 'application/javascript', 'detector.js': 'application/javascript', 'fixtures.js': 'application/javascript', 'research-ui.js': 'application/javascript', 'offline-config.js': 'application/javascript', 'fallback.json': 'application/json', 'crew-sync.js': 'application/javascript', 'crew-sync.css': 'text/css', 'research.js': 'application/javascript', 'research.css': 'text/css', 'data/nasa-research.json': 'application/json' })) {
+  for (const [name, type] of Object.entries({ 'index.html': 'text/html', 'journal-sentiment.js': 'application/javascript', 'sentiment-lexicon.js': 'application/javascript', 'sentiment-license.txt': 'text/plain', 'styles.css': 'text/css', 'app.js': 'application/javascript', 'detector.js': 'application/javascript', 'fixtures.js': 'application/javascript', 'research-ui.js': 'application/javascript', 'offline-config.js': 'application/javascript', 'fallback.json': 'application/json', 'crew-sync.js': 'application/javascript', 'crew-sync.css': 'text/css', 'research.js': 'application/javascript', 'research.css': 'text/css', 'data/nasa-research.json': 'application/json' })) {
     assets[`/${name}`] = { body: await readFile(new URL(`../dist/${name}`, import.meta.url), 'utf8'), type: `${type}; charset=utf-8` };
   }
   const serviceWorker = await readFile(new URL('../dist/sw.js', import.meta.url), 'utf8');
