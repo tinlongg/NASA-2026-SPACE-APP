@@ -43,6 +43,7 @@ enum SyntheticPoses {
     private static let standing = Pose(hip: (0.5, 0.50), neck: (0.5, 0.72))
     private static let sitting = Pose(hip: (0.5, 0.30), neck: (0.5, 0.52))
     private static let lying = Pose(hip: (0.45, 0.14), neck: (0.72, 0.16))
+    private static let sideLean = Pose(hip: (0.5, 0.44), neck: (0.66, 0.60))
 
     private static func frame(_ p: Pose, t: TimeInterval) -> PoseFrame {
         func pt(_ x: Double, _ y: Double) -> PosePoint { PosePoint(x: x, y: y, c: 0.9) }
@@ -66,6 +67,12 @@ enum SyntheticPoses {
     private static func lerp(_ a: Pose, _ b: Pose, _ s: Double) -> Pose {
         Pose(hip: (a.hip.x + (b.hip.x - a.hip.x) * s, a.hip.y + (b.hip.y - a.hip.y) * s),
              neck: (a.neck.x + (b.neck.x - a.neck.x) * s, a.neck.y + (b.neck.y - a.neck.y) * s))
+    }
+
+    /// Stand, bend the knees slightly and lean far to one side, hold, then stand back up.
+    /// Only the easy testing config should flag this.
+    static func leanToSide() -> [PoseFrame] {
+        sequence(start: standing, [(standing, 2.0), (sideLean, 0.5), (sideLean, 1.5), (standing, 0.8), (standing, 1.0)])
     }
 
     /// Segments are (target pose, seconds to reach it). A hold is a segment whose target equals the current pose.

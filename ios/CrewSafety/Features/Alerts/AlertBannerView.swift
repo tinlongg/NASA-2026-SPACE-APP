@@ -9,6 +9,8 @@ struct AlertBannerView: View {
         let active = eventStore.activeAlerts
         Group {
             if let event = active.first {
+                let bannerColor = event.severity == .critical ? Theme.critical : Theme.warning
+                let bannerText = event.severity == .critical ? Theme.onCritical : Theme.onHighlight
                 HStack(alignment: .center, spacing: Theme.Spacing.m) {
                     Image(systemName: "exclamationmark.triangle.fill")
                         .font(.title3)
@@ -31,12 +33,12 @@ struct AlertBannerView: View {
                     }
                     .font(.footnote.weight(.semibold))
                     .buttonStyle(.bordered)
-                    .tint(.white)
+                    .tint(bannerText)
                 }
                 .padding(.horizontal, Theme.Spacing.l)
                 .padding(.vertical, Theme.Spacing.s)
-                .foregroundStyle(.white)
-                .background(event.severity == .critical ? Color.red : Color.orange)
+                .foregroundStyle(bannerText)
+                .background(bannerColor)
                 .transition(.move(edge: .top).combined(with: .opacity))
                 .accessibilityElement(children: .contain)
             }

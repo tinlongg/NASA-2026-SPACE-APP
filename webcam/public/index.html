@@ -1,0 +1,541 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CrewSafety web camera</title>
+<style>
+  :root {
+    --bg: #0e1013; --surface: #171a1f; --raised: #1f232a; --line: rgba(255,255,255,0.08);
+    --text: #eceef1; --text-2: #a3a9b3; --muted: #6f7681;
+    --accent: #5a8dee; --nominal: #4cc38a; --attention: #f0a33a; --alert: #fc3d21;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.45 -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  main { max-width: 1240px; margin: 0 auto; padding: 32px 24px 48px; }
+  header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+  h1 { font-size: 22px; font-weight: 600; margin: 0; }
+  h2 { font-size: 15px; font-weight: 600; margin: 0; }
+  .mono { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-variant-numeric: tabular-nums; }
+  .meta { font-size: 13px; color: var(--muted); }
+  .status { display: flex; align-items: center; gap: 8px; margin: 16px 0 20px; color: var(--text-2); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex: none; }
+  .dot.ok { background: var(--nominal); } .dot.wait { background: var(--attention); } .dot.bad { background: var(--alert); }
+
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+  @media (max-width: 900px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+
+  .stage {
+    position: relative; aspect-ratio: 16 / 9; background: #000; border-radius: var(--radius);
+    overflow: hidden; border: 1px solid var(--line);
+  }
+  video, canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+  video { transform: scaleX(-1); } /* mirror like a selfie view; the canvas mirrors its own drawing */
+  .empty { position: absolute; inset: 0; display: grid; place-items: center; text-align: center; color: var(--text-2); padding: 24px; }
+  .empty strong { display: block; color: var(--text); font-weight: 500; margin-bottom: 4px; }
+  .row { display: flex; gap: 12px; margin-top: 16px; align-items: center; flex-wrap: wrap; }
+  button {
+    font: inherit; font-weight: 500; border-radius: 10px; padding: 12px 20px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--raised); color: var(--text);
+    transition: background-color .15s ease, border-color .15s ease, transform .1s ease;
+  }
+  button:hover { background: #262b33; }
+  button:active { transform: scale(0.98); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button.primary { background: var(--text); color: var(--bg); border-color: transparent; }
+  button.primary:hover { background: #fff; }
+  button:disabled { opacity: .5; cursor: default; }
+  .note { color: var(--muted); font-size: 13px; margin-top: 20px; max-width: 720px; }
+  .person { color: var(--text-2); font-size: 14px; }
+
+  /* Detector readout */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 20px; }
+  .card + .card { margin-top: 16px; }
+  .card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+  .phase { font-size: 14px; font-weight: 500; color: var(--text-2); }
+  .phase.holding { color: var(--attention); } .phase.alert { color: var(--alert); }
+  .meter + .meter { margin-top: 14px; }
+  .meter-top { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; }
+  .meter-top .val { color: var(--text-2); }
+  .meter.met .meter-top .val { color: var(--attention); }
+  .bar { height: 6px; border-radius: 3px; background: rgba(255,255,255,0.08); margin-top: 6px; overflow: hidden; }
+  .bar span { display: block; height: 100%; width: 0; background: rgba(90,141,238,0.75); border-radius: 3px; transition: width .15s ease-out; }
+  .meter.met .bar span { background: var(--attention); }
+  .meter.neutral .bar span { background: var(--accent); }
+  .small { font-size: 12px; color: var(--muted); margin-top: 14px; }
+  .voice-line { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--text-2); }
+  .heard { font-size: 14px; margin-top: 10px; color: var(--text); min-height: 1.4em; }
+
+  /* Check-in mirrored from the app */
+  .checkin {
+    position: fixed; inset: 0; background: rgba(14,16,19,0.94); display: none;
+    align-items: center; justify-content: center; padding: 24px; z-index: 10;
+  }
+  .checkin.show { display: flex; }
+  .panel { width: 100%; max-width: 420px; text-align: center; }
+  .eyebrow { color: var(--alert); font-weight: 500; font-size: 15px; }
+  .question { font-size: 44px; font-weight: 600; margin: 4px 0 24px; letter-spacing: -0.01em; }
+  .ring { position: relative; width: 200px; height: 200px; margin: 0 auto 20px; }
+  .ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+  .ring .count { position: absolute; inset: 0; display: grid; place-content: center; }
+  .ring .num { font-size: 56px; font-weight: 500; font-variant-numeric: tabular-nums; line-height: 1; }
+  .ring .unit { color: var(--text-2); font-size: 14px; margin-top: 4px; }
+  .explain { color: var(--text-2); margin: 0 0 12px; }
+  .listen { color: var(--text-2); font-size: 14px; margin: 0 0 24px; min-height: 1.4em; }
+  .answers { display: grid; gap: 12px; }
+  .answers button { padding: 16px; font-size: 18px; font-weight: 600; }
+  .answers .ok { background: var(--accent); color: #fff; border-color: transparent; }
+  .answers .help { color: var(--alert); border-color: rgba(252,61,33,0.4); background: rgba(252,61,33,0.08); }
+  .toast {
+    position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--raised);
+    border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px; display: none; z-index: 11;
+  }
+  .toast.show { display: block; }
+  @media (max-width: 600px) { main { padding: 24px 16px; } .question { font-size: 36px; } }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>CrewSafety web camera</h1>
+    <span class="meta mono" id="meta">idle</span>
+  </header>
+
+  <div class="status"><span class="dot bad" id="linkDot"></span><span id="linkText">Connecting to relay</span></div>
+
+  <div class="layout">
+    <section>
+      <div class="stage">
+        <video id="video" playsinline muted></video>
+        <canvas id="overlay"></canvas>
+        <div class="empty" id="empty">
+          <div><strong>Camera off</strong>Stand back so your whole body is in view, then start the camera</div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="primary" id="startBtn">Start camera</button>
+        <button id="stopBtn" disabled>Stop</button>
+        <button id="testBtn">Send test fall</button>
+        <span class="person" id="person"></span>
+      </div>
+    </section>
+
+    <aside>
+      <div class="card" aria-live="polite">
+        <div class="card-head"><h2>Detector</h2><span class="phase" id="phase">Waiting for the app</span></div>
+        <div class="meter neutral" id="mConf"><div class="meter-top"><span>Pose confidence</span><span class="val mono">–</span></div><div class="bar"><span></span></div></div>
+        <div class="meter" id="mAngle"><div class="meter-top"><span>Torso angle</span><span class="val mono">–</span></div><div class="bar"><span></span></div></div>
+        <div class="meter" id="mDrop"><div class="meter-top"><span>Hip drop</span><span class="val mono">–</span></div><div class="bar"><span></span></div></div>
+        <div class="meter" id="mHold"><div class="meter-top"><span>Held low</span><span class="val mono">–</span></div><div class="bar"><span></span></div></div>
+        <div class="small" id="scoreLine">Values come from the app's detector. Each bar fills toward the threshold that rule needs.</div>
+      </div>
+      <div class="card">
+        <div class="card-head"><h2>Voice</h2></div>
+        <div class="voice-line"><span class="dot" id="voiceDot"></span><span id="voiceText">Checking ElevenLabs</span></div>
+        <div class="heard" id="heard"></div>
+      </div>
+    </aside>
+  </div>
+
+  <p class="note" id="privacyNote">
+    Pose tracking runs in this browser. Video never leaves the page; only joint positions are sent to the
+    CrewSafety app on this machine, which runs its own possible-fall detector and check-in. In the app, open
+    Monitor and choose Web camera.
+  </p>
+</main>
+
+<div class="checkin" id="checkin" role="alertdialog" aria-labelledby="ciQuestion">
+  <div class="panel">
+    <div class="eyebrow">Possible fall detected</div>
+    <div class="question" id="ciQuestion">Are you OK?</div>
+    <div class="ring">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="45" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="4"/>
+        <circle id="ciArc" cx="50" cy="50" r="45" fill="none" stroke="var(--alert)" stroke-width="4"
+                stroke-linecap="round" stroke-dasharray="282.74" stroke-dashoffset="0"/>
+      </svg>
+      <div class="count"><div class="num" id="ciNum">60</div><div class="unit">seconds</div></div>
+    </div>
+    <p class="explain">If there's no answer, the crew is alerted when the timer runs out</p>
+    <p class="listen" id="ciListen"></p>
+    <div class="answers">
+      <button class="ok" id="okBtn">I'm OK</button>
+      <button class="help" id="helpBtn">I need help</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module">
+import { FilesetResolver, PoseLandmarker } from "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14";
+
+const $ = (id) => document.getElementById(id);
+const video = $("video"), overlay = $("overlay"), ctx = overlay.getContext("2d");
+const SEND_INTERVAL_MS = 100; // about 10 frames a second, like the iPhone camera path
+const COLORS = { tracking: "#5a8dee", holding: "#f0a33a", checkingIn: "#fc3d21" };
+
+// MediaPipe landmark index -> the app's joint names. "neck" and "root" are midpoints.
+const JOINTS = { nose: 0, leftShoulder: 11, rightShoulder: 12, leftHip: 23, rightHip: 24,
+                 leftKnee: 25, rightKnee: 26, leftAnkle: 27, rightAnkle: 28 };
+const BONES = [["nose","neck"],["neck","root"],["leftShoulder","rightShoulder"],["leftHip","rightHip"],
+               ["leftShoulder","leftHip"],["rightShoulder","rightHip"],["leftHip","leftKnee"],
+               ["leftKnee","leftAnkle"],["rightHip","rightKnee"],["rightKnee","rightAnkle"]];
+
+let socket, landmarker, stream, running = false, lastSent = 0, frames = 0, fpsWindowStart = performance.now();
+let sendingTestFall = false;
+let checkinTimer = null, checkinDeadline = 0, checkinDuration = 60, appCount = 0, checkingIn = false;
+let boxState = "tracking", lastReadoutAt = 0;
+
+// ---- Relay connection ----
+function connect() {
+  socket = new WebSocket(`ws://${location.host}/ws/camera`);
+  socket.onopen = () => updateLink();
+  socket.onclose = () => { appCount = 0; updateLink(); setTimeout(connect, 1500); };
+  socket.onmessage = (event) => {
+    let msg; try { msg = JSON.parse(event.data); } catch { return; }
+    if (msg.type === "peers") { appCount = msg.apps; updateLink(); }
+    if (msg.type === "checkin") handleCheckin(msg);
+    if (msg.type === "readout") showReadout(msg);
+    if (msg.type === "heard") showHeard(msg.text, "app");
+  };
+}
+function updateLink() {
+  const open = socket && socket.readyState === WebSocket.OPEN;
+  const dot = $("linkDot"), text = $("linkText");
+  if (!open) { dot.className = "dot bad"; text.textContent = "Relay not reachable · run node webcam/server.js"; }
+  else if (appCount === 0) { dot.className = "dot wait"; text.textContent = "Waiting for the app · open Monitor and choose Web camera"; }
+  else { dot.className = "dot ok"; text.textContent = "Connected to the CrewSafety app"; }
+}
+function send(obj) { if (socket && socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify(obj)); }
+
+// ---- Camera and pose ----
+async function start() {
+  $("startBtn").disabled = true;
+  $("meta").textContent = "loading pose model";
+  try {
+    if (!landmarker) {
+      const fileset = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm");
+      landmarker = await PoseLandmarker.createFromOptions(fileset, {
+        baseOptions: {
+          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task",
+          delegate: "GPU",
+        },
+        runningMode: "VIDEO", numPoses: 1,
+      });
+    }
+    stream = await navigator.mediaDevices.getUserMedia({ video: { width: 1280, height: 720 }, audio: false });
+    video.srcObject = stream;
+    await video.play();
+    $("empty").style.display = "none";
+    $("stopBtn").disabled = false;
+    running = true;
+    requestAnimationFrame(loop);
+    prepareMicrophone(); // asked now, never during a check-in
+  } catch (err) {
+    $("startBtn").disabled = false;
+    $("meta").textContent = "idle";
+    $("empty").style.display = "grid";
+    $("empty").innerHTML = `<div><strong>Camera could not start</strong>${escapeHtml(err.message || String(err))}</div>`;
+  }
+}
+function stop() {
+  running = false;
+  stream?.getTracks().forEach((t) => t.stop());
+  video.srcObject = null;
+  ctx.clearRect(0, 0, overlay.width, overlay.height);
+  $("empty").style.display = "grid";
+  $("empty").innerHTML = "<div><strong>Camera off</strong>Stand back so your whole body is in view, then start the camera</div>";
+  $("startBtn").disabled = false; $("stopBtn").disabled = true;
+  $("person").textContent = ""; $("meta").textContent = "idle";
+}
+
+function loop(now) {
+  if (!running) return;
+  if (video.readyState >= 2) {
+    const result = landmarker.detectForVideo(video, now);
+    const landmarks = result.landmarks?.[0];
+    const joints = toJoints(landmarks);
+    draw(joints, landmarks);
+    $("person").textContent = Object.keys(joints).length ? "Person in view" : "No person in view";
+    if (!sendingTestFall && now - lastSent >= SEND_INTERVAL_MS) {
+      lastSent = now;
+      send({ type: "pose", t: now / 1000, aspect: video.videoWidth / video.videoHeight, joints });
+      frames++;
+    }
+    if (now - fpsWindowStart >= 1000) {
+      $("meta").textContent = `${frames} frames/s sent`;
+      frames = 0; fpsWindowStart = now;
+    }
+  }
+  if (Date.now() - lastReadoutAt > 1500) $("phase").textContent = appCount ? "Waiting for frames" : "Waiting for the app";
+  requestAnimationFrame(loop);
+}
+
+// MediaPipe: origin top-left, y down. The app: origin bottom-left, y up.
+function toJoints(landmarks) {
+  const joints = {};
+  if (!landmarks) return joints;
+  for (const [name, i] of Object.entries(JOINTS)) {
+    const p = landmarks[i];
+    const c = p.visibility ?? 0;
+    if (c > 0.05) joints[name] = { x: p.x, y: 1 - p.y, c };
+  }
+  const mid = (a, b) => joints[a] && joints[b]
+    ? { x: (joints[a].x + joints[b].x) / 2, y: (joints[a].y + joints[b].y) / 2, c: Math.min(joints[a].c, joints[b].c) }
+    : undefined;
+  const neck = mid("leftShoulder", "rightShoulder"), root = mid("leftHip", "rightHip");
+  if (neck) joints.neck = neck;
+  if (root) joints.root = root;
+  return joints;
+}
+
+// Draws the skeleton and a bounding box. The video is mirrored with CSS, so x is mirrored here
+// (instead of mirroring the canvas) to keep the label text readable.
+function draw(joints, landmarks) {
+  const w = video.videoWidth || 1280, h = video.videoHeight || 720;
+  if (overlay.width !== w) { overlay.width = w; overlay.height = h; }
+  ctx.clearRect(0, 0, w, h);
+  const pt = (x, yUp) => [(1 - x) * w, (1 - yUp) * h];
+  const scale = Math.max(1, w / 640);
+  ctx.lineWidth = 3 * scale; ctx.lineCap = "round";
+  ctx.strokeStyle = "rgba(236,238,241,0.85)";
+  for (const [a, b] of BONES) {
+    if (!joints[a] || !joints[b]) continue;
+    const [x1, y1] = pt(joints[a].x, joints[a].y), [x2, y2] = pt(joints[b].x, joints[b].y);
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  }
+  ctx.fillStyle = "#eceef1";
+  for (const j of Object.values(joints)) {
+    const [x, y] = pt(j.x, j.y);
+    ctx.beginPath(); ctx.arc(x, y, 3.5 * scale, 0, Math.PI * 2); ctx.fill();
+  }
+
+  // Box around every confidently seen landmark (all 33 when the camera runs; the joints for a test fall).
+  const points = landmarks
+    ? landmarks.filter((p) => (p.visibility ?? 0) > 0.5).map((p) => pt(p.x, 1 - p.y))
+    : Object.values(joints).map((j) => pt(j.x, j.y));
+  const values = Object.values(joints);
+  if (points.length < 2 || values.length === 0) return;
+  const xs = points.map((p) => p[0]), ys = points.map((p) => p[1]);
+  let x0 = Math.min(...xs), x1 = Math.max(...xs), y0 = Math.min(...ys), y1 = Math.max(...ys);
+  const pad = Math.max(10 * scale, 0.06 * Math.max(x1 - x0, y1 - y0));
+  x0 = Math.max(0, x0 - pad); y0 = Math.max(0, y0 - pad); x1 = Math.min(w, x1 + pad); y1 = Math.min(h, y1 + pad);
+  const color = COLORS[checkingIn ? "checkingIn" : boxState] || COLORS.tracking;
+  ctx.strokeStyle = color; ctx.lineWidth = 2.5 * scale;
+  ctx.beginPath(); ctx.roundRect(x0, y0, x1 - x0, y1 - y0, 8 * scale); ctx.stroke();
+
+  const confidence = values.reduce((sum, j) => sum + j.c, 0) / values.length;
+  const label = `Person ${Math.round(confidence * 100)}%`;
+  ctx.font = `600 ${13 * scale}px -apple-system, system-ui, sans-serif`;
+  const tw = ctx.measureText(label).width, th = 18 * scale;
+  const ty = y0 - th - 4 * scale >= 0 ? y0 - th - 4 * scale : y0 + 4 * scale;
+  ctx.fillStyle = color;
+  ctx.beginPath(); ctx.roundRect(x0, ty, tw + 12 * scale, th, 5 * scale); ctx.fill();
+  ctx.fillStyle = "#fff"; ctx.textBaseline = "middle";
+  ctx.fillText(label, x0 + 6 * scale, ty + th / 2);
+}
+
+// ---- Detector readout from the app ----
+const PHASES = { noPerson: "No person", upright: "Upright", tilted: "Leaning", holding: "Low, holding", cooldown: "Just detected" };
+function showReadout(r) {
+  lastReadoutAt = Date.now();
+  boxState = r.box || "tracking";
+  const phase = $("phase");
+  phase.textContent = checkingIn ? "Checking in" : (PHASES[r.phase] || r.phase);
+  phase.className = "phase" + (checkingIn || r.phase === "cooldown" ? " alert" : r.phase === "holding" ? " holding" : "");
+  const pct = (v) => `${Math.round(v * 100)}%`;
+  meter("mConf", r.poseConfidence, 1, r.poseConfidence != null ? pct(r.poseConfidence) : "–", false);
+  meter("mAngle", r.torsoAngle, r.angleThreshold,
+        `${r.torsoAngle != null ? Math.round(r.torsoAngle) + "°" : "–"} of ${Math.round(r.angleThreshold)}°`,
+        (r.torsoAngle ?? 0) >= r.angleThreshold);
+  meter("mDrop", r.hipDrop, r.dropThreshold,
+        `${r.hipDrop != null ? pct(r.hipDrop) : "–"} of ${pct(r.dropThreshold)}`, (r.hipDrop ?? 0) >= r.dropThreshold);
+  meter("mHold", r.held, r.holdRequired, `${(r.held ?? 0).toFixed(1)} of ${r.holdRequired.toFixed(1)} s`,
+        (r.held ?? 0) >= r.holdRequired);
+  $("scoreLine").textContent = (r.easy ? "Easy test detection is on. " : "Standard thresholds. ") +
+    (r.lastScore != null ? `Last heuristic score ${pct(r.lastScore)}, not a probability.` : "");
+}
+function meter(id, value, limit, text, met) {
+  const el = $(id);
+  el.classList.toggle("met", Boolean(met));
+  el.querySelector(".val").textContent = text;
+  const fraction = Math.min(1, Math.max(0, (value ?? 0) / Math.max(limit, 1e-4)));
+  el.querySelector(".bar span").style.width = `${fraction * 100}%`;
+}
+
+// ---- Voice via ElevenLabs (only during a check-in, only after the app has finished speaking) ----
+let voiceEnabled = false, micStream = null, audioCtx = null, analyser = null;
+let listening = false, recorder = null, clipChunks = [], clipStartedAt = 0, lastLoudAt = 0, noiseFloor = 0, floorSamples = 0, levelTimer = null;
+
+async function checkVoice() {
+  try {
+    const status = await fetch("/stt/status").then((r) => r.json());
+    voiceEnabled = Boolean(status.enabled);
+  } catch { voiceEnabled = false; }
+  setVoice(voiceEnabled ? "wait" : "", voiceEnabled
+    ? "ElevenLabs on · the microphone is asked for when you start the camera"
+    : "Voice off: no ElevenLabs key on the relay. Answer with the buttons, or speak to the app.");
+  if (voiceEnabled) {
+    $("privacyNote").textContent += " During a check-in, short audio clips are sent to ElevenLabs for transcription.";
+  }
+}
+function setVoice(state, text) { $("voiceDot").className = "dot " + state; $("voiceText").textContent = text; }
+
+async function prepareMicrophone() {
+  if (!voiceEnabled || micStream) return;
+  try {
+    micStream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true } });
+    audioCtx = new AudioContext();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 1024;
+    audioCtx.createMediaStreamSource(micStream).connect(analyser);
+    setVoice("ok", "ElevenLabs ready · listens during a check-in");
+  } catch (err) {
+    setVoice("bad", "Microphone blocked · answer with the buttons");
+  }
+}
+
+function startListening() {
+  if (!voiceEnabled || !micStream || listening) return;
+  listening = true;
+  audioCtx.resume();
+  noiseFloor = 0; floorSamples = 0;
+  $("ciListen").textContent = "Listening · say “I’m okay” or “help”";
+  setVoice("ok", "Listening");
+  const buffer = new Float32Array(analyser.fftSize);
+  levelTimer = setInterval(() => {
+    analyser.getFloatTimeDomainData(buffer);
+    const rms = Math.sqrt(buffer.reduce((s, v) => s + v * v, 0) / buffer.length);
+    if (floorSamples < 10) { noiseFloor += rms / 10; floorSamples++; return; } // half a second of room noise
+    const threshold = Math.max(0.012, noiseFloor * 3);
+    const now = performance.now();
+    if (rms > threshold) {
+      lastLoudAt = now;
+      if (!recorder) beginClip(now);
+    }
+    if (recorder && (now - lastLoudAt > 700 || now - clipStartedAt > 4000)) endClip();
+  }, 50);
+}
+function stopListening() {
+  listening = false;
+  clearInterval(levelTimer);
+  if (recorder) { recorder.onstop = null; recorder.stop(); recorder = null; }
+  $("ciListen").textContent = "";
+  if (voiceEnabled && micStream) setVoice("ok", "ElevenLabs ready · listens during a check-in");
+}
+function beginClip(now) {
+  clipChunks = []; clipStartedAt = now;
+  recorder = new MediaRecorder(micStream);
+  recorder.ondataavailable = (e) => { if (e.data.size) clipChunks.push(e.data); };
+  recorder.onstop = () => transcribe(new Blob(clipChunks, { type: recorder?.mimeType || clipChunks[0]?.type || "audio/webm" }));
+  recorder.start();
+}
+function endClip() {
+  const r = recorder; recorder = null;
+  r.onstop = () => transcribe(new Blob(clipChunks, { type: r.mimeType || "audio/webm" }));
+  r.stop();
+}
+async function transcribe(blob) {
+  if (!listening || blob.size < 2000) return; // too short to be words
+  setVoice("ok", "Transcribing");
+  try {
+    const response = await fetch("/stt", { method: "POST", headers: { "Content-Type": blob.type }, body: blob });
+    const body = await response.json().catch(() => ({}));
+    if (!response.ok) { setVoice("bad", `ElevenLabs error (${body.error || response.status}) · use the buttons`); return; }
+    if (!listening) return;
+    if (body.text) {
+      showHeard(body.text, "ElevenLabs");
+      send({ type: "transcript", text: body.text });
+    }
+    setVoice("ok", "Listening");
+  } catch {
+    setVoice("bad", "ElevenLabs unreachable · use the buttons");
+  }
+}
+function showHeard(text, from) {
+  $("heard").textContent = `Heard “${text}” (${from})`;
+  if (checkingIn) $("ciListen").textContent = `Heard “${text}”`;
+}
+
+// ---- Scripted test fall: stand 2 s, fall in 0.5 s, lie still 3 s ----
+async function sendTestFall() {
+  if (sendingTestFall) return;
+  if (appCount === 0) { showToast("Open Monitor › Test › Web camera on this Mac in the app first"); return; }
+  sendingTestFall = true;
+  $("testBtn").disabled = true;
+  if (!running) $("empty").style.display = "none";
+  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  const lerp = (a, b, k) => a + (b - a) * k;
+  const pose = (neck, root) => {
+    const j = (x, y) => ({ x, y, c: 0.9 });
+    return { neck: j(...neck), root: j(...root), nose: j(neck[0], neck[1] + 0.08),
+             leftShoulder: j(neck[0] - 0.04, neck[1]), rightShoulder: j(neck[0] + 0.04, neck[1]),
+             leftHip: j(root[0] - 0.03, root[1]), rightHip: j(root[0] + 0.03, root[1]) };
+  };
+  const emit = (joints) => { send({ type: "pose", t: performance.now() / 1000, aspect: 16 / 9, joints }); if (!running) draw(joints); };
+  try {
+    for (let i = 0; i < 20; i++) { emit(pose([0.5, 0.75], [0.5, 0.5])); await wait(100); }
+    for (let i = 1; i <= 5; i++) {
+      const k = i / 5;
+      emit(pose([lerp(0.5, 0.75, k), lerp(0.75, 0.15, k)], [lerp(0.5, 0.45, k), lerp(0.5, 0.12, k)]));
+      await wait(100);
+    }
+    for (let i = 0; i < 30; i++) { emit(pose([0.75, 0.15], [0.45, 0.12])); await wait(100); }
+  } finally {
+    sendingTestFall = false;
+    $("testBtn").disabled = false;
+    if (!running) { ctx.clearRect(0, 0, overlay.width, overlay.height); $("empty").style.display = "grid"; }
+  }
+}
+
+// ---- Check-in mirrored from the app ----
+function handleCheckin(msg) {
+  if (msg.state === "awaiting") {
+    checkingIn = true;
+    checkinDeadline = msg.deadline * 1000;
+    checkinDuration = msg.duration || 60;
+    $("ciListen").textContent = voiceEnabled && micStream ? "Waiting for the app to finish asking" : "";
+    $("heard").textContent = "";
+    $("checkin").classList.add("show");
+    $("okBtn").focus();
+    clearInterval(checkinTimer);
+    checkinTimer = setInterval(tick, 250);
+    tick();
+  } else if (msg.state === "listening") {
+    startListening();
+  } else if (msg.state === "resolved") {
+    checkingIn = false;
+    stopListening();
+    clearInterval(checkinTimer);
+    $("checkin").classList.remove("show");
+    showToast(msg.summary + (msg.escalated ? " · alert raised in the app" : ""));
+  }
+}
+function tick() {
+  const remaining = Math.max(0, (checkinDeadline - Date.now()) / 1000);
+  $("ciNum").textContent = Math.ceil(remaining);
+  $("ciArc").setAttribute("stroke-dashoffset", String(282.74 * (1 - remaining / checkinDuration)));
+}
+function answer(response) { send({ type: "answer", response }); }
+function showToast(text) {
+  const toast = $("toast");
+  toast.textContent = text; toast.classList.add("show");
+  setTimeout(() => toast.classList.remove("show"), 6000);
+}
+function escapeHtml(s) { return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
+
+$("startBtn").onclick = start;
+$("stopBtn").onclick = stop;
+$("testBtn").onclick = sendTestFall;
+$("okBtn").onclick = () => answer("ok");
+$("helpBtn").onclick = () => answer("help");
+connect();
+checkVoice();
+</script>
+</body>
+</html>
