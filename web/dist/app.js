@@ -48,7 +48,6 @@ function showTab(tab) {
 document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => showTab(button.dataset.tab)));
 document.querySelector('[data-action="camera"]').onclick = () => { showTab('monitor'); startCamera(); };
 document.querySelector('[data-action="replay"]').onclick = () => { showTab('monitor'); replay('unresponsive'); };
-document.querySelector('[data-action="entry"]').onclick = () => { showTab('journal'); element('journal-body').focus(); };
 
 function setCameraState(label, live) {
   element('mode-label').textContent = label; element('head-status').textContent = label; element('home-camera').textContent = live ? label.replace(/^Live camera$/, 'Live') : 'Off';
