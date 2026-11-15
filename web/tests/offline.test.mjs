@@ -9,7 +9,7 @@ test('only static shell and pinned model resources are eligible for offline cach
   const origin='https://crew.test';
   for(const path of SHELL_ASSETS) assert.ok(cacheableAsset(origin+path,origin));
   for(const url of MODEL_ASSETS) assert.ok(cacheableAsset(url,origin));
-  for(const path of ['/sync/state','/api/coach/analyze','/health','/journal','/index.html?private=data']) assert.equal(cacheableAsset(origin+path,origin),false);
+  for(const path of ['/sync/state','/api/coach/analyze','/health','/api/journal/entries','/index.html?private=data']) assert.equal(cacheableAsset(origin+path,origin),false);
   assert.equal(cacheableAsset('https://other.test/app.js',origin),false);
 });
 

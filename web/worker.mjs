@@ -1,3 +1,4 @@
+import {PAGE_ROUTES,pageForPath} from './dist/page-routes.js';
 import { handleMission } from './mission.mjs';
 import { handleStations } from './stations.mjs';
 import { handleCircle } from './circle.mjs';
@@ -246,7 +247,7 @@ export function createWorker(assets = {}, fetchProvider = fetch) {
       return json({ answer: answer.trim().slice(0, 6000), model: env.META_MODEL || MODEL, source: input.snapshot.source, capturedAt: input.snapshot.capturedAt, grounded: false });
     }
     if (!['GET', 'HEAD'].includes(request.method)) return fail('Method not allowed.', 405);
-    const asset = assets[url.pathname === '/' ? '/index.html' : url.pathname === '/camera' ? '/camera.html' : url.pathname];
+    const asset = assets[pageForPath(url.pathname) ? '/index.html' : url.pathname === '/camera' ? '/camera.html' : url.pathname];
     if (!asset) return fail('Not found.', 404);
     return new Response(request.method === 'HEAD' ? null : asset.base64 ? Uint8Array.from(atob(asset.base64), char => char.charCodeAt(0)) : asset.body, { headers: { 'Content-Type': asset.type, 'Cache-Control': 'no-cache', 'X-Content-Type-Options': 'nosniff', 'Referrer-Policy': 'strict-origin-when-cross-origin' } });
   } };
