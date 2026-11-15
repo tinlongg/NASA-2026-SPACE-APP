@@ -1,4 +1,4 @@
-import {PAGE_ROUTES} from '../dist/page-routes.js';
+import {PAGE_ROUTES,MISSION_ROUTES} from '../dist/page-routes.js';
 import './build-sentiment.mjs';
 import { readFile, mkdir, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
@@ -9,7 +9,7 @@ export async function loadAssets() {
   for (const [name, type] of Object.entries({ 'page-routes.js':'application/javascript', 'favicon.svg':'image/svg+xml', 'index.html': 'text/html', 'space-games.js':'application/javascript', 'mission.js':'application/javascript', 'mission-rules.js':'application/javascript', 'mission.css':'text/css', 'journal-sentiment.js': 'application/javascript', 'sentiment-lexicon.js': 'application/javascript', 'sentiment-license.txt': 'text/plain', 'styles.css': 'text/css', 'app.js': 'application/javascript', 'detector.js': 'application/javascript', 'fixtures.js': 'application/javascript', 'offline-config.js': 'application/javascript', 'crew-sync.js': 'application/javascript', 'account.js': 'application/javascript', 'journal-photo.js': 'application/javascript', 'suit-layers.js': 'application/javascript', 'camera-health.js': 'application/javascript', 'people.js': 'application/javascript', 'voice-answer.js': 'application/javascript', 'voice-activity.js':'application/javascript', 'checkin.js': 'application/javascript', 'camera.js': 'application/javascript', 'stations-ui.js': 'application/javascript', 'iss-3d.js': 'application/javascript', 'circle-ui.js': 'application/javascript', 'camera.html': 'text/html', 'crew-sync.css': 'text/css', 'research.js': 'application/javascript', 'research.css': 'text/css', 'data/nasa-research.json': 'application/json' })) {
     assets[`/${name}`] = { body: await readFile(new URL(`../dist/${name}`, import.meta.url), 'utf8'), type: `${type}; charset=utf-8` };
   }
-  for(const path of Object.values(PAGE_ROUTES))assets[path]=assets['/index.html'];
+  for(const path of Object.values({...PAGE_ROUTES,...MISSION_ROUTES}))assets[path]=assets['/index.html'];
   assets['/camera'] = assets['/camera.html']; // the phone camera page lives at /camera
   // Binary assets are embedded as base64 and decoded by the Worker.
   for (const name of ['web-alert.mp3', 'web-checkin.mp3']) assets[`/voice/${name}`] = { base64: (await readFile(new URL(`../dist/voice/${name}`, import.meta.url))).toString('base64'), type: 'audio/mpeg' };

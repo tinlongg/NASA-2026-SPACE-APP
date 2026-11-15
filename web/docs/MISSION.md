@@ -26,9 +26,13 @@ Pip can hop on tap/keyboard activation and respond to horizontal swipe petting. 
 
 Admin simulation also supports adding journey distance, reaching Mars, and advancing the expedition level. Tired Pip has helmet grime; needs-care Pip has grime plus the surrounding dust cloud. Taps have no cooldown; holding for 400 ms then dragging shakes Pip, with pointer capture and release/cancel cleanup.
 
+In Crew rankings, signed-in admins can edit their own bird’s leaderboard points (whole numbers from 0 to 1,000,000,000). Changes persist to their account and update their rank among demo bots. Server authorization protects the edit; admin simulation accounts remain outside public rankings.
+
 Both suit flows share NASA’s Spacewalk Spacesuit Basics functional groups: cooling garment (three layers), bladder, restraint, ripstop liner, multiple insulation layers, and outer covering. NASA describes up to 16 material layers rather than the proposed 14-layer screenshot grouping. The main checklist separately retains equipment checks. Source: https://www.nasa.gov/centers-and-facilities/johnson/spacewalk-spacesuit-basics/ . These are records of approved inspections, not clearance for EVA or instructions to disassemble a suit.
 
 Newly completed daily tasks show a brief confetti celebration; reduced motion shows only the completion message. Task, game and account dialogs have sticky corner close controls. Game dismissal refunds an unfinished flight, and section close controls return to daily care.
 
 ### Illustrated games and personal settings
 Bird dragging follows pointer movement immediately (5 px threshold); release resets position. Orbital docking shows station contact; memory uses illustrated planet SVGs; the salvage window has 20 selectable materials, with accuracy based on collected resources plus untouched hazards. Flight rewards remain participation-only. Bird names (1–24 characters) sync in mission state and are used on opt-in rankings; self identity is an explicit flag so duplicate names do not hide your rank. Photo check-ins require sign-in and save resized JPEGs in the existing private Journal, which supports viewing and deleting them. Meal notes include Breakfast/Lunch/Dinner/Snack. The header theme switch saves light/dark preference on this browser.
+
+The garden has six distinct plant illustrations: mint flower clusters and serrated leaves, basil flower spikes and broad leaves, a white solar daisy, pink cosmos with feathery foliage, slender lavender stalks, and a layered orange marigold. Each has a different pot pattern and keeps its identity through growth. The cap and crown follow the bird’s curved head and move with its healthy, tired, and needs-care poses.

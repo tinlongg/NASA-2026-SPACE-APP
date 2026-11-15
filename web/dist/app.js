@@ -54,19 +54,20 @@ let coachPending = false;
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
 const titles = { mission: ['Mission', 'Care for yourself and your astronaut companion'], home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], circle: ['Circle', 'People who are told when an alert is raised'], stations: ['Stations', 'Phones linked as cameras around a simulated station'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded; MUSE sees close-up screenshots only if you allow it'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
-function showTab(tab,{historyMode='push'}={}) {
+function showTab(tab,{historyMode='push',path=null}={}) {
   if (!titles[tab]) return;
+  if(tab==='mission'&&path)missionNavigation.showPath(path);
   if (tab !== 'monitor') stopSession();
   document.querySelectorAll('.tab, .nav').forEach(node => node.classList.remove('active'));
   document.querySelector(`.nav[data-tab="${tab}"]`).classList.add('active'); element(tab).classList.add('active');
   element('page-title').textContent = titles[tab][0]; element('page-subtitle').textContent = titles[tab][1];
   document.querySelectorAll('.nav[data-tab]').forEach(link=>{if(link.dataset.tab===tab)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});
   document.title=titles[tab][0]+' · CrewSafety';
-  const path=PAGE_ROUTES[tab];if(historyMode==='replace')history.replaceState({page:tab},'',path);else if(historyMode==='push'&&location.pathname!==path)history.pushState({page:tab},'',path);
+  path=tab==='mission'?missionNavigation.getPath():PAGE_ROUTES[tab];if(historyMode==='replace')history.replaceState({page:tab},'',path);else if(historyMode==='push'&&location.pathname!==path)history.pushState({page:tab},'',path);
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('[data-tab]').forEach(link=>link.addEventListener('click',event=>{if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||event.button>0)return;event.preventDefault();showTab(link.dataset.tab);}));
-window.addEventListener('popstate',()=>showTab(pageForPath(location.pathname)||'home',{historyMode:'none'}));
+window.addEventListener('popstate',()=>showTab(pageForPath(location.pathname)||'home',{historyMode:'none',path:location.pathname}));
 document.querySelector('[data-action="camera"]').onclick = () => { showTab('monitor'); openSetup(); };
 document.querySelector('[data-action="replay"]').onclick = () => { showTab('monitor'); replay('unresponsive'); };
 
@@ -1188,8 +1189,8 @@ function endWatchCheckIn(person) {
   cancelWatchCheckIn(person.watchCheckInId); watchCheckIns.delete(person.watchCheckInId); person.watchCheckInId = null;
 }
 
-initializeMission();
-showTab(new URLSearchParams(location.search).get('mission')==='1'?'mission':pageForPath(location.pathname)||'home',{historyMode:'replace'});
+const missionNavigation=initializeMission({onNavigate:path=>showTab('mission',{path})});
+showTab(new URLSearchParams(location.search).get('mission')==='1'?'mission':pageForPath(location.pathname)||'home',{historyMode:'replace',path:location.pathname});
 
 // Preference belongs to this browser and applies across every view.
 const themeToggle=document.getElementById('theme-toggle');

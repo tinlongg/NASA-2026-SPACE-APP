@@ -5,6 +5,15 @@ import {createWorker} from '../worker.mjs';
 import {localSyncDB} from '../scripts/local-sync-db.mjs';
 import {newMission,applyMissionAction} from '../dist/mission-rules.js';
 const action=(type,extra={})=>({id:randomUUID(),type,...extra});
+test('only admins can set their leaderboard points to a nonnegative whole number',()=>{
+ const base=newMission(),change=action('admin',{points:600});
+ assert.throws(()=>applyMissionAction(base,change),/Admin/);
+ const updated=applyMissionAction(base,change,Date.now(),{admin:true});
+ assert.equal(updated.rankPoints,600);assert.equal(base.rankPoints,0);assert.equal(updated.coins,base.coins);assert.equal(updated.listed,false);
+ assert.deepEqual(applyMissionAction(updated,change,Date.now(),{admin:true}),updated);
+ for(const points of [0,1000000000])assert.equal(applyMissionAction(updated,action('admin',{points}),Date.now(),{admin:true}).rankPoints,points);
+ for(const points of [-1,1.5,'600',null,1000000001,Infinity,NaN])assert.throws(()=>applyMissionAction(updated,action('admin',{points}),Date.now(),{admin:true}),/whole leaderboard points/);
+});
 test('admin simulations require server authority and preserve ordinary shop rules',()=>{
  const base=newMission();assert.throws(()=>applyMissionAction(base,action('admin',{growth:18})),/Admin/);
  assert.throws(()=>applyMissionAction(base,action('buy',{item:'crown'})),/Not enough/);
@@ -40,6 +49,17 @@ test('provisioned admin authenticates by hashed password and ID; client flags ca
  const demo=await(await a('/api/mission/leaderboard')).json();assert.equal(demo.demo,true);assert.equal(demo.rows.length,10);assert.ok(demo.rows.every(r=>r.bot));assert.equal(demo.self.rank,13);
  assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,0);
  assert.equal((await regular('/api/mission/action',action('admin',{bots:true}))).status,403);
+ const edit=action('admin',{points:600});
+ assert.equal((await regular('/api/mission/action',edit)).status,403);
+ assert.equal((await a('/api/mission/action',edit)).status,200);
+ assert.equal((await a('/api/mission/action',edit)).status,200);
+ const saved=await(await a('/api/mission/state')).json();assert.equal(saved.state.rankPoints,600);
+ const editedBoard=await(await a('/api/mission/leaderboard')).json();assert.equal(editedBoard.self.points,600);assert.equal(editedBoard.self.rank,1);assert.equal(editedBoard.rows[0].self,true);
+ assert.equal((await(await regular('/api/mission/state')).json()).state.rankPoints,0);
+ assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,0);
+ for(const points of [-1,1.5,'600',null,1000000001])assert.equal((await a('/api/mission/action',action('admin',{points}))).status,400);
+ assert.equal((await(await a('/api/mission/state')).json()).state.rankPoints,600);
+ await a('/api/mission/action',action('admin',{points:0}));assert.equal((await(await a('/api/mission/leaderboard')).json()).self.rank,13);
  await a('/api/mission/action',action('admin',{bots:false}));assert.equal((await(await a('/api/mission/leaderboard')).json()).demo,false);
  await regular('/api/mission/action',action('listing',{listed:true}));
  const renamed=await(await regular('/api/mission/action',action('rename',{name:'Captain Chirp'}))).json();assert.equal(renamed.state.birdName,'Captain Chirp');assert.equal(renamed.alias,'Captain Chirp');
