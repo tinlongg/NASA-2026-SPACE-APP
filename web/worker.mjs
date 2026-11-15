@@ -1,5 +1,6 @@
 import { handleMission } from './mission.mjs';
 import { handleStations } from './stations.mjs';
+import { handleCircle } from './circle.mjs';
 import { handleCrewSync } from './sync.mjs';
 import { createAccounts, accountUser, journalRecall, journalPhotosForCompare } from './account.mjs';
 
@@ -94,6 +95,8 @@ export function createWorker(assets = {}, fetchProvider = fetch) {
       if (count >= 5 || total >= 30) return false;
       visitors.set(visitor, count + 1); total++; return true;
     };
+    const circleResponse = await handleCircle(request, env);
+    if (circleResponse) return circleResponse;
     const stationsResponse = await handleStations(request, env);
     if (stationsResponse) return stationsResponse;
     const missionResponse = await handleMission(request, env);

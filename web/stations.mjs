@@ -4,9 +4,11 @@
 // live video, if the admin asks for it, goes phone to browser over WebRTC with this server only
 // passing the setup messages. Self-contained: names are prefixed so the Worker bundle can concatenate it.
 import { accountUser } from './account.mjs';
+import { notifyCircle } from './circle.mjs';
 
 const STN_MAX_STATIONS = 12, STN_CODE_MS = 15 * 60000, STN_ONLINE_MS = 12000, STN_SIGNAL_MS = 2 * 60000;
 const STN_ROOMS = ['command', 'lab', 'galley', 'gym', 'airlock', 'corridor'];
+const STN_ROOM_NAMES = { command: 'Command module', lab: 'Science lab', galley: 'Galley', gym: 'Exercise', airlock: 'Airlock', corridor: 'Corridor' };
 const STN_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no look-alike characters
 const STN_STATUS = ['moving', 'still', 'alert', 'checking', 'untracked'];
 const stnJSON = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -69,12 +71,13 @@ export async function handleStations(request, env) {
     }
     const bearer = (request.headers.get('Authorization') || '').match(/^Bearer ([0-9a-f]{64})$/);
     if (bearer) {
-      const device = await db.prepare('SELECT id FROM stations WHERE device_hash = ?').bind(await stnDigest(bearer[1])).first();
+      const device = await db.prepare('SELECT id, owner_id, name, room FROM stations WHERE device_hash = ?').bind(await stnDigest(bearer[1])).first();
       if (!device) throw stnError(401, 'This camera was removed. Pair it again.');
       if (path === '/api/stations/report' && method === 'POST') {
         const { report, alert } = cleanReport(await stnReadJSON(request, 4096)), now = Date.now();
         await db.prepare('UPDATE stations SET report = ?, last_seen = ? WHERE id = ?').bind(JSON.stringify({ ...report, at: now }), now, device.id).run();
         if (alert) await db.prepare('UPDATE stations SET last_alert = ? WHERE id = ?').bind(JSON.stringify({ ...alert, at: now }), device.id).run();
+        if (alert) await notifyCircle(env, device.owner_id, { title: `Alert: ${device.name}`, body: `${STN_ROOM_NAMES[device.room] || device.room}: Person ${alert.personId} ${alert.kind === 'help' ? 'asked for help' : 'did not answer the check-in'}. Go to them now.` }).catch(() => {});
         await db.prepare('DELETE FROM station_signals WHERE created < ?').bind(now - STN_SIGNAL_MS).run();
         const { results } = await db.prepare('SELECT id, payload FROM station_signals WHERE station_id = ? AND to_device = 1 ORDER BY id').bind(device.id).all();
         if (results.length) await db.prepare('DELETE FROM station_signals WHERE station_id = ? AND to_device = 1 AND id <= ?').bind(device.id, results.at(-1).id).run();
