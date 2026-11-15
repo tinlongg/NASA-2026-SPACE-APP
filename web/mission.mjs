@@ -1,4 +1,4 @@
-import {newMission,applyMissionAction} from './dist/mission-rules.js';
+import {newMission,applyMissionAction,missionEquipment} from './dist/mission-rules.js';
 import {accountUser,missionAdminConfig} from './account.mjs';
 export async function handleMission(request,env){
  const url=new URL(request.url);if(!url.pathname.startsWith('/api/mission/'))return null;
@@ -25,7 +25,7 @@ export async function handleMission(request,env){
   const alias='Bird-'+user.id.replaceAll('-','').slice(0,8);
   await db.prepare('INSERT OR IGNORE INTO mission_profiles (user_id,state,revision,points,listed,alias) VALUES (?,?,0,0,0,?)').bind(user.id,JSON.stringify(newMission()),alias).run();
   if(url.pathname==='/api/mission/state'&&request.method==='GET'){
-   const row=await db.prepare('SELECT state FROM mission_profiles WHERE user_id=?').bind(user.id).first();return reply({state:JSON.parse(row.state),alias:JSON.parse(row.state).birdName||alias,admin});
+   const row=await db.prepare('SELECT state FROM mission_profiles WHERE user_id=?').bind(user.id).first();const state=JSON.parse(row.state);state.equipped=missionEquipment(state.equipped);return reply({state,alias:state.birdName||alias,admin});
   }
   if(url.pathname!=='/api/mission/action'||request.method!=='POST')return reply({error:'Unknown mission route.'},404);
   if(request.headers.get('Origin')!==url.origin)return reply({error:'Use this website to update your mission.'},403);

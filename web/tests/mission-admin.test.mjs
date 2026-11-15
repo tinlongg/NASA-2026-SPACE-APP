@@ -43,6 +43,11 @@ test('provisioned admin authenticates by hashed password and ID; client flags ca
  for(const item of ['cap','crown','scarf','pack','garden'])assert.equal((await a('/api/mission/action',action('buy',{item}))).status,200);
  assert.equal((await a('/api/mission/action',action('admin',{stage:'tired',growth:18}))).status,200);
  assert.equal((await(await a('/api/mission/state')).json()).state.garden,18);
+ for(const item of ['fire-cape','cigarette'])assert.equal((await a('/api/mission/action',action('buy',{item}))).status,200);
+ let outfit=(await(await a('/api/mission/state')).json()).state;assert.equal(outfit.equipped.back,'fire-cape');assert.equal(outfit.equipped.face,'cigarette');
+ outfit.equipped.gear='cigarette';delete outfit.equipped.face;DB.sqlite.prepare('UPDATE mission_profiles SET state=? WHERE user_id=?').run(JSON.stringify(outfit),config.id);
+ assert.equal((await(await a('/api/mission/state')).json()).state.equipped.face,'cigarette');await a('/api/mission/action',action('admin',{stage:'tired'}));
+ const migrated=JSON.parse(DB.sqlite.prepare('SELECT state FROM mission_profiles WHERE user_id=?').get(config.id).state);assert.equal(migrated.equipped.face,'cigarette');assert.equal(migrated.equipped.back,'fire-cape');assert.equal(migrated.equipped.gear,undefined);
  await regular('/api/auth/register',{username:'regular-crew',password:randomUUID()});
  assert.equal((await(await regular('/api/mission/state')).json()).admin,false);
  assert.equal((await a('/api/mission/action',action('admin',{fuel:120}))).status,400);

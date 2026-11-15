@@ -19,7 +19,7 @@
 
 .personal-rank{margin-top:18px;border:1px solid #75638d;border-radius:12px;padding:16px;background:#302b3d}.personal-rank p{margin-bottom:0}
 
-.mission-pet[role=button]{touch-action:none;-webkit-touch-callout:none}.mission-pet>.astro-bird{transition:transform 1.8s cubic-bezier(.22,.61,.36,1);pointer-events:none}.mission-pet.pip-held{cursor:grabbing}.pip-held>.astro-bird{transition:none;filter:drop-shadow(0 5px 7px #12131d55)}.pip-held .bird-body{animation-play-state:paused}@media(prefers-reduced-motion:reduce){.mission-pet>.astro-bird{transition:none}.pip-held>.astro-bird{transform:none!important}}
+.mission-pet[role=button]{touch-action:none;-webkit-touch-callout:none}.mission-pet>.astro-bird{transition:transform 1.8s cubic-bezier(.22,.61,.36,1);pointer-events:none}.mission-pet.pip-held{cursor:grabbing}.pip-held>.astro-bird{transition:none;filter:drop-shadow(0 5px 7px #12131d55)}.pip-held .bird-body{animation-play-state:paused}@media(prefers-reduced-motion:reduce){.mission-pet>.astro-bird{transition:none}}
 
 .task-celebration{position:fixed;inset:0;z-index:9999;pointer-events:none;overflow:hidden}.task-celebration-message{position:absolute;top:12%;left:50%;transform:translateX(-50%);display:grid;gap:7px;text-align:center;min-width:250px;max-width:90vw;padding:20px 28px;border:1px solid #b0ca9d;border-radius:18px;background:#27382ff5;color:#e6f1db;box-shadow:0 10px 40px #0005}.task-celebration-message strong{font-size:21px}.task-celebration-message span{font-size:13px}.task-celebration i{position:absolute;top:-20px;left:var(--x);width:9px;height:14px;border-radius:2px;animation:task-confetti 1.8s var(--delay) ease-in both}@keyframes task-confetti{0%{transform:translate(0,-30px) rotate(0);opacity:1}100%{transform:translate(var(--drift),105vh) rotate(var(--spin));opacity:0}}@media(prefers-reduced-motion:reduce){.task-celebration i{display:none}}
 
@@ -133,3 +133,11 @@ body:has(.mission-game-dialog[open]){overflow:hidden}
 .mission-ranking{table-layout:fixed}.mission-ranking th:first-child{width:12%}.mission-ranking th:last-child{width:22%}.mission-ranking td{overflow-wrap:anywhere}.mission-ranking td:nth-child(3){font-size:12px;color:var(--m-muted,#9da7b5)}
 @media(max-width:600px){.mission-pet.habitat-room{min-height:360px}.mission-hero>.mission-intro{padding:20px 18px}.mission-hero .mission-wallet{gap:22px}.mission-ranking td,.mission-ranking th{padding:10px 6px;font-size:12px}}
 @media(prefers-reduced-motion:reduce){.pip-idle-hop>.astro-bird,.aura-flames,.aura-sparks{animation:none}}
+.mission-pet.habitat-room{--lunar-surface:#8994a5;--lunar-ridge:#b0bac7;--lunar-crater:#748194;--lunar-edge:#657486;--lunar-highlight:#c3cbd4;--lunar-rock:#a8b3bf}
+[data-theme=light] .mission-pet.habitat-room{--lunar-surface:#b9c1c9;--lunar-ridge:#d1d7dc;--lunar-crater:#9eaab6;--lunar-edge:#8b9aa9;--lunar-highlight:#e5e9e9;--lunar-rock:#d2d8dc}
+.habitat-room>.bird-speech{background:#263b50df;border-color:#8ca1b36b;color:#eaf1f8!important}.habitat-room>.pet-hint{color:#b6c6d8}[data-theme=light] .habitat-room>.bird-speech{background:#f7f9fce8;border-color:#a3b5c5;color:#43596b!important}[data-theme=light] .habitat-room>.pet-hint{color:#5c7183}
+.mission-pet>.astro-bird{transition:none}.mission-pet.pip-airborne{z-index:4}.mission-hero:has(.pip-airborne){overflow:visible}.mission-pet.pip-airborne>.astro-bird{animation:none!important;will-change:transform}
+@keyframes pip-hop{0%,100%{transform:translate(var(--bird-x,0px),var(--bird-y,0px))}40%{transform:translate(var(--bird-x,0px),calc(var(--bird-y,0px) - 19px)) rotate(-4deg)}70%{transform:translate(var(--bird-x,0px),calc(var(--bird-y,0px) + 1px)) rotate(3deg)}}
+@keyframes cape-sway{0%,100%{transform:rotate(-3deg) skewY(-4deg) scaleX(.94)}50%{transform:rotate(3deg) skewY(3deg) scaleX(1.12)}}.fire-cape-cloth{animation-duration:1.8s}.cape-flames{animation-duration:.9s}
+.aura-flames{filter:drop-shadow(0 0 10px #f4cd3a99);animation:aura-envelope 1.7s ease-in-out infinite alternate}@keyframes aura-envelope{from{opacity:.65;transform:scale(.98,.99)}to{opacity:1;transform:scale(1.025,1.04) translateY(-2px)}}
+@media(prefers-reduced-motion:reduce){.aura-flames{animation:none}}
