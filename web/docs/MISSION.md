@@ -18,7 +18,7 @@ Validation: `npm test` and `npm run build`. Local launch: `npm start` (Node with
 
 A deployment can provision one mission admin through the secret `MISSION_ADMIN_ACCOUNT` JSON value (`id`, `username`, PBKDF2-SHA256 `salt` and `hash`, 100,000 iterations). Login creates the account if absent; an existing conflicting username is never overwritten. Authorization matches the immutable account ID, not a client flag or username alone. The secret must stay outside source control.
 
-The admin panel selects automatic, healthy, tired or needs-care bird appearance and garden growth presets. Shop purchases are free for that account. Admin simulation accounts cannot join the public leaderboard. The stages describe a fictional pet and never infer the crew member’s health. Native iOS Mission uses the same hosted account and controls.
+The admin panel selects automatic, healthy, tired or needs-care bird appearance and garden growth presets. Shop purchases are free for that account and flight fuel is unlimited. Admin simulation accounts cannot join the public leaderboard. The stages describe a fictional pet and never infer the crew member’s health. Native iOS Mission uses the same hosted account and controls.
 
 The account API exposes the server-verified admin role at sign-in and session refresh. iOS observes the shared WebKit session and verifies this identity for its app-wide administrator banner and Settings. Simulator bots are opt-in, admin-only fictional entries. Real rankings return the top ten plus the signed-in participant’s own rank; the UI shows that rank below the table if their entry is outside the ten displayed rows.
 
@@ -41,6 +41,8 @@ Plants now progress through eight stages: seed resting, taking root, sprout, see
 
 Gentle dragging keeps the happy eye active while held. Dizziness now requires two strong acceleration changes at least 100 ms apart within 650 ms, after 350 ms of dragging. Each qualifying jolt must exceed 0.055 px/ms², 1.4 px/ms speed, and 36 px sampled movement; small flicks and isolated jolts remain happy.
 
-Admins can click the flight fuel number in the wallet or their own leaderboard points (in the summary, table, or personal rank) to open a numeric editor. Save validates whole numbers from 0 to 1,000,000,000; cancellation leaves the value unchanged. Account changes block an already-open editor. Regular participants and other birds’ table entries remain read-only.
+Admins see ∞ flight fuel and launch without spending fuel; leaving a flight does not add fuel. Admins can click their own leaderboard points (in the summary, table, or personal rank) to open a numeric editor. Save validates whole numbers from 0 to 1,000,000,000; cancellation leaves the value unchanged. Account changes block an already-open editor. Regular participants and other birds’ table entries remain read-only.
 
 Outfitters adds a Nebula beanie (55 stars), Signal antenna (80), Moon badge (35), and Solar wings (110), with previews on Pip. Hats and gear use the existing equipment slots and admin purchases remain free. Signal sequence practices working memory and sequencing with three growing beacon patterns and free replay; Orbit navigator practices spatial planning on a solvable 5×5 debris field. Both use the same 10 fuel, 15 star, 20 participation point rules and recent-average statistics as other flights. The garden, bird panel, previews, game boards, dialog buttons, and tabs now adapt to light mode.
+
+Each shop preview shows only that card’s accessory on Pip, independent of the currently equipped hat or gear. Fuel values cannot be edited through the admin action API. Regular participants retain normal fuel costs and refunds.

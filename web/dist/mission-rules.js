@@ -41,7 +41,6 @@ export function applyMissionAction(original,action,now=Date.now(),{admin=false}=
  }
  case 'admin': {
    if(!admin)throw Error('Admin access required.');
-   if(action.fuel!==undefined){if(!Number.isInteger(action.fuel)||action.fuel<0||action.fuel>1000000000)throw Error('Choose whole flight fuel from 0 to 1,000,000,000.');s.fuel=action.fuel;}
    if(action.points!==undefined){if(!Number.isInteger(action.points)||action.points<0||action.points>1000000000)throw Error('Choose whole leaderboard points from 0 to 1,000,000,000.');s.rankPoints=action.points;}
    if(action.distance!==undefined){if(!Number.isInteger(action.distance)||action.distance<0||action.distance>1000)throw Error('Choose journey distance from 0 to 1000.');s.distance=action.distance;}
    if(action.prestige!==undefined){if(!Number.isInteger(action.prestige)||action.prestige<0||action.prestige>10000)throw Error('Choose expedition level from 1 to 10001.');s.prestige=action.prestige;}
@@ -62,8 +61,8 @@ export function applyMissionAction(original,action,now=Date.now(),{admin=false}=
    if(!MISSION_GAMES.some(g=>g.id===action.game))throw Error('Unknown game.');
    if(s.pending)throw Error('Finish or leave your current game first.');
    if(today.plays>=6)throw Error('Six rewarded flights completed today. Come back next station day.');
-   if(s.fuel<10)throw Error('Complete a care task to earn 10 flight fuel.');
-   s.fuel-=10;s.pending={id:action.id,game:action.game,started:now};break;
+   if(!admin&&s.fuel<10)throw Error('Complete a care task to earn 10 flight fuel.');
+   if(!admin)s.fuel-=10;s.pending={id:action.id,game:action.game,started:now};break;
  case 'finish': {
    if(!s.pending||s.pending.id!==action.run)throw Error('This game is no longer active.');
    if(now-s.pending.started<5000)throw Error('Spend a few more seconds in this flight before finishing.');
@@ -74,7 +73,7 @@ export function applyMissionAction(original,action,now=Date.now(),{admin=false}=
    s.history.push({game:s.pending.game,score:Math.round(action.score),metrics,at:now});s.history=s.history.slice(-90);
    s.pending=null;today.plays++;s.coins+=15;s.rankPoints+=20;break;
  }
- case 'cancel':if(s.pending){s.pending=null;s.fuel+=10;}break;
+ case 'cancel':if(s.pending){s.pending=null;if(!admin)s.fuel+=10;}break;
  case 'buy': {
    const item=MISSION_SHOP.find(i=>i.id===action.item);if(!item)throw Error('Unknown accessory.');
    if(s.owned.includes(item.id))return s;
