@@ -32,6 +32,9 @@ export function applyMissionAction(original,action,now=Date.now(),{admin=false}=
  switch(action.type){
  case 'admin': {
    if(!admin)throw Error('Admin access required.');
+   if(action.distance!==undefined){if(!Number.isInteger(action.distance)||action.distance<0||action.distance>1000)throw Error('Choose journey distance from 0 to 1000.');s.distance=action.distance;}
+   if(action.prestige!==undefined){if(!Number.isInteger(action.prestige)||action.prestige<0||action.prestige>10000)throw Error('Choose expedition level from 1 to 10001.');s.prestige=action.prestige;}
+   if(action.bots!==undefined){if(typeof action.bots!=='boolean')throw Error('Choose demo bot visibility.');s.demoBots=action.bots;}
    if(action.stage!==undefined){if(!['auto','healthy','tired','needs-care'].includes(action.stage))throw Error('Unknown bird stage.');s.birdStage=action.stage;}
    if(action.growth!==undefined){if(!Number.isInteger(action.growth)||action.growth<0||action.growth>100)throw Error('Choose garden growth from 0 to 100.');s.garden=action.growth;}
    break;

@@ -19,3 +19,13 @@ Validation: `npm test` and `npm run build`. Local launch: `npm start` (Node with
 A deployment can provision one mission admin through the secret `MISSION_ADMIN_ACCOUNT` JSON value (`id`, `username`, PBKDF2-SHA256 `salt` and `hash`, 100,000 iterations). Login creates the account if absent; an existing conflicting username is never overwritten. Authorization matches the immutable account ID, not a client flag or username alone. The secret must stay outside source control.
 
 The admin panel selects automatic, healthy, tired or needs-care bird appearance and garden growth presets. Shop purchases are free for that account. Admin simulation accounts cannot join the public leaderboard. The stages describe a fictional pet and never infer the crew member’s health. Native iOS Mission uses the same hosted account and controls.
+
+The account API exposes the server-verified admin role at sign-in and session refresh. iOS observes the shared WebKit session and verifies this identity for its app-wide administrator banner and Settings. Simulator bots are opt-in, admin-only fictional entries. Real rankings return the top ten plus the signed-in participant’s own rank; the UI shows that rank below the table if their entry is outside the ten displayed rows.
+
+Pip can hop on tap/keyboard activation and respond to horizontal swipe petting. These cosmetic interactions do not grant participation points. Dust is a drifting drawn cloud; the garden uses SVG plant illustrations in pots. The Mars route positions Pip riding a rocket by actual journey progress. Animations honor reduced-motion preferences.
+
+Admin simulation also supports adding journey distance, reaching Mars, and advancing the expedition level. Tired Pip has helmet grime; needs-care Pip has grime plus the surrounding dust cloud. Taps have no cooldown; holding for 400 ms then dragging shakes Pip, with pointer capture and release/cancel cleanup.
+
+Both suit flows share NASA’s Spacewalk Spacesuit Basics functional groups: cooling garment (three layers), bladder, restraint, ripstop liner, multiple insulation layers, and outer covering. NASA describes up to 16 material layers rather than the proposed 14-layer screenshot grouping. The main checklist separately retains equipment checks. Source: https://www.nasa.gov/centers-and-facilities/johnson/spacewalk-spacesuit-basics/ . These are records of approved inspections, not clearance for EVA or instructions to disassemble a suit.
+
+Newly completed daily tasks show a brief confetti celebration; reduced motion shows only the completion message. Task, game and account dialogs have sticky corner close controls. Game dismissal refunds an unfinished flight, and section close controls return to daily care.

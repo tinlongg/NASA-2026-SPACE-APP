@@ -36,11 +36,11 @@ for regeneration steps. Review each exported answer before the presentation.
 
 ## Spacesuit checklist source (not in the MUSE corpus)
 
-The Suit check tab (`web/dist/suit-layers.js`) follows one NASA page, read in full on 2026-11-15 by Claude Code, not by an
+The Suit check tab (`web/dist/suit-layers.js`) follows one NASA page, read on 2026-11-15 (by Claude Code and, separately, by a teammate), not by an
 independent human reviewer: **Review status: Pending.**
 
 | Topic | Source | What it says |
 | --- | --- | --- |
 | Layers and parts | [Spacewalk Spacesuit Basics, NASA](https://www.nasa.gov/centers-and-facilities/johnson/spacewalk-spacesuit-basics/) (published 2019-10-04, updated 2023-08-30) | The flexible parts have up to 16 layers. It gives no exact count and does not name every layer. Named, skin outwards: a cooling garment of spandex with water tubes (the first three layers), a bladder layer, a layer that holds the bladder in shape, a ripstop liner, several insulation layers, and a white outer layer of three kinds of thread. It also names the hard upper torso, lower torso with waist bearing, heated gloves, the helmet and visors, the audio system, and the life support backpack (oxygen and regulator, fan and carbon dioxide removal, power and radio, cooling water with chiller and pump). |
 
-An earlier search-result summary said 14 layers (and a NIAC report 3 + 2 + 9); the NASA page itself says up to 16, so the checklist does not claim a count. The inspection hints are generic, not a NASA procedure, and the earlier "pressure leak check" item was removed because the page does not mention one.
+An earlier search-result summary said 14 layers (and a NIAC report 3 + 2 + 9); the NASA page itself says up to 16, so the checklist does not claim a count. The checklist groups the six layer functions the page describes and adds separate equipment checks; it does not claim a layer count. The page itself does not mention a pressure-system check: that item is a manual record of the user's approved procedure, not something NASA's page describes.
