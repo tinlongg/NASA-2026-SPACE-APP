@@ -5,9 +5,10 @@ import { VISION_MODULE, VISION_WASM, POSE_MODELS, FACE_MODEL } from './offline-c
 import { visibilityGroups, FramingMonitor, MODEL_CHOICES } from './camera-health.js';
 import { CheckIns, CHECKIN_SECONDS, GRACE_SECONDS, RAISES_ALERT } from './checkin.js';
 import { onDeviceSupport, installLanguagePack, listenForAnswer, ANSWER_LABEL } from './voice-answer.js';
-import { BlinkDetector, PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthActivity, faceBox, cropRect, describePerson } from './people.js';
+import { BlinkDetector, PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthMotion, lipAperture, faceBox, cropRect, describePerson } from './people.js';
+import { startVoiceActivity } from './voice-activity.js';
 import { initializeResearch } from './research.js';
-import { initializeCrewSync } from './crew-sync.js';
+import { initializeCrewSync, onWearable, requestWatchCheckIn, cancelWatchCheckIn } from './crew-sync.js';
 import { initAccount, api } from './account.js';
 import { downscaleJpeg, webcamStill, groupByDay, dayKey } from './journal-photo.js';
 import { GROUPS, ITEMS, SOURCE_NOTE, overallState, STATE_LABEL } from './suit-layers.js';
@@ -27,19 +28,28 @@ const canvas = element('overlay');
 const context = canvas.getContext('2d');
 const detector = new InactivityDetector(); // the single synthetic-replay person
 // Live people: a stable id per person, each with their own detector and face readings.
-const tracker = new PersonTracker(), people = new Map(), replayPerson = { id: 1, detector, mouth: new MouthActivity(), face: null, result: null };
+const tracker = new PersonTracker(), people = new Map(), replayPerson = { id: 1, detector, mouth: new MouthMotion(), face: null, result: null };
 // People are found automatically: nobody is entered ahead of time. The only limit is how many the models look for per frame.
 const MAX_PEOPLE = 4;
 let selectedId = null, focusId = null, faceLandmarker = null, lastFace = 0;
-const newPerson = id => ({ id, detector: new InactivityDetector(), mouth: new MouthActivity(), blink: new BlinkDetector(), face: null, result: null, pose: null, seen: 0, activeAt: null, activeReason: null, appliedAt: null });
-function resetPeople() { tracker.reset(); people.clear(); detector.reset(); replayPerson.mouth.reset(); replayPerson.face = null; replayPerson.result = null; focusId = null; selectedId = null; renderViews(true); }
+// MUSE live watch: rolling face screenshots of the close-up target, sent a few at a time.
+const museWatch = { faces: [], lastShot: 0, lastSent: 0, inFlight: false, targetId: null, retryAt: 0, stopped: false, reading: null, error: null };
+// Every MUSE analysis with its reasoning, newest first. Kept across sessions until cleared or the tab closes.
+const museLog = [], MUSE_LOG_MAX = 300;
+// Microphone talk detection (startMic): declared early because stopSession() can run before the end of this file.
+let mic = null, micState = 'off', micGeneration = -1, micTimer = null;
+// Apple Watch relayed by the paired iPhone (onWearable, near the end of this file).
+let watch = { paired: false }, watchPersonId = null, watchStreamingBefore = false, watchMovedApplied = 0;
+const watchAnswers = new Set(), watchCheckIns = new Map(), heartHistory = [];
+const newPerson = id => ({ id, detector: new InactivityDetector(), mouth: new MouthMotion(), blink: new BlinkDetector(), face: null, muse: null, result: null, pose: null, seen: 0, activeAt: null, activeReason: null, appliedAt: null, mouthMovedAt: null, patch: null });
+function resetPeople() { watchPersonId = null; tracker.reset(); people.clear(); detector.reset(); replayPerson.mouth.reset(); replayPerson.face = null; replayPerson.result = null; focusId = null; selectedId = null; renderViews(true); }
 let stream, landmarker, animation, generation = 0, mode = 'idle', lastVideoTime = -1, lastInference = 0;
 const events = [];
 let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, detection: null };
 let coachPending = false;
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
-const titles = { home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded or uploaded'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
+const titles = { home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded; MUSE sees close-up screenshots only if you allow it'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
 function showTab(tab) {
   if (!titles[tab]) return;
   if (tab !== 'monitor') stopSession();
@@ -49,13 +59,14 @@ function showTab(tab) {
   window.scrollTo(0, 0);
 }
 document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => showTab(button.dataset.tab)));
-document.querySelector('[data-action="camera"]').onclick = () => { showTab('monitor'); startCamera(); };
+document.querySelector('[data-action="camera"]').onclick = () => { showTab('monitor'); openSetup(); };
 document.querySelector('[data-action="replay"]').onclick = () => { showTab('monitor'); replay('unresponsive'); };
 
 function setCameraState(label, live) {
   element('mode-label').textContent = label; element('head-status').textContent = label; element('home-camera').textContent = live ? label.replace(/^Live camera$/, 'Live') : 'Off';
   for (const id of ['camera-dot', 'head-dot', 'side-camera-dot']) element(id).classList.toggle('live', live);
   element('side-camera').textContent = live ? (label === 'Live camera' ? 'Live' : 'Replay') : 'Off';
+  element('pip').hidden = label !== 'Live camera'; // the face close-up only exists for the live camera
 }
 
 function stopSession(message = 'Session stopped. Camera released.') {
@@ -69,6 +80,7 @@ function stopSession(message = 'Session stopped. Camera released.') {
   element('motion').textContent = '—'; element('still').textContent = '—'; element('fps').textContent = '— fps';
   element('tracking').textContent = 'Awaiting camera connection'; element('detector-state').textContent = 'Idle';
   element('camera-message').textContent = message;
+  resetMuseWatch(); stopMic();
 }
 
 let poseModel = 'full', landmarkerModel = null, landmarkerDelegate = '—';
@@ -122,7 +134,8 @@ async function startCamera() {
     if (session !== generation) return;
     mode = 'live'; lastVideoTime = -1; lastInference = 0;
     setCameraState('Live camera', true); element('source').textContent = 'Webcam, live';
-    element('camera-message').textContent = 'Monitoring locally. Keep your full body in frame. No video is recorded. Frames stay on this device unless you turn on the MUSE second look.';
+    element('camera-message').textContent = element('muse-watch-enabled').checked ? 'Monitoring. Keep your full body in frame. No video is recorded. Close-up screenshots go to MUSE every few seconds and are not stored.' : 'Monitoring locally. Keep your full body in frame. No video is recorded and nothing is sent to MUSE.';
+    resetMuseWatch();
     stream.getVideoTracks()[0].addEventListener('ended', () => { if (session === generation) stopSession('Camera disconnected. Reconnect it and start again.'); });
     const tick = now => {
       if (session !== generation) return;
@@ -148,7 +161,7 @@ async function startCamera() {
           if (element('skeleton').checked) for (const person of people.values()) if (person.pose) drawPerson(person);
           updateDiagnostics(time, focus?.pose ? visibilityGroups(focus.pose) : null);
           renderFocus(focus ?? null, time);
-          drawCloseUp();
+          museTick(now, drawCloseUp());
           element('fps').textContent = `${Math.min(15, Math.round(1000 / elapsed))} fps`;
         }
         animation = requestAnimationFrame(tick);
@@ -179,10 +192,11 @@ function headBox(pose) { // fallback when the face model has nothing: a box arou
 }
 function drawCloseUp() {
   const target = closeUpTarget(), box = target && (target.face?.box ?? headBox(target.pose));
-  element('closeup-placeholder').hidden = Boolean(box); element('closeup-placeholder').textContent = mode === 'replay' ? 'No close-up in replays' : 'Waiting for a person';
-  if (!box || video.readyState < 2) { faceContext.clearRect(0, 0, faceCanvas.width, faceCanvas.height); return; }
+  element('closeup-placeholder').hidden = Boolean(box); element('closeup-placeholder').textContent = mode === 'replay' ? 'No close-up in replays' : mode === 'live' ? 'Waiting for a face' : 'Close-up';
+  if (!box || video.readyState < 2) { faceContext.clearRect(0, 0, faceCanvas.width, faceCanvas.height); return null; }
   const crop = cropRect(box, video.videoWidth, video.videoHeight, faceCanvas.width / faceCanvas.height);
   faceContext.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, faceCanvas.width, faceCanvas.height);
+  return target;
 }
 const READING = { open: 'Open', closed: 'Closed', unclear: 'Mixed', unknown: '—', moving: 'Moving', still: 'Still' };
 let lastViews = 0;
@@ -191,9 +205,6 @@ function renderViews(force = false) {
   const list = mode === 'replay' ? [replayPerson] : [...people.values()].sort((a, b) => a.id - b.id);
   const target = closeUpTarget();
   element('closeup-title').textContent = target ? `Close-up · Person ${target.id}` : 'Close-up';
-  element('closeup-eyes').textContent = target ? READING[target.face?.eyes?.state ?? 'unknown'] : '—';
-  element('closeup-mouth').textContent = target ? READING[target.face?.mouth?.state ?? 'unknown'] : '—';
-  element('closeup-note').textContent = !target ? 'Follows the person who stops moving, or click a person in the camera view.' : target.face ? 'Readings come from the face model, on this device.' : faceLandmarker ? 'No clear face in view. Showing the head area.' : 'Face model unavailable. Showing the head area.';
   const boxes = element('thought-boxes'); boxes.replaceChildren();
   if (!list.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No one is being tracked yet. Start the camera or a replay.'; boxes.append(empty); return; }
   for (const person of list) {
@@ -202,10 +213,16 @@ function renderViews(force = false) {
     const name = document.createElement('strong'); name.textContent = mode === 'replay' ? 'Synthetic person' : `Person ${person.id}`;
     const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = result?.alerted ? 'Alert' : !result?.measurement ? 'Not tracked' : result.stillFor >= STILL_SECONDS / 3 ? 'Still' : 'Moving';
     head.append(name, chip); card.append(head);
-    const lines = describePerson({ tracked: Boolean(result?.measurement), upper: result?.upper, motion: result?.motion, threshold: result?.threshold, stillFor: result?.stillFor ?? 0, stillSeconds: STILL_SECONDS, alerted: result?.alerted, eyes: person.face?.eyes, mouth: person.face?.mouth, replay: mode === 'replay', faceActiveAgo: person.activeAt == null || mode === 'replay' || !element('face-activity-enabled').checked ? null : performance.now() / 1000 - person.activeAt });
+    const lines = describePerson({ tracked: Boolean(result?.measurement), upper: result?.upper, motion: result?.motion, threshold: result?.threshold, stillFor: result?.stillFor ?? 0, stillSeconds: STILL_SECONDS, alerted: result?.alerted, eyes: person.face?.eyes, mouth: person.face?.mouth, museMouth: person.muse ? { state: person.muse.mouthMoving ? 'moving' : 'still' } : null, replay: mode === 'replay', faceActiveAgo: person.activeAt == null || mode === 'replay' ? null : performance.now() / 1000 - person.activeAt, activeReason: person.activeReason, watch: watchReading(person) });
     for (const line of lines) { const item = document.createElement('p'); item.textContent = line; card.append(item); }
     const look = events.find(event => event.personId === person.id && event.lookNote?.status === 'done');
+    if (person.muse?.thinking) { const note = document.createElement('p'); note.className = 'look'; note.textContent = `MUSE: ${person.muse.thinking}`; card.append(note); }
     if (look) { const note = document.createElement('p'); note.className = 'look'; note.textContent = `MUSE second look (a description, not a decision): ${look.lookNote.text}`; card.append(note); }
+    if (mode === 'live' && watchStreaming() && list.filter(item => item.pose).length > 1 && person.pose) {
+      const wear = document.createElement('button'); wear.type = 'button'; wear.className = 'wear-button'; wear.setAttribute('aria-pressed', String(watchPersonId === person.id));
+      wear.textContent = watchPersonId === person.id ? 'Wears the Apple Watch' : 'Wearing the Watch?';
+      wear.onclick = event => { event.stopPropagation(); watchPersonId = person.id; renderViews(true); }; card.append(wear);
+    }
     if (mode !== 'replay') card.onclick = () => { selectedId = person.id; renderViews(true); };
     boxes.append(card);
   }
@@ -213,14 +230,14 @@ function renderViews(force = false) {
 // A literal second screen: the close-up in its own window, drawn from the same canvas.
 element('closeup-popout').onclick = () => {
   const win = window.open('', 'crewsafety-closeup', 'popup,width=640,height=560');
-  if (!win) { element('closeup-note').textContent = 'The browser blocked the new window. Allow pop-ups for this site and try again.'; return; }
+  if (!win) { element('camera-message').textContent = 'The browser blocked the close-up window. Allow pop-ups for this site and try again.'; return; }
   win.document.title = 'CrewSafety close-up';
   win.document.body.style.cssText = 'margin:0;background:#121314;color:#ececef;font:14px system-ui,sans-serif';
   const view = win.document.createElement('video'); view.autoplay = true; view.muted = true; view.playsInline = true; view.style.cssText = 'width:100%;display:block;background:#0e0f10';
   view.srcObject = faceCanvas.captureStream(15);
   const caption = win.document.createElement('div'); caption.style.cssText = 'padding:12px 16px';
   win.document.body.replaceChildren(view, caption);
-  const timer = setInterval(() => { if (win.closed) return clearInterval(timer); caption.textContent = `${element('closeup-title').textContent} · Eyes: ${element('closeup-eyes').textContent} · Mouth: ${element('closeup-mouth').textContent}`; }, 500);
+  const timer = setInterval(() => { if (win.closed) return clearInterval(timer); caption.textContent = `${element('closeup-title').textContent} · MUSE · Mouth: ${element('muse-mouth').textContent} · Movement: ${element('muse-move').textContent} · ${element('muse-thinking').textContent}`; }, 500);
 };
 canvas.addEventListener('click', event => {
   if (mode !== 'live') return;
@@ -236,11 +253,13 @@ function updateFaces(now, time, poses, ids) {
     const nose = landmarks[1], at = nose ? nearestIndex([nose.x, nose.y], heads, 0.25) : -1, person = at >= 0 ? people.get(ids[at]) : null;
     if (!person) return;
     const scores = blendshapeScores(result.faceBlendshapes?.[index]?.categories);
-    person.face = { eyes: eyeReading(scores), mouth: person.mouth.update(time, scores), box: faceBox(landmarks), at: time }; matched.add(person.id);
-    if (person.face.mouth.state === 'moving') { person.activeAt = time; person.activeReason = 'talking'; }
-    if (person.blink.update(scores)) { person.activeAt = time; person.activeReason = 'blinking'; }
+    const mouth = person.mouth.update(time, lipAperture(landmarks), mouthPatchDiff(person, landmarks));
+    person.face = { eyes: eyeReading(scores), mouth, box: faceBox(landmarks), at: time }; matched.add(person.id);
+    // Lip motion measured on this device: fast enough to restart the count while someone talks or mouths words.
+    if (mouth.state === 'moving') { person.mouthMovedAt = time; if (element('face-activity-enabled').checked) noteFaceActivity(person, time, 'Mouth moving (on device)'); }
+    if (person.blink.update(scores) && element('face-activity-enabled').checked) noteFaceActivity(person, time, 'Blinking');
   });
-  for (const person of people.values()) if (!matched.has(person.id) && person.face && time - person.face.at > 1) { person.face = null; person.mouth.reset(); }
+  for (const person of people.values()) if (!matched.has(person.id) && person.face && time - person.face.at > 1) { person.face = null; person.mouth.reset(); person.patch = null; }
 }
 function drawPerson(person) {
   const pose = person.pose, colour = statusColour(person), points = pose.filter(point => (point.visibility ?? 0) >= 0.3);
@@ -268,7 +287,7 @@ function evaluatePerson(person, time, measurement) {
   d.wholeBody = mode === 'replay' ? Boolean(REPLAYS[replayKind]?.wholeBody) : element('whole-body-enabled').checked; // synthetic replays were written for microgravity unless they say otherwise
   const detection = d.process(time, measurement);
   // Talking or blinking is activity: a person standing still while speaking is not unresponsive.
-  if (mode !== 'replay' && element('face-activity-enabled').checked && person.activeAt != null && person.activeAt !== person.appliedAt) { d.noteActivity(person.activeAt); person.appliedAt = person.activeAt; }
+  if (mode !== 'replay' && person.activeAt != null && person.activeAt !== person.appliedAt) { d.noteActivity(person.activeAt); person.appliedAt = person.activeAt; }
   const stillFor = d.stillFor(time);
   // Coach and events get two numbers, never joint positions.
   const summary = measurement ? { motion: Number(Math.min(d.motion ?? 0, 9.99).toFixed(3)), stillFor: Number(stillFor.toFixed(1)) } : null;
@@ -282,7 +301,8 @@ function evaluatePerson(person, time, measurement) {
 
 function raiseEvent(person, detection, snapshot, why = '') {
   const who = mode === 'replay' ? '' : `Person ${person.id}: `;
-  const details = `${who}${why || `No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`}`;
+  let details = `${who}${why || `No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`}`;
+  details += watchNote(person);
   events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', personId: mode === 'replay' ? null : person.id, type: 'Possible unresponsive', details, snapshot: structuredClone(snapshot), eyes: person.face?.eyes?.state ?? null, mouth: person.face?.mouth?.state ?? null, acknowledged: false, lookNote: null });
   if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
   if (element('voice-answer-enabled').checked && mode === 'live' && !why) listenAfterAlert(events[0]); else speakAlert();
@@ -295,6 +315,7 @@ function raiseEvent(person, detection, snapshot, why = '') {
 const checkIns = new CheckIns({ seconds: CHECKIN_SECONDS }), checkInTimers = new Map(), checkInListeners = new Map();
 function startCheckIn(person, detection, snapshot) {
   if (!checkIns.start(person.id, { person, detection, snapshot }, Date.now())) return;
+  watchCheckIn(person);
   checkInTimers.set(person.id, setInterval(() => { renderCheckIns(); for (const ended of checkIns.tick(Date.now(), id => Boolean(people.get(id)?.detector.alerted))) finishCheckIn(ended); }, 500));
   playClip('/voice/web-checkin.mp3', { respectToggle: false }).then(async () => {
     if (!checkIns.has(person.id) || !element('voice-answer-enabled').checked) return;
@@ -307,7 +328,7 @@ function startCheckIn(person, detection, snapshot) {
 }
 function answerCheckIn(id, kind) { const ended = checkIns.answer(id, kind); if (ended) finishCheckIn(ended); }
 function finishCheckIn({ id, outcome, info }) {
-  clearInterval(checkInTimers.get(id)); checkInTimers.delete(id); checkInListeners.get(id)?.stop?.(); checkInListeners.delete(id);
+  clearInterval(checkInTimers.get(id)); checkInTimers.delete(id); checkInListeners.get(id)?.stop?.(); checkInListeners.delete(id); endWatchCheckIn(info.person);
   const { person, detection, snapshot } = info, now = Date.now();
   if (RAISES_ALERT[outcome]) raiseEvent(person, detection, snapshot, outcome === 'help' ? `Person ${id} asked for help at the check-in. Go to them now.` : `Person ${id} did not answer the "Are you OK?" check-in for ${CHECKIN_SECONDS} s after ${Math.round(detection.stillFor)} s without movement. Check in with them.`);
   else {
@@ -318,7 +339,7 @@ function finishCheckIn({ id, outcome, info }) {
   }
   renderCheckIns();
 }
-function cancelCheckIns() { checkIns.cancelAll(); for (const timer of checkInTimers.values()) clearInterval(timer); for (const listener of checkInListeners.values()) listener.stop?.(); checkInTimers.clear(); checkInListeners.clear(); renderCheckIns(); }
+function cancelCheckIns() { for (const info of checkIns.cancelAll()) endWatchCheckIn(info.person); for (const timer of checkInTimers.values()) clearInterval(timer); for (const listener of checkInListeners.values()) listener.stop?.(); checkInTimers.clear(); checkInListeners.clear(); renderCheckIns(); }
 function renderCheckIns() {
   const box = element('checkin-box'); box.hidden = !checkIns.size; box.replaceChildren();
   for (const [id, entry] of checkIns.active) {
@@ -400,7 +421,9 @@ function replay(kind) {
 // Recorded ElevenLabs voice for new events. A browser may block audio until the page has been
 // used; the written banner and event log are always the primary alert.
 const clips = {};
+let clipsPlaying = 0; // while the app's own voice plays, the microphone does not count it as talking
 function playClip(src, { respectToggle = true } = {}) { // resolves when the clip has finished, or straight away if it cannot play
+  clipsPlaying++;
   return new Promise(resolve => {
     if (respectToggle && !element('voice-enabled').checked) return resolve();
     try {
@@ -408,7 +431,7 @@ function playClip(src, { respectToggle = true } = {}) { // resolves when the cli
       audio.onended = () => resolve(); audio.onerror = () => resolve();
       audio.play().catch(() => resolve());
     } catch { resolve(); }
-  });
+  }).finally(() => setTimeout(() => { clipsPlaying--; }, 400)); // room echo dies away
 }
 const speakAlert = () => playClip('/voice/web-alert.mp3');
 // Spoken answers, recognised on this device only. The words are classified and discarded; only the
@@ -791,7 +814,7 @@ fetch('/api/coach/status').then(response => { if (!response.ok) throw new Error(
   element('coach-status').textContent = data.configured ? `Meta ${data.model} configured · send a question to verify access` : 'Camera Coach needs a server-side Meta API key.';
 }).catch(() => { setMuse('Offline', false); element('coach-status').textContent = 'Camera Coach needs the hosted site or local Node server.'; });
 element('export-events').onclick = () => { const url = URL.createObjectURL(new Blob([JSON.stringify(events,null,2)], { type: 'application/json' })); const link = document.createElement('a'); link.href = url; link.download = 'crewsafety-events.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000); };
-element('start').onclick = startCamera; element('stop').onclick = () => stopSession();
+element('start').onclick = openSetup; element('stop').onclick = () => stopSession();
 for (const [kind, fixture] of Object.entries(REPLAYS)) { const button = document.createElement('button'); button.dataset.replay = kind; button.textContent = fixture.label; element('replay-actions').append(button); }
 document.querySelectorAll('[data-replay]').forEach(button => button.onclick = () => replay(button.dataset.replay));
 document.addEventListener('visibilitychange', () => { if (document.hidden) stopSession('Session stopped while the page was hidden. Start again to resume.'); });
@@ -892,3 +915,253 @@ element('suit-save').onclick = async () => {
 };
 element('suit-reset').onclick = () => { suit = {}; persistSuit(); renderSuit(); element('suit-message').textContent = 'Started a new check.'; };
 renderSuit(); loadSuitHistory();
+
+// Session setup: every option is chosen before the camera starts.
+function openSetup() { const dialog = element('setup-dialog'); if (!dialog.open) dialog.showModal(); element('setup-start').focus(); }
+element('setup-start').onclick = () => { element('setup-dialog').close(); startCamera(); if (element('mic-activity-enabled').checked) startMic(); };
+element('setup-cancel').onclick = () => element('setup-dialog').close();
+
+// Activity seen in the face (blinking on this device, or mouth/body movement seen by MUSE) restarts the
+// stillness count, the same way body movement does. Older observations than the current count are ignored.
+function noteFaceActivity(person, time, reason) {
+  if (time <= (person.detector.stillSince ?? -Infinity) || time <= (person.activeAt ?? -Infinity)) return false;
+  person.activeAt = time; person.activeReason = reason; return true;
+}
+
+// MUSE live watch: screenshots of the close-up every WATCH_SHOT_MS; every WATCH_EVERY_MS the last
+// WATCH_FACES of them plus one small body frame go to MUSE, one request at a time. MUSE compares them for
+// mouth and body movement. Movement restarts the stillness count; MUSE never raises an alert itself.
+const WATCH_SHOT_MS = 450, WATCH_EVERY_MS = 2500, WATCH_FACES = 3;
+const yesNo = (value, yes, no) => value == null ? '—' : value ? yes : no;
+function resetMuseWatch() {
+  Object.assign(museWatch, { faces: [], lastShot: 0, lastSent: 0, inFlight: false, targetId: null, retryAt: 0, stopped: false, reading: null, error: null });
+  for (const person of people.values()) person.muse = null;
+  renderMuse();
+}
+function museTick(now, target) {
+  if (mode !== 'live' || !element('muse-watch-enabled').checked || museWatch.stopped) return renderMuseState(now);
+  if (!target || target.id !== museWatch.targetId) { museWatch.faces = []; museWatch.targetId = target?.id ?? null; }
+  if (target && now - museWatch.lastShot >= WATCH_SHOT_MS) {
+    museWatch.lastShot = now;
+    museWatch.faces.push({ at: now / 1000, data: faceCanvas.toDataURL('image/jpeg', 0.7).split(',')[1] });
+    if (museWatch.faces.length > WATCH_FACES) museWatch.faces.shift();
+  }
+  if (target && !museWatch.inFlight && museWatch.faces.length === WATCH_FACES && now - museWatch.lastSent >= WATCH_EVERY_MS && now >= museWatch.retryAt) sendWatch(now, target);
+  renderMuseState(now);
+}
+async function sendWatch(now, target) {
+  const session = generation, faces = museWatch.faces.slice(), id = target.id, stillFor = Number((target.result?.stillFor ?? 0).toFixed(1));
+  museWatch.inFlight = true; museWatch.lastSent = now; museWatch.sentAt = now;
+  const scale = Math.min(1, 384 / Math.max(video.videoWidth, video.videoHeight)), frame = document.createElement('canvas');
+  frame.width = Math.round(video.videoWidth * scale); frame.height = Math.round(video.videoHeight * scale);
+  frame.getContext('2d').drawImage(video, 0, 0, frame.width, frame.height);
+  const body = frame.toDataURL('image/jpeg', 0.6).split(',')[1];
+  let entry;
+  try {
+    const response = await fetch('/api/coach/watch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store', signal: AbortSignal.timeout(35000),
+      body: JSON.stringify({ source: 'live', faces: faces.map(face => face.data), body, stillFor }) });
+    const data = await response.json().catch(() => ({}));
+    if (session !== generation) return;
+    museWatch.failures = 0;
+    if (!response.ok) {
+      if (response.status === 503 || response.status === 403) museWatch.stopped = true;
+      museWatch.retryAt = performance.now() + (response.status === 429 ? 10000 : 5000);
+      entry = { kind: 'error', label: `Error ${response.status}`, thinking: data.error || 'MUSE could not analyse the screenshots. Local detection continues.' };
+    } else {
+      const person = people.get(id), moved = data.mouthMoving || data.headOrBodyMoving;
+      // Confirmed movement restarts the count from 0 now, not from the screenshot time (~6 s ago).
+      const restarted = Boolean(person && moved && noteFaceActivity(person, performance.now() / 1000, data.mouthMoving ? 'MUSE saw the mouth move' : 'MUSE saw head or body movement'));
+      museWatch.reading = { ...data, personId: id, at: performance.now(), restarted, moved };
+      if (person) person.muse = data;
+      if (moved) museWatch.movedAt = performance.now();
+      entry = { kind: moved ? 'moving' : 'still', label: data.mouthMoving && data.headOrBodyMoving ? 'Mouth and body moving' : data.mouthMoving ? 'Mouth moving' : data.headOrBodyMoving ? 'Movement' : data.personVisible ? 'No movement' : 'No face', thinking: data.thinking || 'No reasoning given.', reasoning: data.reasoning || null, face: data.face, body: data.body, eyes: data.eyes, mouthMoving: data.mouthMoving, headOrBodyMoving: data.headOrBodyMoving, restarted };
+    }
+  } catch (error) {
+    if (session !== generation) return;
+    // A fetch that throws never reached this site's server (it is stopped or the network dropped), unlike a MUSE error reply.
+    museWatch.failures = (museWatch.failures ?? 0) + 1;
+    museWatch.retryAt = performance.now() + Math.min(30000, 5000 * museWatch.failures);
+    entry = error.name === 'TimeoutError' ? { kind: 'error', label: 'Timed out', thinking: 'MUSE took more than 35 s to answer. Trying again. Local detection continues.' }
+      : { kind: 'error', label: 'Server offline', thinking: `This site's server did not answer, so nothing reached MUSE. Check that it is still running (npm start in web/), then it reconnects by itself. Retrying in ${Math.round(Math.min(30000, 5000 * museWatch.failures) / 1000)} s. Local detection continues.` };
+  } finally { if (session === generation) museWatch.inFlight = false; }
+  if (entry.kind === 'error') museWatch.error = entry.thinking;
+  museLog.unshift({ ...entry, at: new Date(), personId: id, stillFor, screenshots: faces.length }); museLog.length = Math.min(museLog.length, MUSE_LOG_MAX);
+  renderMuse(); renderMuseLog();
+}
+let lastMuseState = 0;
+function renderMuseState(now) {
+  if (now - lastMuseState < 400) return; lastMuseState = now;
+  const on = element('muse-watch-enabled').checked, live = mode === 'live', moving = museWatch.movedAt != null && performance.now() - museWatch.movedAt < 1500;
+  element('pip').classList.toggle('watching', live && on && !museWatch.stopped); element('pip').classList.toggle('moving', live && on && moving);
+  element('muse-live-dot').classList.toggle('live', live && on && !museWatch.stopped && !museWatch.inFlight); element('muse-live-dot').classList.toggle('busy', live && on && museWatch.inFlight);
+  const reading = museWatch.reading, age = reading ? Math.round((performance.now() - reading.at) / 1000) : null;
+  element('muse-live-state').textContent = !live ? (on ? 'Waiting for the camera.' : 'Off for this session. Turn it on when you start the camera.')
+    : !on ? 'Off for this session. Stop and start again to turn it on.'
+    : museWatch.stopped ? 'Stopped: ' + (museWatch.error ?? 'MUSE is unavailable.')
+    : museWatch.targetId == null ? 'Waiting for a face in the close-up.'
+    : museWatch.inFlight ? `Comparing ${WATCH_FACES} screenshots of Person ${museWatch.targetId}…`
+    : museWatch.faces.length < WATCH_FACES ? `Taking screenshots of Person ${museWatch.targetId}…`
+    : `Watching Person ${museWatch.targetId}${age == null ? '' : ` · last read ${age} s ago`}`;
+}
+function renderMuse() {
+  const reading = museWatch.reading, set = (id, text, yes = false) => { element(id).textContent = text; element(id).classList.toggle('yes', yes); };
+  set('muse-mouth', yesNo(reading?.mouthMoving, 'Moving', 'Still'), Boolean(reading?.mouthMoving));
+  set('muse-move', yesNo(reading?.headOrBodyMoving, 'Moving', 'Still'), Boolean(reading?.headOrBodyMoving));
+  set('muse-eyes', reading ? reading.eyes[0].toUpperCase() + reading.eyes.slice(1) : '—');
+  set('muse-effect', !reading ? '—' : reading.restarted ? 'Restarted' : reading.moved ? 'Already moving' : 'Still counting', Boolean(reading?.restarted));
+  element('muse-face').textContent = reading?.face || '—'; element('muse-body').textContent = reading?.body || '—';
+  element('muse-thinking').textContent = reading?.thinking || (mode === 'live' && element('muse-watch-enabled').checked ? 'Waiting for the first analysis…' : '—');
+  element('muse-reasoning-box').hidden = !reading?.reasoning; element('muse-reasoning').textContent = reading?.reasoning ?? '';
+  lastMuseState = 0; renderMuseState(performance.now());
+}
+function renderMuseLog() {
+  const log = element('muse-log'), count = museLog.length; log.replaceChildren();
+  element('muse-log-empty').hidden = count > 0; element('muse-log-export').disabled = element('muse-log-clear').disabled = !count;
+  element('muse-log-count').textContent = `${count} ${count === 1 ? 'entry' : 'entries'}`;
+  for (const item of museLog) {
+    const row = document.createElement('li'); row.className = `muse-entry ${item.kind}`;
+    const head = document.createElement('div'); head.className = 'muse-entry-head';
+    const time = document.createElement('time'); time.dateTime = item.at.toISOString(); time.textContent = item.at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    const who = document.createElement('span'); who.textContent = `Person ${item.personId} · still ${Math.round(item.stillFor)} s`;
+    const chip = document.createElement('span'); chip.className = `chip ${item.kind}`; chip.textContent = item.label;
+    head.append(time, who, chip);
+    if (item.restarted) { const effect = document.createElement('span'); effect.className = 'chip moving'; effect.textContent = 'Count restarted'; head.append(effect); }
+    const thinking = document.createElement('p'); thinking.className = 'muse-entry-thinking'; thinking.textContent = item.thinking;
+    row.append(head, thinking);
+    if (item.kind !== 'error') {
+      const seen = document.createElement('p'); seen.className = 'muse-entry-seen'; seen.textContent = `Face: ${item.face || '—'} Body: ${item.body || '—'} Eyes: ${item.eyes}.`; row.append(seen);
+      if (item.reasoning) { const more = document.createElement('details'), summary = document.createElement('summary'), text = document.createElement('p'); summary.textContent = 'Model reasoning'; text.textContent = item.reasoning; more.append(summary, text); row.append(more); }
+    }
+    log.append(row);
+  }
+}
+element('muse-log-clear').onclick = () => { museLog.length = 0; renderMuseLog(); };
+element('muse-log-export').onclick = () => {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(museLog, null, 2)], { type: 'application/json' })), link = document.createElement('a');
+  link.href = url; link.download = `crewsafety-muse-log-${new Date().toISOString().slice(0, 19).replace(/:/g, '')}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+renderMuseLog();
+
+// Lip patch change minus nose patch change, from two tiny grayscale crops of the video (0..1, or null).
+// Moving the head or a lighting change alters both patches; talking alters the lips much more.
+const patchCanvas = document.createElement('canvas'); patchCanvas.width = 48; patchCanvas.height = 64;
+const patchContext = patchCanvas.getContext('2d', { willReadFrequently: true });
+const MOUTH_POINTS = [61, 291, 0, 17, 13, 14, 78, 308];
+function mouthPatchDiff(person, landmarks) {
+  if (video.readyState < 2 || !MOUTH_POINTS.every(index => landmarks[index]) || !landmarks[1] || !landmarks[168]) return null;
+  const width = video.videoWidth, height = video.videoHeight, xs = MOUTH_POINTS.map(index => landmarks[index].x * width), ys = MOUTH_POINTS.map(index => landmarks[index].y * height);
+  const boxWidth = (Math.max(...xs) - Math.min(...xs)) * 1.35, boxHeight = Math.max((Math.max(...ys) - Math.min(...ys)) * 1.6, boxWidth * 0.5);
+  if (boxWidth < 8) return null;
+  const mouthX = (Math.max(...xs) + Math.min(...xs)) / 2, mouthY = (Math.max(...ys) + Math.min(...ys)) / 2;
+  const noseX = (landmarks[1].x + landmarks[168].x) / 2 * width, noseY = (landmarks[1].y + landmarks[168].y) / 2 * height;
+  patchContext.drawImage(video, mouthX - boxWidth / 2, mouthY - boxHeight / 2, boxWidth, boxHeight, 0, 0, 48, 32);
+  patchContext.drawImage(video, noseX - boxWidth / 2, noseY - boxHeight / 2, boxWidth, boxHeight, 0, 32, 48, 32);
+  const pixels = patchContext.getImageData(0, 0, 48, 64).data, gray = new Uint8Array(48 * 64);
+  for (let index = 0; index < gray.length; index++) gray[index] = (pixels[index * 4] * 77 + pixels[index * 4 + 1] * 150 + pixels[index * 4 + 2] * 29) >> 8;
+  const previous = person.patch; person.patch = gray;
+  if (!previous) return null;
+  let lips = 0, nose = 0; const half = 48 * 32;
+  for (let index = 0; index < half; index++) { lips += Math.abs(gray[index] - previous[index]); nose += Math.abs(gray[half + index] - previous[half + index]); }
+  return Math.max(0, (lips - nose) / half / 255);
+}
+
+// Microphone talk detection, on this device. The microphone cannot tell who spoke, so with one person in
+// view it counts for them; with several, only for someone whose lips moved in the last second.
+async function startMic() {
+  const session = generation; micGeneration = session; micState = 'starting'; renderMic();
+  try {
+    const handle = await startVoiceActivity({ isMuted: () => clipsPlaying > 0, onSpeech: time => {
+      if (mode !== 'live') return;
+      const inView = [...people.values()].filter(person => person.pose);
+      const speakers = inView.length === 1 ? inView : inView.filter(person => person.mouthMovedAt != null && time - person.mouthMovedAt <= 1);
+      for (const person of speakers) noteFaceActivity(person, time, 'Talking (heard by microphone)');
+    } });
+    if (session !== generation) { handle.stop(); return; }
+    mic = handle; micState = 'on'; micTimer = setInterval(renderMic, 500);
+  } catch (error) {
+    if (session !== generation) return;
+    micState = error.name === 'NotAllowedError' ? 'denied' : 'unavailable';
+  }
+  renderMic();
+}
+function stopMic() { mic?.stop(); mic = null; clearInterval(micTimer); micTimer = null; micState = 'off'; renderMic(); }
+function renderMic() {
+  if (!element('voice-state')) return;
+  const ago = mic?.spokeAt != null ? performance.now() / 1000 - mic.spokeAt : null;
+  element('voice-state').textContent = micState === 'off' ? 'Off' : micState === 'starting' ? 'Starting…' : micState === 'denied' ? 'Microphone not allowed' : micState === 'unavailable' ? 'Microphone unavailable'
+    : mic.reading.state === 'muted' ? 'Paused while the app speaks' : ago != null && ago < 1 ? 'Talking now' : ago != null && ago < 60 ? `Quiet · talking ${Math.round(ago)} s ago` : 'Quiet';
+}
+
+// Apple Watch, relayed by the paired iPhone about once a second. Wrist movement restarts the count for the
+// person wearing it; the Watch vibrates and offers "I'm OK" during a check-in. Heart rate only adds context.
+const WATCH_STALE_MS = 8000;
+const watchStreaming = () => Boolean(watch.paired && watch.ok && watch.wearable?.monitoring && Date.now() - watch.wearable.receivedAt < WATCH_STALE_MS);
+const secondsAgo = at => Math.max(0, Math.round((Date.now() - at) / 1000));
+const perfSeconds = epochMs => (epochMs - performance.timeOrigin) / 1000; // the detector clock is performance.now() in seconds
+function watchWearer() {
+  if (mode !== 'live') return null;
+  if (watchPersonId != null && people.get(watchPersonId)?.pose) return people.get(watchPersonId);
+  const inView = [...people.values()].filter(person => person.pose);
+  return inView.length === 1 ? inView[0] : null; // several people: only once someone is marked as wearing it
+}
+onWearable(state => {
+  watch = state;
+  const w = state.wearable, streaming = watchStreaming(), box = element('watch-activity-enabled');
+  if (w?.heartRateBPM != null && w.heartRateAt != null && heartHistory.at(-1)?.at !== w.heartRateAt) heartHistory.push({ at: w.heartRateAt, bpm: w.heartRateBPM });
+  while (heartHistory.length && Date.now() - heartHistory[0].at > 180000) heartHistory.shift();
+  box.disabled = !streaming; if (streaming && !watchStreamingBefore) box.checked = true; // ticked when the Watch starts streaming
+  watchStreamingBefore = streaming;
+  if (mode === 'live' && streaming && box.checked && w.movedAt != null && w.movedAt > watchMovedApplied) {
+    watchMovedApplied = w.movedAt; const person = watchWearer();
+    if (person) noteFaceActivity(person, Math.min(perfSeconds(w.movedAt), performance.now() / 1000), 'Wrist movement (Apple Watch)');
+  }
+  const answer = w?.answer, key = answer && `${answer.checkInID}:${answer.at}`;
+  if (answer && !watchAnswers.has(key)) { watchAnswers.add(key); const personId = watchCheckIns.get(answer.checkInID); if (personId != null) answerCheckIn(personId, answer.kind); }
+  renderWatch();
+});
+function watchText() {
+  if (!watch.paired) return ['Not paired. Pair the iPhone app on the Crew page, then start Watch monitoring.', false];
+  if (watch.ok === false) return [`iPhone session paired, but the backend did not answer (${watch.error}).`, false];
+  if (!watchStreaming()) return ['iPhone paired, Watch not monitoring: tap "Start Watch monitoring" in the iPhone app, or open CrewSafety on the Watch and tap Start.', false];
+  const w = watch.wearable;
+  return [`Streaming · ${w.heartRateBPM != null ? `${Math.round(w.heartRateBPM)} BPM` : 'waiting for heart rate'}${w.movedAt != null ? ` · wrist moved ${secondsAgo(w.movedAt)} s ago` : ''}`, true];
+}
+function renderWatch() {
+  const [text, streaming] = watchText(), status = element('watch-status');
+  status.textContent = text; status.classList.toggle('streaming', streaming);
+  element('watch-state').textContent = !watch.paired ? 'Not paired' : !streaming ? 'Not monitoring' : text.replace(/^Streaming · /, '');
+}
+function watchReading(person) {
+  if (!watchStreaming() || watchWearer()?.id !== person.id) return null;
+  const w = watch.wearable;
+  return { bpm: w.heartRateBPM, wristAgo: w.movedAt == null ? null : (Date.now() - w.movedAt) / 1000 };
+}
+/** Context that makes an alert more urgent. It never raises or cancels an alert by itself. */
+function heartUrgency() {
+  const w = watch.wearable, notes = [];
+  if (!watch.paired || !w) return notes;
+  if (Date.now() - w.receivedAt > 20000) { notes.push(`the Watch stopped sending ${secondsAgo(w.receivedAt)} s ago`); return notes; }
+  if (w.monitoring && (w.heartRateAt == null || Date.now() - w.heartRateAt > 20000)) notes.push(`no heart rate from the Watch for ${w.heartRateAt == null ? 'the whole session' : `${secondsAgo(w.heartRateAt)} s`} (it may be off the wrist)`);
+  else if (w.heartRateBPM != null) {
+    const bpm = Math.round(w.heartRateBPM), recent = heartHistory.filter(sample => Date.now() - sample.at <= 120000), peak = Math.max(...recent.map(sample => sample.bpm));
+    if (bpm < 40) notes.push(`heart rate low at ${bpm} BPM`); else if (bpm > 140) notes.push(`heart rate high at ${bpm} BPM`);
+    if (recent.length >= 3 && w.heartRateBPM < peak * 0.7) notes.push(`heart rate fell from ${Math.round(peak)} to ${bpm} BPM within 2 minutes`);
+  }
+  return notes;
+}
+function watchNote(person) {
+  if (mode !== 'live' || !watch.paired || !watch.wearable || watchWearer()?.id !== person.id) return '';
+  const w = watch.wearable, parts = [], urgent = heartUrgency();
+  if (w.heartRateBPM != null) parts.push(`Apple Watch heart rate ${Math.round(w.heartRateBPM)} BPM`);
+  if (w.movedAt != null) parts.push(`wrist last moved ${secondsAgo(w.movedAt)} s ago`);
+  return (parts.length ? ` ${parts.join(', ')}.` : '') + (urgent.length ? ` More urgent: ${urgent.join('; ')}. Heart rate is context only and does not decide alerts.` : '');
+}
+function watchCheckIn(person) {
+  if (!watchStreaming() || !element('watch-activity-enabled').checked || watchWearer()?.id !== person.id) return;
+  const id = `p${person.id}-${Date.now()}`; watchCheckIns.set(id, person.id); person.watchCheckInId = id;
+  requestWatchCheckIn(id, checkIns.secondsLeft(person.id, Date.now()));
+}
+function endWatchCheckIn(person) {
+  if (!person?.watchCheckInId) return;
+  cancelWatchCheckIn(person.watchCheckInId); watchCheckIns.delete(person.watchCheckInId); person.watchCheckInId = null;
+}

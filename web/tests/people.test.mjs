@@ -60,7 +60,7 @@ test('face box and crop stay inside the frame with the requested aspect', () => 
 import { describePerson } from '../dist/people.js';
 test('person readings are plain statements, never conclusions about condition', () => {
   const base = { tracked: true, upper: false, motion: 0.31, threshold: 0.25, stillFor: 0, stillSeconds: 15, alerted: false, eyes: { state: 'open' }, mouth: { state: 'moving' } };
-  assert.deepEqual(describePerson(base), ['Tracking the full body.', 'Moving: largest joint change 0.31.', 'Eyes look open.', 'The mouth is moving.']);
+  assert.deepEqual(describePerson(base), ['Tracking the full body.', 'Moving: largest joint change 0.31.', 'Eyes look open.', 'The mouth is moving (on device).']);
   const still = describePerson({ ...base, upper: true, stillFor: 9.4, eyes: { state: 'closed' }, mouth: { state: 'still' } });
   assert.ok(still.includes('Tracking the upper body only (hips are not visible).') && still.includes('Still for 9 s. An alert is raised at 15 s without movement.') && still.includes('Eyes look closed.'));
   assert.match(describePerson({ ...base, alerted: true, stillFor: 15.2 })[1], /Alert raised.*15 s/);
@@ -105,4 +105,25 @@ test('facial activity restarts the stillness timer and the alert waits for 15 mo
   for (let time = 14; time < 28.5; time += 0.5) assert.equal(detector.process(time, body), null, `no alert at ${time}`);
   assert.ok(detector.process(29, body), 'alert after 15 s with no activity at all');
   assert.equal(new InactivityDetector().noteActivity(5), undefined, 'ignored when nobody is tracked');
+});
+
+import { lipAperture, MouthMotion } from '../dist/people.js';
+const lips = gap => { const points = []; points[61] = { x: 0.4, y: 0.7 }; points[291] = { x: 0.6, y: 0.7 }; points[13] = { x: 0.5, y: 0.7 - gap / 2 }; points[14] = { x: 0.5, y: 0.7 + gap / 2 }; return points; };
+test('lip aperture is the inner gap over mouth width', () => {
+  assert.ok(Math.abs(lipAperture(lips(0.02)) - 0.1) < 1e-9);
+  assert.ok(lipAperture(lips(0.06)) > lipAperture(lips(0.002)));
+  assert.equal(lipAperture([]), null);
+});
+test('mouth motion: talking lips move, a still mouth and head-only motion do not', () => {
+  const talking = new MouthMotion(); let state;
+  for (let index = 0; index < 12; index++) state = talking.update(index * 0.12, [0.02, 0.15, 0.06, 0.2][index % 4], 0.01).state;
+  assert.equal(state, 'moving');
+  const still = new MouthMotion();
+  for (let index = 0; index < 12; index++) state = still.update(index * 0.12, 0.02 + (index % 2) * 0.004, 0.01 + (index % 2) * 0.002).state;
+  assert.equal(state, 'still');
+  const mouthing = new MouthMotion(); // lip gap hidden, but the lip patch changes more than the nose patch
+  for (let index = 0; index < 10; index++) state = mouthing.update(index * 0.12, null, 0.005).state;
+  for (let index = 10; index < 16; index++) state = mouthing.update(index * 0.12, null, 0.08).state;
+  assert.equal(state, 'moving');
+  assert.equal(new MouthMotion().update(0, null, null).state, 'unknown');
 });

@@ -17,6 +17,7 @@ struct CrewSafetyApp: App {
         _settings = State(initialValue: settings)
         _services = State(initialValue: ServiceFactory.makeServices(settings: settings))
         AlertNotifier.shared.install()
+        WatchLink.shared.activate()
         Self.applyAppearance()
     }
 

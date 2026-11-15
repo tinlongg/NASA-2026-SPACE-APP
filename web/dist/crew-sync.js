@@ -3,6 +3,40 @@ const make = (tag, text, className) => {
   if (className) n.className = className; return n;
 };
 
+// Apple Watch channel for the camera page: the paired iPhone relays the Watch's heart rate, wrist
+// movement and check-in answers. Polled every second while paired. Times are converted to this browser's clock.
+let paired = null, wearTimer = null, wearState = { paired: false };
+const wearListeners = new Set();
+export function onWearable(listener) { wearListeners.add(listener); listener(wearState); return () => wearListeners.delete(listener); }
+const emitWearable = () => { for (const listener of wearListeners) listener(wearState); };
+async function syncCall(current, route, method = 'GET', body) {
+  const response = await fetch(`${current.base}/sync/${route}`, { method, cache: 'no-store', signal: AbortSignal.timeout(5000),
+    headers: { Authorization: `Bearer ${current.code}`, ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
+  if (!response.ok) throw Error(`Backend returned ${response.status}`);
+  return response.json();
+}
+async function pollWearable(current) {
+  try {
+    const result = await syncCall(current, 'wearable'), local = at => at == null ? null : Date.now() - (result.now - at);
+    if (paired !== current) return;
+    const w = result.wearable;
+    wearState = { paired: true, ok: true, wearable: w && { ...w, receivedAt: local(w.receivedAt), heartRateAt: local(w.heartRateAt), movedAt: local(w.movedAt), answer: w.answer && { ...w.answer, at: local(w.answer.at) } }, checkInRequest: result.checkInRequest };
+  } catch (error) { if (paired !== current) return; wearState = { ...wearState, paired: true, ok: false, error: error.message }; }
+  emitWearable();
+  if (paired === current) wearTimer = setTimeout(() => pollWearable(current), 1000);
+}
+function setPaired(current) {
+  clearTimeout(wearTimer); paired = current;
+  wearState = { paired: Boolean(current) }; emitWearable();
+  if (current) pollWearable(current);
+}
+/** Ask the paired Watch to vibrate and show "Are you OK?". Returns false when no iPhone is paired. */
+export async function requestWatchCheckIn(id, seconds) {
+  if (!paired) return false;
+  try { await syncCall(paired, 'checkin', 'POST', { id, seconds: Math.max(1, Math.min(120, Math.round(seconds))) }); return true; } catch { return false; }
+}
+export function cancelWatchCheckIn(id) { if (paired) syncCall(paired, 'checkin', 'POST', { id, cancel: true }).catch(() => {}); }
+
 export function initializeCrewSync() {
   const panel = make('section', null, 'panel crew-sync');
   panel.setAttribute('aria-label', 'iPhone connection');
@@ -101,13 +135,13 @@ export function initializeCrewSync() {
       await request(base, code, 'state');
       if (run !== generation) return;
       codeInput.value = code;
-      connection = {base, code}; visibility(true); await poll(connection);
+      connection = {base, code}; visibility(true); setPaired(connection); await poll(connection);
     } catch (error) { if (run === generation) { visibility(false); status.textContent = error.message; } }
   }
   create.onclick = () => connect(true);
   form.onsubmit = event => { event.preventDefault(); connect(false); };
   disconnect.onclick = () => {
-    generation++; clearTimeout(timer); connection = null; codeInput.value = ''; data.hidden = true; visibility(false);
+    generation++; clearTimeout(timer); connection = null; setPaired(null); codeInput.value = ''; data.hidden = true; visibility(false);
     status.textContent = 'Browser disconnected. The iPhone may still share with the session until it expires.';
   };
   end.onclick = async () => {
@@ -117,5 +151,5 @@ export function initializeCrewSync() {
     catch (error) { status.textContent = `Could not end session. ${error.message}`; }
     finally { end.disabled = false; }
   };
-  window.addEventListener('pagehide', () => { generation++; clearTimeout(timer); connection = null; });
+  window.addEventListener('pagehide', () => { generation++; clearTimeout(timer); connection = null; setPaired(null); });
 }
