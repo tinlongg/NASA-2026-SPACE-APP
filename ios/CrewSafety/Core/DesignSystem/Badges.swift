@@ -36,11 +36,13 @@ struct SimulatedBadge: View {
     var text: String = "Simulated"
     var body: some View {
         Text(text.uppercased())
-            .font(.caption2.weight(.bold))
+            .font(.caption2.weight(.semibold))
+            .tracking(0.6)
             .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .foregroundStyle(Theme.onHighlight)
-            .background(Theme.highlight, in: Capsule())
+            .foregroundStyle(Theme.highlight)
+            .background(Theme.highlight.opacity(0.14), in: Capsule())
+            .overlay(Capsule().strokeBorder(Theme.highlight.opacity(0.5), lineWidth: 1))
             .accessibilityLabel("\(text) data")
     }
 }
