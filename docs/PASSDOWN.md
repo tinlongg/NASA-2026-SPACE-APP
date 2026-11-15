@@ -232,3 +232,8 @@ Built without the live test (that still needs a person in front of the camera; s
 - **Rest period (D7):** a manual pause of 15 min to 4 h, web and iOS (`RestPause.swift`, a card on the Monitor screen). Paused monitors raise no events, show the end time, and restart the timer when the pause ends. There is no automatic sleep detection.
 - Tests: web 61/61, iOS 47/47. In the local browser the diagnostics panel, model list and rest pause rendered, and a "Stops moving" replay raised no event while paused. **Not re-verified:** the replay alert after resuming (the browser pane was hidden and the app stops a session in a hidden tab), GPU delegate behaviour, and anything with a real camera.
 - **Still to do for Phase 1:** run the live test (ordinary movement, 15 s still, leaving view, returning), record fps, model, delegate and any false alerts or misses here, and only then consider changing thresholds.
+
+### Spoken alert on the website (2026-11-15)
+
+- The ElevenLabs voice had only been added to the iOS check-in. The website now plays a recorded clip ("Alert. Possible unresponsive crew member. Please check on them now.") when a possible-unresponsive event is raised, live or replay, with a "Spoken alert" checkbox (on by default). `backend/scripts/generate_voice.py` writes phrases named `web-*` to `web/dist/voice/`; the Worker embeds the mp3 as base64. Web suite 62/62.
+- Not verified in a browser: browsers may block audio until the page has been used, and the Worker build now embeds a binary asset (a hosted deploy has not been tried). The written banner remains the primary alert.

@@ -1,7 +1,7 @@
 """Generate the bundled check-in voice clips with ElevenLabs text-to-speech.
 
 Reads the phrase list in ios/CrewSafety/Resources/Voice/phrases.json (the app looks clips up by the
-exact text) and writes one mp3 per phrase next to it. The clips are committed; the key is not.
+exact text) and writes one mp3 per phrase next to it. Phrases named web-* go to web/dist/voice/. The clips are committed; the key is not.
 
     ELEVENLABS_API_KEY=... python backend/scripts/generate_voice.py [--force]
 
@@ -18,6 +18,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 VOICE_DIR = ROOT / "ios" / "CrewSafety" / "Resources" / "Voice"
+WEB_VOICE_DIR = ROOT / "web" / "dist" / "voice"  # phrases named web-* are for the website, not the app
 DEFAULT_VOICE = "EXAVITQu4vr4xnSDxMaL"  # Sarah - Mature, Reassuring, Confident
 
 
@@ -65,7 +66,8 @@ def main() -> int:
     model = os.environ.get("ELEVENLABS_MODEL", "eleven_multilingual_v2")
     force = "--force" in sys.argv
     for phrase in json.loads((VOICE_DIR / "phrases.json").read_text()):
-        target = VOICE_DIR / f"{phrase['name']}.mp3"
+        target = (WEB_VOICE_DIR if phrase["name"].startswith("web-") else VOICE_DIR) / f"{phrase['name']}.mp3"
+        target.parent.mkdir(parents=True, exist_ok=True)
         if target.exists() and not force:
             print(f"keep {target.name} (use --force to regenerate)")
             continue

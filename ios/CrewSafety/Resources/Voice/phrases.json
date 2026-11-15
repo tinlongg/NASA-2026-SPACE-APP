@@ -1,3 +1,10 @@
 [
-  { "name": "checkin-prompt", "text": "No movement detected. Are you OK? Say I'm okay, or say help." }
+  {
+    "name": "checkin-prompt",
+    "text": "No movement detected. Are you OK? Say I'm okay, or say help."
+  },
+  {
+    "name": "web-alert",
+    "text": "Alert. Possible unresponsive crew member. Please check on them now."
+  }
 ]

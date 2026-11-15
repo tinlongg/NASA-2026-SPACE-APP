@@ -48,3 +48,13 @@ test('every offered pose model can be cached, and preparation covers lite and fu
   assert.ok(MODEL_ASSETS.includes(POSE_MODELS.lite) && MODEL_ASSETS.includes(POSE_MODELS.full));
   assert.equal(MODEL_ASSETS.includes(POSE_MODELS.heavy), false);
 });
+
+test('the worker serves the recorded alert voice as audio with the right bytes', async () => {
+  const { readFile } = await import('node:fs/promises');
+  const { loadAssets } = await import('../scripts/build.mjs');
+  const { createWorker } = await import('../worker.mjs');
+  const response = await createWorker(await loadAssets()).fetch(new Request('https://test.example/voice/web-alert.mp3'));
+  assert.equal(response.status, 200);
+  assert.equal(response.headers.get('Content-Type'), 'audio/mpeg');
+  assert.deepEqual(Buffer.from(await response.arrayBuffer()), await readFile(new URL('../dist/voice/web-alert.mp3', import.meta.url)));
+});

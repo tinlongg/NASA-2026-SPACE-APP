@@ -174,6 +174,7 @@ function handleMeasurement(time, measurement) {
   const details = `No body movement for ${Math.round(detection.stillFor)} s while in view (no joint moved more than ${detection.threshold} torso lengths). Check in with the crew member.`;
   events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', type: 'Possible unresponsive', details, snapshot: structuredClone(latestSnapshot), acknowledged: false, lookNote: null });
   if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
+  speakAlert();
   element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${events[0].source}. ${details}`;
   renderEvents();
 }
@@ -211,6 +212,13 @@ function replay(kind) {
   animation = requestAnimationFrame(tick);
 }
 
+// Recorded ElevenLabs voice for new events. A browser may block audio until the page has been
+// used; the written banner and event log are always the primary alert.
+let alertAudio = null;
+function speakAlert() {
+  if (!element('voice-enabled').checked) return;
+  try { alertAudio ??= new Audio('/voice/web-alert.mp3'); alertAudio.currentTime = 0; alertAudio.play().catch(() => {}); } catch {}
+}
 // Opt-in second look: one downscaled frame from a live alert goes to MUSE. The reply is only a
 // note on the event; the deterministic detector alone decides alerts. Nothing is stored.
 async function secondLook(event) {
