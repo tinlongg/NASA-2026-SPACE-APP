@@ -8,6 +8,8 @@ export async function loadAssets() {
   for (const [name, type] of Object.entries({ 'index.html': 'text/html', 'journal-sentiment.js': 'application/javascript', 'sentiment-lexicon.js': 'application/javascript', 'sentiment-license.txt': 'text/plain', 'styles.css': 'text/css', 'app.js': 'application/javascript', 'detector.js': 'application/javascript', 'fixtures.js': 'application/javascript', 'offline-config.js': 'application/javascript', 'crew-sync.js': 'application/javascript', 'account.js': 'application/javascript', 'journal-photo.js': 'application/javascript', 'suit-layers.js': 'application/javascript', 'camera-health.js': 'application/javascript', 'crew-sync.css': 'text/css', 'research.js': 'application/javascript', 'research.css': 'text/css', 'data/nasa-research.json': 'application/json' })) {
     assets[`/${name}`] = { body: await readFile(new URL(`../dist/${name}`, import.meta.url), 'utf8'), type: `${type}; charset=utf-8` };
   }
+  // Binary assets are embedded as base64 and decoded by the Worker.
+  assets['/voice/web-alert.mp3'] = { base64: (await readFile(new URL('../dist/voice/web-alert.mp3', import.meta.url))).toString('base64'), type: 'audio/mpeg' };
   const serviceWorker = await readFile(new URL('../dist/sw.js', import.meta.url), 'utf8');
   const version = createHash('sha256').update(JSON.stringify(assets) + serviceWorker).digest('hex').slice(0,16);
   assets['/sw.js'] = { body: serviceWorker.replace('__CACHE_VERSION__', `crewsafety-${version}`), type: 'application/javascript; charset=utf-8' };

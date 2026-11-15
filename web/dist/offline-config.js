@@ -6,7 +6,7 @@ export const POSE_MODEL = POSE_MODELS.lite;
 // "Download camera model" prepares lite and full. Heavy is 31 MB: it is cached the first time it is
 // selected online, so it is allowed in the cache but not part of the offline preparation.
 export const MODEL_ASSETS = [VISION_MODULE, POSE_MODELS.lite, POSE_MODELS.full, ...['vision_wasm_internal.js','vision_wasm_internal.wasm','vision_wasm_nosimd_internal.js','vision_wasm_nosimd_internal.wasm'].map(name => `${VISION_WASM}/${name}`)];
-export const SHELL_ASSETS = ['/', '/index.html', '/styles.css', '/app.js', '/journal-sentiment.js', '/sentiment-lexicon.js', '/sentiment-license.txt', '/detector.js', '/fixtures.js', '/offline-config.js', '/crew-sync.js', '/account.js', '/journal-photo.js', '/suit-layers.js', '/camera-health.js', '/crew-sync.css', '/research.js', '/research.css', '/data/nasa-research.json'];
+export const SHELL_ASSETS = ['/', '/index.html', '/styles.css', '/app.js', '/journal-sentiment.js', '/sentiment-lexicon.js', '/sentiment-license.txt', '/detector.js', '/fixtures.js', '/offline-config.js', '/crew-sync.js', '/account.js', '/journal-photo.js', '/suit-layers.js', '/camera-health.js', '/voice/web-alert.mp3', '/crew-sync.css', '/research.js', '/research.css', '/data/nasa-research.json'];
 export function cacheableAsset(requestUrl, origin) {
   const url = new URL(requestUrl);
   return MODEL_ASSETS.includes(url.href) || url.href === POSE_MODELS.heavy || (url.origin === origin && !url.search && SHELL_ASSETS.includes(url.pathname));
