@@ -103,3 +103,8 @@ these changes have been committed/pushed to GitHub `main`.
 
 References: [MediaPipe web pose API](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/web_js),
 [Meta chat-completions protocol](https://dev.meta.ai/docs/protocols/chat-completions).
+
+## Journal sentiment
+
+The website journal uses the MIT-licensed VADER lexicon (7,506 unique rated terms) with a custom local wording heuristic. Entries stay in browser storage; sentiment is not sent to the server or iPhone sync. Toggle analysis on or off and expand the explanation for matched words. It is not the full VADER algorithm and does not assess mood, health or risk. See [dataset provenance](data/sentiment/README.md). The iOS journal remains a separate on-device theme summarizer.
+

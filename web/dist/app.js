@@ -1,3 +1,4 @@
+import { journalToneElement, sentimentMetadata } from './journal-sentiment.js';
 import { FallDetector, measurePose } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
 import { VISION_MODULE, VISION_WASM, POSE_MODEL } from './offline-config.js';
@@ -178,9 +179,11 @@ function renderJournals() {
     const date = document.createElement('time'); date.textContent = new Date(entry.date).toLocaleString();
     const body = document.createElement('p'); body.textContent = entry.body;
     const summary = document.createElement('p'); summary.className = 'tag'; summary.textContent = `${summarize(entry.body)} Summary of your words, not an assessment.`;
-    row.append(date,body,summary); element('journal-entries').append(row);
+    row.append(date,body,summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); element('journal-entries').append(row);
   }
 }
+element('journal-tone-enabled').onchange = renderJournals;
+element('journal-dataset').textContent = sentimentMetadata.terms.toLocaleString() + ' rated terms · VADER lexicon · MIT license';
 element('journal-form').onsubmit = event => {
   event.preventDefault(); const body = element('journal-body').value.trim(); if (!body) return;
   const updated = [{ body, date: new Date().toISOString() }, ...journals];
