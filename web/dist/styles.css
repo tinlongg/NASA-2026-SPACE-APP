@@ -401,3 +401,5 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .watch-status { font-size: 13px; color: var(--text-2); margin: 10px 0 0; }
 .watch-status.streaming { color: var(--accent); }
 .thought .wear-button { margin-top: 6px; padding: 4px 10px; font-size: 12px; }
+
+.iss-view-tools{display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}.iss-view-tools button{padding:6px 14px;font-size:12px}.iss-view:active{cursor:grabbing}
