@@ -1,50 +1,46 @@
 import Foundation
 
-// MARK: - Fall detection contract (pure logic; no AVFoundation/Vision imports)
+// MARK: - Inactivity detection contract (pure logic; no AVFoundation/Vision imports)
 struct PosePoint: Codable, Hashable, Sendable {
-    let x: Double   // 0...1, origin bottom-left, +y is up in the upright scene
+    let x: Double   // 0...1, origin bottom-left, +y is up in the image
     let y: Double
-    let c: Double   // Vision joint confidence 0...1
+    let c: Double   // joint confidence 0...1
 }
 
-/// Joint keys: nose, neck, root, leftShoulder, rightShoulder, leftHip, rightHip,
-/// leftKnee, rightKnee, leftAnkle, rightAnkle. Missing joints are simply absent.
+/// Joint keys: nose, neck, root, leftShoulder, rightShoulder, leftElbow, rightElbow, leftWrist,
+/// rightWrist, leftHip, rightHip, leftKnee, rightKnee, leftAnkle, rightAnkle. Missing joints are absent.
 struct PoseFrame: Codable, Hashable, Sendable {
     let t: TimeInterval            // seconds since session/clip start, monotonic
     let joints: [String: PosePoint]
 }
 
-struct FallDetectorConfig: Codable, Sendable {
+/// Thresholds for the possible-unresponsive heuristic. Starting values, not validated on people.
+struct InactivityDetectorConfig: Codable, Sendable, Equatable {
     var minJointConfidence = 0.3
-    var uprightMaxTorsoAngleDeg = 35.0      // torso (root->neck) angle from vertical while "upright"
-    var fallenMinTorsoAngleDeg = 60.0       // angle from vertical counted as "horizontal"
-    var minHipDropFraction = 0.20           // hip-centre drop, as a fraction of frame height
-    var maxDropDuration: TimeInterval = 1.0 // drop must happen at least this fast
-    var lowPostureHold: TimeInterval = 2.0  // must remain low/horizontal this long before alerting
-    var cooldown: TimeInterval = 15.0       // minimum gap between two detections
+    /// Largest single-joint displacement, in torso lengths, that still counts as holding still.
+    var moveThreshold = 0.25
+    /// Seconds without movement, while in view, before an alert.
+    var stillDuration: TimeInterval = 15
+    /// A pose gap longer than this means the person left the view; the timer restarts.
+    var poseLossTolerance: TimeInterval = 2
 }
 
-extension FallDetectorConfig {
-    /// Much easier to trigger, for testing with the web camera without really falling:
-    /// bend your knees a little, lean far to one side and hold it for a second.
+extension InactivityDetectorConfig {
+    /// Shorter wait, for testing with the web camera: hold still for 8 seconds.
     /// Never used for the iPhone camera.
-    static let easyTesting = FallDetectorConfig(
-        fallenMinTorsoAngleDeg: 45,
-        minHipDropFraction: 0.05,
-        maxDropDuration: 1.5,
-        lowPostureHold: 1.0,
-        cooldown: 10)
+    static let easyTesting = InactivityDetectorConfig(stillDuration: 8)
 }
 
-struct FallDetection: Hashable, Sendable {
+struct InactivityDetection: Hashable, Sendable {
     let t: TimeInterval
-    let score: Double          // 0...1 heuristic score
-    let explanation: String    // e.g. "Hip height dropped 31% in 0.6 s; torso 78° from vertical for 2.1 s"
+    /// Seconds the crew member had held still when the alert fired.
+    let stillFor: TimeInterval
+    let explanation: String
 }
 
-protocol FallDetecting {
-    var config: FallDetectorConfig { get set }
-    /// Feed frames in time order. Returns a detection at most once per cooldown window.
-    mutating func process(_ frame: PoseFrame) -> FallDetection?
+protocol InactivityDetecting {
+    var config: InactivityDetectorConfig { get set }
+    /// Feed frames in time order. Returns at most one detection per still period.
+    mutating func process(_ frame: PoseFrame) -> InactivityDetection?
     mutating func reset()
 }

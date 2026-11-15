@@ -1,10 +1,10 @@
 import Foundation
 
-/// The "Are you OK?" step after a possible fall. Pure logic: no timers, audio or UI.
+/// The "Are you OK?" step after a possible-unresponsive alert. Pure logic: no timers, audio or UI.
 ///
 /// idle -> awaiting (countdown) -> resolved(outcome). The caller drives time with `tick(now:)`
 /// and feeds answers with `respond(_:at:)`. Once resolved, further answers and ticks are ignored.
-struct FallCheckIn {
+struct CrewCheckIn {
     enum Response: Equatable { case ok, help }
 
     enum State: Equatable {
@@ -63,7 +63,7 @@ struct FallCheckIn {
 
     // MARK: Voice
 
-    private static let helpPhrases = ["help", "hurt", "emergency", "can't get up", "cannot get up", "i fell"]
+    private static let helpPhrases = ["help", "hurt", "emergency", "can't get up", "cannot get up", "dizzy", "can't breathe"]
     private static let okWords: Set<String> = ["ok", "okay", "fine", "good", "alright"]
     // "No" is left out on purpose: "No, I'm fine" means OK.
     private static let negations: Set<String> = ["not", "never", "isn't", "ain't"]

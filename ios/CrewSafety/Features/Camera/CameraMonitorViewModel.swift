@@ -19,7 +19,7 @@ final class CameraMonitorViewModel {
 
     private(set) var mode: Mode = .idle
     private(set) var access: CameraAccess = .unknown
-    private(set) var lastDetection: FallDetection?
+    private(set) var lastDetection: InactivityDetection?
     private(set) var lastDetectionSource: EventSource?
     private(set) var showsDetectionFlash = false
     private(set) var personVisible = false
@@ -27,28 +27,28 @@ final class CameraMonitorViewModel {
     private(set) var latestFrame: PoseFrame?
     private(set) var latestAspectRatio = 9.0 / 16.0
     /// Live detector state for the Detector readout.
-    private(set) var reading = HeuristicFallDetector.Reading()
+    private(set) var reading = InactivityDetector.Reading()
     /// Thresholds currently in use (standard, or easy test detection on the web camera).
-    private(set) var thresholds = FallDetectorConfig()
+    private(set) var thresholds = InactivityDetectorConfig()
     private(set) var cameraError: String?
     let fixtures: [PoseFixture]
 
-    // Check-in after a possible fall
+    // Check-in after a possible-unresponsive alert
     /// How long to wait for "I'm OK" before raising a critical alert.
     static let checkInDuration: TimeInterval = 60
-    private(set) var checkIn = FallCheckIn(duration: CameraMonitorViewModel.checkInDuration)
+    private(set) var checkIn = CrewCheckIn(duration: CameraMonitorViewModel.checkInDuration)
     private(set) var isListening = false
     private(set) var heardText: String?
     private(set) var lastOutcome: CheckInOutcome?
     private(set) var webCameraStatus: WebCameraClient.Status = .disconnected
-    /// Web camera only: much easier thresholds so you can test without really falling.
+    /// Web camera only: a shorter stillness wait so testing is quick.
     var easyTestDetection = true {
         didSet { if mode == .webCamera { resetDetector() } }
     }
     private var usesEasyDetection: Bool { mode == .webCamera && easyTestDetection }
 
     @ObservationIgnored let camera = CameraService()
-    @ObservationIgnored private var detector = HeuristicFallDetector()
+    @ObservationIgnored private var detector = InactivityDetector()
     @ObservationIgnored private var replayTask: Task<Void, Never>?
     @ObservationIgnored private var flashTask: Task<Void, Never>?
     @ObservationIgnored private var eventStore: EventStore?
@@ -57,7 +57,7 @@ final class CameraMonitorViewModel {
     @ObservationIgnored private let webCamera = WebCameraClient()
     @ObservationIgnored private var countdownTask: Task<Void, Never>?
     @ObservationIgnored private var voiceTask: Task<Void, Never>?
-    @ObservationIgnored private var checkInContext: (detection: FallDetection, source: EventSource, easyDetection: Bool)?
+    @ObservationIgnored private var checkInContext: (detection: InactivityDetection, source: EventSource, easyDetection: Bool)?
     private static let pendingNotificationID = "crewsafety.checkin.no-response"
 
     init() {
@@ -76,8 +76,8 @@ final class CameraMonitorViewModel {
     var isActive: Bool { mode != .idle }
 
     var statusText: String {
-        if checkIn.isAwaiting { return "Possible fall · checking in" }
-        if showsDetectionFlash { return "Possible fall detected" }
+        if checkIn.isAwaiting { return "No movement · checking in" }
+        if showsDetectionFlash { return "Possible unresponsive crew member" }
         switch mode {
         case .idle: return "Idle"
         case .live: return personVisible ? "Monitoring" : "Monitoring · no person in view"
@@ -160,7 +160,7 @@ final class CameraMonitorViewModel {
     /// Resets the detector with the thresholds for the current mode. The iPhone camera and replays
     /// always use the standard thresholds; only the web camera can use the easy testing ones.
     private func resetDetector() {
-        detector.config = usesEasyDetection ? .easyTesting : FallDetectorConfig()
+        detector.config = usesEasyDetection ? .easyTesting : InactivityDetectorConfig()
         detector.reset()
         thresholds = detector.config
         reading = detector.reading
@@ -188,7 +188,7 @@ final class CameraMonitorViewModel {
         mode = .idle
         personVisible = false
         latestFrame = nil
-        reading = HeuristicFallDetector.Reading()
+        reading = InactivityDetector.Reading()
     }
 
     // MARK: Detection
@@ -222,7 +222,7 @@ final class CameraMonitorViewModel {
 
     var boxState: BoxState {
         if checkIn.isAwaiting { return .checkingIn }
-        return reading.phase == .holding ? .holding : .tracking
+        return reading.phase == .still ? .holding : .tracking
     }
 
     @ObservationIgnored private var lastReadoutSent = Date.distantPast
@@ -235,16 +235,13 @@ final class CameraMonitorViewModel {
             "type": "readout",
             "phase": String(describing: reading.phase),
             "box": String(describing: boxState),
-            "held": reading.held,
-            "angleThreshold": thresholds.fallenMinTorsoAngleDeg,
-            "dropThreshold": thresholds.minHipDropFraction,
-            "holdRequired": thresholds.lowPostureHold,
+            "stillFor": reading.stillFor,
+            "stillRequired": thresholds.stillDuration,
+            "moveThreshold": thresholds.moveThreshold,
             "easy": usesEasyDetection,
         ]
         if let value = reading.poseConfidence { message["poseConfidence"] = value }
-        if let value = reading.torsoAngleDeg { message["torsoAngle"] = value }
-        if let value = reading.hipDrop { message["hipDrop"] = value }
-        if let score = lastDetection?.score { message["lastScore"] = score }
+        if let value = reading.motion { message["motion"] = value }
         webCamera.send(message)
     }
 
@@ -262,7 +259,7 @@ final class CameraMonitorViewModel {
     func respondOK() { answer(.ok) }
     func requestHelp() { answer(.help) }
 
-    private func beginCheckIn(detection: FallDetection, source: EventSource) {
+    private func beginCheckIn(detection: InactivityDetection, source: EventSource) {
         let now = Date.now
         checkInContext = (detection, source, usesEasyDetection)
         checkIn.start(at: now)
@@ -277,7 +274,7 @@ final class CameraMonitorViewModel {
         // Scheduled up front so the alert still fires if the app is in the background when time runs out.
         // Cancelled as soon as the person answers.
         AlertNotifier.shared.post(id: Self.pendingNotificationID,
-                                  title: "No response after possible fall",
+                                  title: "No response after no-movement alert",
                                   body: notificationBody(source: source),
                                   after: Self.checkInDuration)
 
@@ -296,7 +293,7 @@ final class CameraMonitorViewModel {
         voiceTask?.cancel()
         voiceTask = Task { [weak self] in
             guard let self else { return }
-            await self.voice.speak("Possible fall detected. Are you OK? Say I'm okay, or say help.")
+            await self.voice.speak("No movement detected. Are you OK? Say I'm okay, or say help.")
             guard !Task.isCancelled, self.checkIn.isAwaiting else { return }
             // Only now may the web page listen, so it never hears the spoken prompt as an answer.
             self.webCamera.send(["type": "checkin", "state": "listening"])
@@ -310,10 +307,10 @@ final class CameraMonitorViewModel {
         guard checkIn.isAwaiting else { return }
         heardText = transcript
         webCamera.send(["type": "heard", "text": transcript])
-        if let response = FallCheckIn.classify(transcript: transcript) { answer(response) }
+        if let response = CrewCheckIn.classify(transcript: transcript) { answer(response) }
     }
 
-    private func answer(_ response: FallCheckIn.Response) {
+    private func answer(_ response: CrewCheckIn.Response) {
         guard let outcome = checkIn.respond(response, at: .now) else { return }
         resolve(outcome, notificationAlreadyScheduled: false)
     }
@@ -340,24 +337,23 @@ final class CameraMonitorViewModel {
             escalate = true
             AlertNotifier.shared.cancel(id: Self.pendingNotificationID)
             if let context {
-                AlertNotifier.shared.post(title: "Help requested after possible fall",
+                AlertNotifier.shared.post(title: "Help requested after no-movement alert",
                                           body: notificationBody(source: context.source, askedForHelp: true))
             }
         case .noResponse:
             escalate = true
             // The scheduled notification fires at the deadline. Post now only if it was not scheduled.
             if !notificationAlreadyScheduled, let context {
-                AlertNotifier.shared.post(title: "No response after possible fall",
+                AlertNotifier.shared.post(title: "No response after no-movement alert",
                                           body: notificationBody(source: context.source))
             }
         }
 
         if let context, let eventStore, let crewStore {
             eventStore.record(SafetyEvent(crewMemberID: crewStore.monitoredCrewMemberID,
-                                          type: .possibleFall,
+                                          type: .possibleUnresponsive,
                                           severity: escalate ? .critical : .info,
                                           source: context.source,
-                                          heuristicScore: context.detection.score,
                                           details: context.easyDetection
                                               ? "Easy test detection. " + context.detection.explanation
                                               : context.detection.explanation,
@@ -386,6 +382,6 @@ final class CameraMonitorViewModel {
         } ?? "Crew member"
         let suffix = source == .liveCamera ? "" : " (\(source.displayName.lowercased()))"
         let what = askedForHelp ? "asked for help" : "did not answer \"Are you OK?\""
-        return "\(name) \(what) after a possible fall\(suffix). Open CrewSafety to check on them."
+        return "\(name) \(what) after an alert for no movement\(suffix). Open CrewSafety to check on them."
     }
 }

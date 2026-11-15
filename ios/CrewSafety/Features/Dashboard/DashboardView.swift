@@ -91,7 +91,7 @@ struct DashboardView: View {
             Card {
                 if events.isEmpty {
                     EmptyStateView(title: "No events yet", systemImage: "tray",
-                                   message: "Events appear here when monitoring flags a possible fall.")
+                                   message: "Events appear here when monitoring flags a crew member who stops moving.")
                 } else {
                     VStack(spacing: 0) {
                         ForEach(events) { event in

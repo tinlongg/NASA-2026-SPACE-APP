@@ -1,11 +1,11 @@
 import XCTest
 @testable import CrewSafety
 
-final class FallCheckInTests: XCTestCase {
+final class CrewCheckInTests: XCTestCase {
     private let start = Date(timeIntervalSinceReferenceDate: 1_000)
 
-    private func started(duration: TimeInterval = 60) -> FallCheckIn {
-        var checkIn = FallCheckIn(duration: duration)
+    private func started(duration: TimeInterval = 60) -> CrewCheckIn {
+        var checkIn = CrewCheckIn(duration: duration)
         checkIn.start(at: start)
         return checkIn
     }
@@ -44,22 +44,22 @@ final class FallCheckInTests: XCTestCase {
     }
 
     func testIdleIgnoresEverything() {
-        var checkIn = FallCheckIn(duration: 60)
+        var checkIn = CrewCheckIn(duration: 60)
         XCTAssertNil(checkIn.respond(.ok, at: start))
         XCTAssertNil(checkIn.tick(now: start.addingTimeInterval(100)))
         XCTAssertEqual(checkIn.remaining(at: start), 0)
     }
 
     func testTranscriptClassifier() {
-        XCTAssertEqual(FallCheckIn.classify(transcript: "I'm okay"), .ok)
-        XCTAssertEqual(FallCheckIn.classify(transcript: "yeah I'm fine"), .ok)
-        XCTAssertEqual(FallCheckIn.classify(transcript: "OK"), .ok)
-        XCTAssertEqual(FallCheckIn.classify(transcript: "I’m all right"), .ok)
-        XCTAssertEqual(FallCheckIn.classify(transcript: "help me"), .help)
-        XCTAssertEqual(FallCheckIn.classify(transcript: "I'm not okay"), .help)
-        XCTAssertEqual(FallCheckIn.classify(transcript: "not good"), .help)
-        XCTAssertEqual(FallCheckIn.classify(transcript: "I can't get up"), .help)
-        XCTAssertNil(FallCheckIn.classify(transcript: "what time is it"))
-        XCTAssertNil(FallCheckIn.classify(transcript: ""))
+        XCTAssertEqual(CrewCheckIn.classify(transcript: "I'm okay"), .ok)
+        XCTAssertEqual(CrewCheckIn.classify(transcript: "yeah I'm fine"), .ok)
+        XCTAssertEqual(CrewCheckIn.classify(transcript: "OK"), .ok)
+        XCTAssertEqual(CrewCheckIn.classify(transcript: "I’m all right"), .ok)
+        XCTAssertEqual(CrewCheckIn.classify(transcript: "help me"), .help)
+        XCTAssertEqual(CrewCheckIn.classify(transcript: "I'm not okay"), .help)
+        XCTAssertEqual(CrewCheckIn.classify(transcript: "not good"), .help)
+        XCTAssertEqual(CrewCheckIn.classify(transcript: "I can't get up"), .help)
+        XCTAssertNil(CrewCheckIn.classify(transcript: "what time is it"))
+        XCTAssertNil(CrewCheckIn.classify(transcript: ""))
     }
 }

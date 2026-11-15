@@ -1,11 +1,31 @@
 # CrewSafety — NASA Space Apps 2026
 
 A native SwiftUI iPhone prototype for a **simulated** space crew: a crew dashboard, camera-based
-possible-fall detection with in-app alerts, a research assistant (MUSE) that answers from curated NASA
+camera-based possible-unresponsive alerts with an "Are you OK?" check-in, a research assistant (MUSE) that answers from curated NASA
 documents and shows its sources, and an on-device wellness journal.
 
-**Not a medical device.** Detections are *possible* falls from a simple heuristic. Heart-rate values
+**Not a medical device.** Detections mean a crew member *stopped moving*, from a simple heuristic. Heart-rate values
 are simulated and labelled. Journal summaries list themes you wrote about; they are not assessments.
+
+## Setting and detection
+
+The crew is aboard a space station, in microgravity. Nobody falls there, so the camera does not look for
+falls. It looks for a crew member who **stops moving** while in view:
+
+- Pose tracking (Apple Vision on iPhone, MediaPipe in the browser) gives head, shoulder, elbow, wrist,
+  hip, knee and ankle positions.
+- Each joint is measured relative to the torso centre, rotated so the torso points up and scaled by
+  torso length. Drifting across the frame or a limp body slowly tumbling is therefore *not* movement.
+- If no joint moves more than 0.25 torso lengths for **15 seconds** while shoulders and hips are
+  tracked, the app raises one *possible unresponsive* event and asks "Are you OK?" (60 s to answer by
+  button or voice, then a critical alert). The crew member must move again before another event.
+- Leaving the view for more than 2 seconds restarts the timer: out of view is not unresponsive.
+- Known limits: sleep, focused reading or holding still on purpose will trigger it; one person; a fixed
+  camera; arms hidden from the camera show little movement. Thresholds are starting values, not validated
+  on people. All replays are synthetic.
+
+The same rules run in `ios/CrewSafety/Features/Camera/InactivityDetector.swift` and
+`web/dist/detector.js`. The synced event type is `possibleUnresponsive`.
 
 ## What is here
 
@@ -13,7 +33,7 @@ are simulated and labelled. Journal summaries list themes you wrote about; they 
 | --- | --- |
 | `ios/` | Xcode project `CrewSafety.xcodeproj`, app sources, unit tests |
 | `backend/` | FastAPI service for MUSE (`POST /chat`, `GET /health`) |
-| `web/` | Browser testing companion for Windows/Mac: webcam pose detection, replay, alerts, journal; see `web/README.md` |
+| `web/` | Browser companion for Windows/Mac: webcam pose detection, replay, alerts, paired crew status, accounts and a journal with MUSE reflections; see `web/README.md` |
 | `docs/HANDOFF.md` | **Start here**: current state, what is untested, what to do next |
 | `docs/BUILD_BRIEF.md` | Original project brief |
 | `docs/EXECUTION_PLAN.md` | Architecture, shared contracts, team plan |

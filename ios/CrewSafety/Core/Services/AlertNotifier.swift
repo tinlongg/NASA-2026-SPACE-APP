@@ -1,6 +1,6 @@
 import UserNotifications
 
-/// Posts local notifications for alerts that need a person's attention, such as no answer after a possible fall.
+/// Posts local notifications for alerts that need a person's attention, such as no answer after a no-movement alert.
 /// Notifications also show while the app is open, so the alert is never silent.
 final class AlertNotifier: NSObject, UNUserNotificationCenterDelegate {
     static let shared = AlertNotifier()

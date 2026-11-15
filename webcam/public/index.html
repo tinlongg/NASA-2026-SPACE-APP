@@ -120,7 +120,7 @@
       <div class="row">
         <button class="primary" id="startBtn">Start camera</button>
         <button id="stopBtn" disabled>Stop</button>
-        <button id="testBtn">Send test fall</button>
+        <button id="testBtn">Send test stillness</button>
         <span class="person" id="person"></span>
       </div>
     </section>
@@ -129,10 +129,9 @@
       <div class="card" aria-live="polite">
         <div class="card-head"><h2>Detector</h2><span class="phase" id="phase">Waiting for the app</span></div>
         <div class="meter neutral" id="mConf"><div class="meter-top"><span>Pose confidence</span><span class="val mono">–</span></div><div class="bar"><span></span></div></div>
-        <div class="meter" id="mAngle"><div class="meter-top"><span>Torso angle</span><span class="val mono">–</span></div><div class="bar"><span></span></div></div>
-        <div class="meter" id="mDrop"><div class="meter-top"><span>Hip drop</span><span class="val mono">–</span></div><div class="bar"><span></span></div></div>
-        <div class="meter" id="mHold"><div class="meter-top"><span>Held low</span><span class="val mono">–</span></div><div class="bar"><span></span></div></div>
-        <div class="small" id="scoreLine">Values come from the app's detector. Each bar fills toward the threshold that rule needs.</div>
+        <div class="meter neutral" id="mMotion"><div class="meter-top"><span>Movement</span><span class="val mono">–</span></div><div class="bar"><span></span></div></div>
+        <div class="meter" id="mStill"><div class="meter-top"><span>Still for</span><span class="val mono">–</span></div><div class="bar"><span></span></div></div>
+        <div class="small" id="scoreLine">Values come from the app's detector. Movement is the largest joint shift since the last motion, in torso lengths; drifting does not count.</div>
       </div>
       <div class="card">
         <div class="card-head"><h2>Voice</h2></div>
@@ -144,14 +143,14 @@
 
   <p class="note" id="privacyNote">
     Pose tracking runs in this browser. Video never leaves the page; only joint positions are sent to the
-    CrewSafety app on this machine, which runs its own possible-fall detector and check-in. In the app, open
+    CrewSafety app on this machine, which runs its own no-movement detector and check-in. In the app, open
     Monitor and choose Web camera.
   </p>
 </main>
 
 <div class="checkin" id="checkin" role="alertdialog" aria-labelledby="ciQuestion">
   <div class="panel">
-    <div class="eyebrow">Possible fall detected</div>
+    <div class="eyebrow">No movement detected</div>
     <div class="question" id="ciQuestion">Are you OK?</div>
     <div class="ring">
       <svg viewBox="0 0 100 100" aria-hidden="true">
@@ -180,14 +179,15 @@ const SEND_INTERVAL_MS = 100; // about 10 frames a second, like the iPhone camer
 const COLORS = { tracking: "#5a8dee", holding: "#f0a33a", checkingIn: "#fc3d21" };
 
 // MediaPipe landmark index -> the app's joint names. "neck" and "root" are midpoints.
-const JOINTS = { nose: 0, leftShoulder: 11, rightShoulder: 12, leftHip: 23, rightHip: 24,
-                 leftKnee: 25, rightKnee: 26, leftAnkle: 27, rightAnkle: 28 };
+const JOINTS = { nose: 0, leftShoulder: 11, rightShoulder: 12, leftElbow: 13, rightElbow: 14, leftWrist: 15, rightWrist: 16,
+                 leftHip: 23, rightHip: 24, leftKnee: 25, rightKnee: 26, leftAnkle: 27, rightAnkle: 28 };
 const BONES = [["nose","neck"],["neck","root"],["leftShoulder","rightShoulder"],["leftHip","rightHip"],
+               ["leftShoulder","leftElbow"],["leftElbow","leftWrist"],["rightShoulder","rightElbow"],["rightElbow","rightWrist"],
                ["leftShoulder","leftHip"],["rightShoulder","rightHip"],["leftHip","leftKnee"],
                ["leftKnee","leftAnkle"],["rightHip","rightKnee"],["rightKnee","rightAnkle"]];
 
 let socket, landmarker, stream, running = false, lastSent = 0, frames = 0, fpsWindowStart = performance.now();
-let sendingTestFall = false;
+let sendingTest = false;
 let checkinTimer = null, checkinDeadline = 0, checkinDuration = 60, appCount = 0, checkingIn = false;
 let boxState = "tracking", lastReadoutAt = 0;
 
@@ -262,7 +262,7 @@ function loop(now) {
     const joints = toJoints(landmarks);
     draw(joints, landmarks);
     $("person").textContent = Object.keys(joints).length ? "Person in view" : "No person in view";
-    if (!sendingTestFall && now - lastSent >= SEND_INTERVAL_MS) {
+    if (!sendingTest && now - lastSent >= SEND_INTERVAL_MS) {
       lastSent = now;
       send({ type: "pose", t: now / 1000, aspect: video.videoWidth / video.videoHeight, joints });
       frames++;
@@ -315,7 +315,7 @@ function draw(joints, landmarks) {
     ctx.beginPath(); ctx.arc(x, y, 3.5 * scale, 0, Math.PI * 2); ctx.fill();
   }
 
-  // Box around every confidently seen landmark (all 33 when the camera runs; the joints for a test fall).
+  // Box around every confidently seen landmark (all 33 when the camera runs; the joints for the scripted test).
   const points = landmarks
     ? landmarks.filter((p) => (p.visibility ?? 0) > 0.5).map((p) => pt(p.x, 1 - p.y))
     : Object.values(joints).map((j) => pt(j.x, j.y));
@@ -341,24 +341,20 @@ function draw(joints, landmarks) {
 }
 
 // ---- Detector readout from the app ----
-const PHASES = { noPerson: "No person", upright: "Upright", tilted: "Leaning", holding: "Low, holding", cooldown: "Just detected" };
+const PHASES = { noPerson: "No person", moving: "Moving", still: "Holding still", alerted: "Alerted · waiting for movement" };
 function showReadout(r) {
   lastReadoutAt = Date.now();
   boxState = r.box || "tracking";
   const phase = $("phase");
   phase.textContent = checkingIn ? "Checking in" : (PHASES[r.phase] || r.phase);
-  phase.className = "phase" + (checkingIn || r.phase === "cooldown" ? " alert" : r.phase === "holding" ? " holding" : "");
+  phase.className = "phase" + (checkingIn || r.phase === "alerted" ? " alert" : r.phase === "still" ? " holding" : "");
   const pct = (v) => `${Math.round(v * 100)}%`;
   meter("mConf", r.poseConfidence, 1, r.poseConfidence != null ? pct(r.poseConfidence) : "–", false);
-  meter("mAngle", r.torsoAngle, r.angleThreshold,
-        `${r.torsoAngle != null ? Math.round(r.torsoAngle) + "°" : "–"} of ${Math.round(r.angleThreshold)}°`,
-        (r.torsoAngle ?? 0) >= r.angleThreshold);
-  meter("mDrop", r.hipDrop, r.dropThreshold,
-        `${r.hipDrop != null ? pct(r.hipDrop) : "–"} of ${pct(r.dropThreshold)}`, (r.hipDrop ?? 0) >= r.dropThreshold);
-  meter("mHold", r.held, r.holdRequired, `${(r.held ?? 0).toFixed(1)} of ${r.holdRequired.toFixed(1)} s`,
-        (r.held ?? 0) >= r.holdRequired);
-  $("scoreLine").textContent = (r.easy ? "Easy test detection is on. " : "Standard thresholds. ") +
-    (r.lastScore != null ? `Last heuristic score ${pct(r.lastScore)}, not a probability.` : "");
+  meter("mMotion", r.motion, r.moveThreshold, `${r.motion != null ? r.motion.toFixed(2) : "–"} of ${r.moveThreshold.toFixed(2)}`, false);
+  meter("mStill", r.stillFor, r.stillRequired, `${Math.floor(r.stillFor ?? 0)} of ${Math.round(r.stillRequired)} s`,
+        (r.stillFor ?? 0) >= r.stillRequired);
+  $("scoreLine").textContent = (r.easy ? "Easy test detection is on: alerts after 8 s still. " : "Standard thresholds: alerts after 15 s still. ") +
+    "Drifting does not count as movement.";
 }
 function meter(id, value, limit, text, met) {
   const el = $(id);
@@ -462,76 +458,40 @@ function showHeard(text, from) {
   if (checkingIn) $("ciListen").textContent = `Heard “${text}”`;
 }
 
-// ---- Scripted test fall: stand 2 s, fall in 0.5 s, lie still 3 s ----
-async function sendTestFall() {
-  if (sendingTestFall) return;
+// ---- Scripted test: wave for 2 s, then float limp and drifting for 17 s ----
+async function sendTestStillness() {
+  if (sendingTest) return;
   if (appCount === 0) { showToast("Open Monitor › Test › Web camera on this Mac in the app first"); return; }
-  sendingTestFall = true;
+  sendingTest = true;
   $("testBtn").disabled = true;
   if (!running) $("empty").style.display = "none";
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  const lerp = (a, b, k) => a + (b - a) * k;
-  const pose = (neck, root) => {
-    const j = (x, y) => ({ x, y, c: 0.9 });
-    return { neck: j(...neck), root: j(...root), nose: j(neck[0], neck[1] + 0.08),
-             leftShoulder: j(neck[0] - 0.04, neck[1]), rightShoulder: j(neck[0] + 0.04, neck[1]),
-             leftHip: j(root[0] - 0.03, root[1]), rightHip: j(root[0] + 0.03, root[1]) };
+  // Torso-relative body (y up), placed at (x, y) and rotated by turn. arm raises the left arm.
+  const BODY = { nose: [0, 1.05], leftShoulder: [-0.32, 0.5], rightShoulder: [0.32, 0.5], leftElbow: [-0.55, 0.1], rightElbow: [0.55, 0.1],
+                 leftWrist: [-0.62, -0.32], rightWrist: [0.62, -0.32], leftHip: [-0.2, -0.5], rightHip: [0.2, -0.5],
+                 leftKnee: [-0.28, -1.05], rightKnee: [0.28, -1.05], leftAnkle: [-0.3, -1.6], rightAnkle: [0.3, -1.6] };
+  const pose = (x, y, turn, arm) => {
+    const joints = {}, c = Math.cos(turn), s = Math.sin(turn);
+    for (const [name, [bx, by0]] of Object.entries(BODY)) {
+      const by = by0 + (name === "leftWrist" ? arm * 0.9 : name === "leftElbow" ? arm * 0.45 : 0);
+      joints[name] = { x: x + (bx * c - by * s) * 0.12 * 9 / 16, y: y + (bx * s + by * c) * 0.12, c: 0.9 };
+    }
+    joints.neck = { x: (joints.leftShoulder.x + joints.rightShoulder.x) / 2, y: (joints.leftShoulder.y + joints.rightShoulder.y) / 2, c: 0.9 };
+    joints.root = { x: (joints.leftHip.x + joints.rightHip.x) / 2, y: (joints.leftHip.y + joints.rightHip.y) / 2, c: 0.9 };
+    return joints;
   };
   const emit = (joints) => { send({ type: "pose", t: performance.now() / 1000, aspect: 16 / 9, joints }); if (!running) draw(joints); };
   try {
-    for (let i = 0; i < 20; i++) { emit(pose([0.5, 0.75], [0.5, 0.5])); await wait(100); }
-    for (let i = 1; i <= 5; i++) {
-      const k = i / 5;
-      emit(pose([lerp(0.5, 0.75, k), lerp(0.75, 0.15, k)], [lerp(0.5, 0.45, k), lerp(0.5, 0.12, k)]));
-      await wait(100);
-    }
-    for (let i = 0; i < 30; i++) { emit(pose([0.75, 0.15], [0.45, 0.12])); await wait(100); }
+    for (let i = 0; i < 20; i++) { emit(pose(0.5, 0.5, 0, (Math.sin(i / 10 * 2.4 * Math.PI) + 1) / 2)); await wait(100); }
+    for (let i = 0; i < 170; i++) { emit(pose(0.5 - i * 0.001, 0.5, i * 0.009, 0.5)); await wait(100); }
   } finally {
-    sendingTestFall = false;
+    sendingTest = false;
     $("testBtn").disabled = false;
     if (!running) { ctx.clearRect(0, 0, overlay.width, overlay.height); $("empty").style.display = "grid"; }
   }
 }
 
-// ---- Check-in mirrored from the app ----
-function handleCheckin(msg) {
-  if (msg.state === "awaiting") {
-    checkingIn = true;
-    checkinDeadline = msg.deadline * 1000;
-    checkinDuration = msg.duration || 60;
-    $("ciListen").textContent = voiceEnabled && micStream ? "Waiting for the app to finish asking" : "";
-    $("heard").textContent = "";
-    $("checkin").classList.add("show");
-    $("okBtn").focus();
-    clearInterval(checkinTimer);
-    checkinTimer = setInterval(tick, 250);
-    tick();
-  } else if (msg.state === "listening") {
-    startListening();
-  } else if (msg.state === "resolved") {
-    checkingIn = false;
-    stopListening();
-    clearInterval(checkinTimer);
-    $("checkin").classList.remove("show");
-    showToast(msg.summary + (msg.escalated ? " · alert raised in the app" : ""));
-  }
-}
-function tick() {
-  const remaining = Math.max(0, (checkinDeadline - Date.now()) / 1000);
-  $("ciNum").textContent = Math.ceil(remaining);
-  $("ciArc").setAttribute("stroke-dashoffset", String(282.74 * (1 - remaining / checkinDuration)));
-}
-function answer(response) { send({ type: "answer", response }); }
-function showToast(text) {
-  const toast = $("toast");
-  toast.textContent = text; toast.classList.add("show");
-  setTimeout(() => toast.classList.remove("show"), 6000);
-}
-function escapeHtml(s) { return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c])); }
-
-$("startBtn").onclick = start;
-$("stopBtn").onclick = stop;
-$("testBtn").onclick = sendTestFall;
+$("testBtn").onclick = sendTestStillness;
 $("okBtn").onclick = () => answer("ok");
 $("helpBtn").onclick = () => answer("help");
 connect();

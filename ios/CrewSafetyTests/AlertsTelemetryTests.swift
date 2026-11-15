@@ -4,7 +4,7 @@ import XCTest
 @MainActor
 final class AlertsTests: XCTestCase {
     func testRemoteAcknowledgementIsMonotonicAndDoesNotDuplicateEvents() {
-        let original = SafetyEvent(crewMemberID: UUID(), type: .possibleFall, severity: .critical, source: .replay, details: "Sync test")
+        let original = SafetyEvent(crewMemberID: UUID(), type: .possibleUnresponsive, severity: .critical, source: .replay, details: "Sync test")
         let store = EventStore(events: [original])
         var acknowledged = original
         acknowledged.acknowledged = true
@@ -17,7 +17,7 @@ final class AlertsTests: XCTestCase {
     }
 
     func testSyncDateCodecUsesUnixMilliseconds() throws {
-        let event = SafetyEvent(crewMemberID: UUID(), type: .possibleFall,
+        let event = SafetyEvent(crewMemberID: UUID(), type: .possibleUnresponsive,
                                 timestamp: Date(timeIntervalSince1970: 1_800_000_000),
                                 severity: .warning, source: .replay, details: "Codec test")
         let encoder = JSONEncoder(); encoder.dateEncodingStrategy = .millisecondsSince1970
@@ -32,7 +32,7 @@ final class AlertsTests: XCTestCase {
         let store = EventStore()
         let id = UUID()
         store.record(SafetyEvent(crewMemberID: id, type: .manualTest, severity: .warning, source: .simulated, details: "a"))
-        let newest = SafetyEvent(crewMemberID: id, type: .possibleFall, severity: .critical, source: .replay, details: "b")
+        let newest = SafetyEvent(crewMemberID: id, type: .possibleUnresponsive, severity: .critical, source: .replay, details: "b")
         store.record(newest)
         XCTAssertEqual(store.activeAlerts.first?.id, newest.id)
         store.acknowledge(newest.id)

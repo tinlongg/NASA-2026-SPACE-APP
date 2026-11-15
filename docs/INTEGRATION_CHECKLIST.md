@@ -12,11 +12,11 @@ launch problems block new native runs; the browser extension does not satisfy iP
 - [ ] App launches from a cold start
 - [x] Dashboard shows crew, derived status and recent events (Sim)
 - [ ] First camera use prompts for permission; denying shows the Settings link
-- [ ] Safe, supervised physical-device fall validation produces exactly one `Possible fall` alert (pending; current demo uses synthetic input)
-- [x] Replay → Synthetic Fall produces one alert labelled `Replay` (Sim)
+- [ ] On a physical iPhone, holding still in view for 15 s produces exactly one `Possible unresponsive` check-in (pending)
+- [ ] Replay → Synthetic stops moving / limp and tumbling each produce one alert labelled `Replay` (unit-tested; recheck in the Simulator)
 - [ ] Replay → Synthetic Sit Down and Lie Down Slowly produce no alert
 - [ ] Really sitting down and lying down slowly produce no alert (3 tries each)
-- [ ] A second fall within 15 s does not raise a second alert
+- [ ] Staying still after an alert does not raise a second one until the crew member moves
 - [x] Banner shows source and time; Acknowledge clears it; status returns to Nominal (Sim)
 - [x] MUSE Live returns an answer with a tappable source (Sim, artificial test corpus only)
 - [ ] MUSE Live with the real corpus: every citation opens the claimed document
@@ -31,8 +31,8 @@ launch problems block new native runs; the browser extension does not satisfy iP
 - [ ] Full demo script runs twice in a row
 
 ## Known limits to say out loud
-The fall heuristic assumes gravity, one person, a fixed upright phone and decent light. It misses
-falls toward or away from the camera and will sometimes flag non-falls. The heuristic score is not a
+The no-movement heuristic assumes one person, a fixed camera and decent light. Sleep, reading or
+holding still on purpose will trigger it, and hidden arms reduce visible movement. There is no heuristic score, so nothing is presented as a
 probability. Telemetry is simulated. MUSE only knows the documents the team gave it.
 
 
@@ -40,7 +40,7 @@ probability. Telemetry is simulated. MUSE only knows the documents the team gave
 
 - [x] 29 Node tests pass: seven replay scenarios at four frame rates, low-confidence/lost pose,
   invalid input, provider failures, rate limits, citation provenance, and demo fallback.
-- [x] Local UI: generated fall → one labelled event; research question → OSDR citations.
+- [ ] Local UI: generated stillness → one labelled event (web replays unit-tested); research question → OSDR citations.
 - [x] Browser shell reloaded with local server stopped; saved OSDR answer showed Demo mode and
   citations. Camera-model cache reported complete; camera inference without networking is untested.
 - [x] Offline-cache simulation: shell/model retrieval with mocked networking disabled; failed model

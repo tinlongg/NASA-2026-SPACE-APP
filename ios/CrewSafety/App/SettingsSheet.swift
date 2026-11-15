@@ -61,7 +61,7 @@ struct SettingsSheet: View {
                 }
 
                 Section("About") {
-                    Text("Prototype for a simulated crew. Not a medical device. Detections are possible falls, not diagnoses.")
+                    Text("Prototype for a simulated crew. Not a medical device. Detections mean a crew member stopped moving, not a diagnosis.")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondaryText)
                 }
