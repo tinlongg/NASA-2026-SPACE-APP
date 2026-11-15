@@ -6,7 +6,7 @@ import { REPLAYS, replayMeasurement } from '../dist/fixtures.js';
 for (const [kind, fixture] of Object.entries(REPLAYS)) {
   test(`UI replay: ${fixture.label} produces ${fixture.expected} event(s)`, () => {
     for (const fps of [10, 15, 30, 60]) {
-      const detector = new InactivityDetector(); const detections = [];
+      const detector = new InactivityDetector({ wholeBody: Boolean(fixture.wholeBody) }); const detections = [];
       for (let frame = 0; frame <= fixture.duration * fps; frame++) {
         const result = detector.process(frame / fps, replayMeasurement(kind, frame / fps));
         if (result) detections.push(result);
@@ -79,4 +79,27 @@ test('sitting down or standing up counts as movement', () => {
   assert.equal(detector.process(10, seated()), null);
   for (let time = 10.5; time < 10 + STILL_SECONDS - 0.5; time += 0.5) assert.equal(detector.process(time, seated()), null, 'timer restarted when the tracking mode changed');
   assert.ok(detector.process(10 + STILL_SECONDS, seated()));
+});
+
+test('walking past with only the torso visible: an alert in space mode, none when the whole body counts', () => {
+  for (const [wholeBody, expected] of [[false, 1], [true, 0]]) {
+    const detector = new InactivityDetector({ wholeBody }); let alerts = 0;
+    for (let time = 0; time <= 20; time += 1 / 15) if (detector.process(time, replayMeasurement('walking', time))) alerts++;
+    assert.equal(alerts, expected, `wholeBody=${wholeBody}`);
+  }
+});
+
+test('turning in place counts as movement only when the whole body counts', () => {
+  const turned = angle => { const c = Math.cos(angle), s = Math.sin(angle), at = (x, y) => [0.5 + x * c - y * s, 0.45 + x * s + y * c]; return { points: { 11: at(-0.1, -0.15), 12: at(0.1, -0.15), 23: at(-0.07, 0.15), 24: at(0.07, 0.15) } }; };
+  for (const [wholeBody, expected] of [[false, 1], [true, 0]]) {
+    const detector = new InactivityDetector({ wholeBody }); let alerts = 0;
+    for (let time = 0; time <= 20; time += 0.5) if (detector.process(time, turned(Math.floor(time / 4) * 0.5))) alerts++;
+    assert.equal(alerts, expected, `wholeBody=${wholeBody}`);
+  }
+});
+
+test('standing perfectly still still alerts when the whole body counts', () => {
+  const detector = new InactivityDetector({ wholeBody: true });
+  for (let time = 0; time < STILL_SECONDS; time += 0.5) assert.equal(detector.process(time, body()), null);
+  assert.ok(detector.process(STILL_SECONDS, body()));
 });

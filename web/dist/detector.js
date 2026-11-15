@@ -11,6 +11,11 @@
 export const STILL_SECONDS = 15;
 export const MOVE_THRESHOLD = 0.25; // largest single-joint displacement, in torso lengths
 export const POSE_LOSS_SECONDS = 2;
+// With wholeBody on (the default for anything on Earth) the whole body travelling or turning counts as
+// movement, so walking past the camera is activity. With it off (microgravity) drifting and tumbling
+// are ignored and only limbs moving relative to the torso count.
+export const TURN_THRESHOLD = 0.35; // radians, about 20 degrees
+const angleGap = (a, b) => { let gap = a - b; while (gap > Math.PI) gap -= 2 * Math.PI; while (gap < -Math.PI) gap += 2 * Math.PI; return Math.abs(gap); };
 // Seated or desk-bound crew show shoulders but not hips. Rather than treat that as "out of view",
 // the upper body is tracked on its own: scaled by shoulder width, which is smaller than a torso
 // length, so the movement threshold is scaled up to match (about 1.4 shoulder widths per torso).
@@ -30,7 +35,7 @@ export function upperBodyShape(points) {
     const x = (point[0] - centre[0]) / scale, y = (point[1] - centre[1]) / scale;
     shape[index] = [x * cos - y * sin, x * sin + y * cos];
   }
-  Object.defineProperty(shape, 'upper', { value: true, enumerable: false });
+  Object.defineProperties(shape, { upper: { value: true }, centre: { value: centre }, scale: { value: scale }, turn: { value: turn } });
   return shape;
 }
 
@@ -48,6 +53,7 @@ export function bodyShape(points) {
     const x = (point[0] - centre[0]) / scale, y = (point[1] - centre[1]) / scale;
     shape[index] = [x * cos - y * sin, x * sin + y * cos];
   }
+  Object.defineProperties(shape, { centre: { value: centre }, scale: { value: scale }, turn: { value: turn } });
   return shape;
 }
 
@@ -59,7 +65,7 @@ export function shapeChange(a, b) {
 }
 
 export class InactivityDetector {
-  constructor({ stillSeconds = STILL_SECONDS, threshold = MOVE_THRESHOLD } = {}) { this.stillSeconds = stillSeconds; this.threshold = threshold; this.reset(); }
+  constructor({ stillSeconds = STILL_SECONDS, threshold = MOVE_THRESHOLD, wholeBody = false } = {}) { this.stillSeconds = stillSeconds; this.threshold = threshold; this.wholeBody = wholeBody; this.reset(); }
   reset() { this.anchor = null; this.stillSince = null; this.lostSince = null; this.lastTime = -Infinity; this.alerted = false; this.motion = null; }
   /** Something other than a joint moved (talking, blinking): restart the stillness timer without changing the shape. */
   noteActivity(time) { if (!this.anchor) return; this.stillSince = time; this.alerted = false; }
@@ -80,7 +86,13 @@ export class InactivityDetector {
     if (!this.anchor || Boolean(this.anchor.upper) !== Boolean(shape.upper)) { this.anchor = shape; this.stillSince = time; this.motion = 0; this.alerted = false; return null; }
     this.motion = shapeChange(shape, this.anchor);
     const threshold = shape.upper ? this.threshold * (MOVE_THRESHOLD_UPPER / MOVE_THRESHOLD) : this.threshold;
-    if (this.motion > threshold) { this.anchor = shape; this.stillSince = time; this.alerted = false; return null; }
+    let moved = this.motion > threshold;
+    if (this.wholeBody && !moved && this.anchor.centre && shape.centre) {
+      const travel = Math.hypot(shape.centre[0] - this.anchor.centre[0], shape.centre[1] - this.anchor.centre[1]) / this.anchor.scale;
+      this.motion = Math.max(this.motion, travel);
+      moved = travel > threshold || angleGap(shape.turn, this.anchor.turn) > TURN_THRESHOLD;
+    }
+    if (moved) { this.anchor = shape; this.stillSince = time; this.alerted = false; return null; }
     const still = time - this.stillSince;
     if (this.alerted || still < this.stillSeconds) return null;
     this.alerted = true;

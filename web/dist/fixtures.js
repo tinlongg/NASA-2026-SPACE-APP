@@ -6,6 +6,7 @@ export const REPLAYS = {
   outOfView: { label: 'Leaves view', duration: 20, expected: 0 },
   unresponsive: { label: 'Stops moving', duration: 20, expected: 1 },
   tumbling: { label: 'Limp and tumbling', duration: 20, expected: 1 },
+  walking: { label: 'Walking past, torso only', duration: 20, expected: 0, wholeBody: true },
   seatedWorking: { label: 'Seated, typing', duration: 20, expected: 0 },
   seatedStill: { label: 'Seated, slumped and still', duration: 20, expected: 1 },
 };
@@ -25,6 +26,12 @@ const pose = ({ x = 0.66, y = 0.5, turn = 0, size = 0.16, arm = 0, leg = 0 }) =>
 const move = time => ({ arm: (Math.sin(time * 2.4) + 1) / 2, leg: (Math.sin(time * 1.7) + 1) / 3 });
 export function replayMeasurement(kind, time) {
   if (!REPLAYS[kind]) throw new Error('Unknown replay');
+  // Walking across the frame: only the torso and head are tracked, and the whole body travels.
+  if (kind === 'walking') {
+    const all = pose({ x: 0.25 + time * 0.025, y: 0.5 + Math.sin(time * 6) * 0.004 }), points = {};
+    for (const index of [0, 11, 12, 23, 24]) points[index] = all[index];
+    return { points };
+  }
   // Seated at a desk: hips hidden, so only shoulders, head and arms are tracked.
   if (kind === 'seatedWorking' || kind === 'seatedStill') {
     const typing = kind === 'seatedWorking' || time < 2.5, phase = typing ? Math.min(time, 1e9) : 2.5, sway = typing ? Math.sin(phase * 2.4) * 0.35 : Math.sin(2.5 * 2.4) * 0.35;

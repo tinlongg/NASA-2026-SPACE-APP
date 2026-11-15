@@ -271,3 +271,10 @@ Built without the live test (that still needs a person in front of the camera; s
 
 - Live detections now start a 30 s check-in (new clip `web/dist/voice/web-checkin.mp3`, voice Hope; `web/dist/checkin.js`) before the alert: OK or movement ends it quietly, help or silence raises the event. Replays and the unchecked setting skip it. The check-in length (30 s vs iOS 60 s) and the 45 s grace after OK are untested guesses. Web suite 81/81.
 - Not verified with a live camera or real speech: the countdown card, the spoken prompt followed by listening, and that talking during the check-in ends it. If a person says OK but stays still, they are asked again after about a minute.
+
+### Walking false alert, second view, Full model default (2026-11-15)
+
+- Live report: an alert fired while the user was walking. Likely cause (not reproduced with a camera): the microgravity design ignores the whole body travelling, so with limbs not tracked a walking torso looks still. Added `wholeBody` to `InactivityDetector` (torso travel or ~20° turn counts as movement) and a default-on page checkbox; tests cover walking past (alert only in space mode), turning in place, and still standing. Web suite 85/85. The UI replays remain microgravity unless a fixture says otherwise ("Walking past, torso only" is Earth mode).
+- The close-up is now an always-on second view beside the main camera, with a pop-out window ("Open on another screen"). Pose model now defaults to Full.
+- Not verified with a camera: walking in front of a real webcam, the pop-out window (browsers may block it), and the layout below 980 px width (stacked).
+- Open question for the product: Earth mode is the default because every test so far is on Earth; the space-station behaviour is the checkbox off.
