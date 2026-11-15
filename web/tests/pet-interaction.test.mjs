@@ -9,6 +9,11 @@ function setup(){
  wirePet(pet,()=>speech);return{pet,bird,speech,children,classes};
 }
 const pointer=(x=0,y=0,timeStamp=0)=>({pointerId:1,button:0,clientX:x,clientY:y,timeStamp});
+test('idle hops wait, pause while held, resume after release, and stop after removal',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});const random=Math.random;Math.random=()=>0;
+ try{const {pet,classes}=setup();t.mock.timers.tick(8999);assert.ok(!classes.has('pip-idle-hop'));t.mock.timers.tick(1);assert.ok(classes.has('pip-idle-hop'));t.mock.timers.tick(1101);assert.ok(!classes.has('pip-idle-hop'));
+ pet.onpointerdown(pointer());t.mock.timers.tick(20000);assert.ok(!classes.has('pip-idle-hop'));pet.onpointerup(pointer());t.mock.timers.tick(9000);assert.ok(classes.has('pip-idle-hop'));pet.isConnected=false;t.mock.timers.tick(18000);assert.ok(!classes.has('pip-idle-hop'));}finally{Math.random=random;}
+});
 test('tap and keyboard happiness restore the normal eye after a moment',t=>{
  t.mock.timers.enable({apis:['setTimeout']});
  const {pet,classes}=setup();pet.onpointerdown(pointer());pet.onpointerup(pointer());assert.ok(classes.has('pip-happy'));assert.ok(!classes.has('pip-dizzy'));

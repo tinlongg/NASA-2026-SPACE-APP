@@ -20,3 +20,9 @@ test('cigarette and smoke follow the beak in each care pose',()=>{
 });
 
 test('cigarette is the premium cosmetic and ordinary purchases still need enough stars',()=>{const cigarette=MISSION_SHOP.find(i=>i.id==='cigarette');assert.equal(cigarette.cost,5000);assert.ok(cigarette.cost>=10*Math.max(...MISSION_SHOP.filter(i=>i.id!=='cigarette').map(i=>i.cost)));assert.throws(()=>applyMissionAction({...newMission(),coins:200},{id:crypto.randomUUID(),type:'buy',item:'cigarette'}),/Not enough/);});
+test('solar aura uses a separate slot and can combine with a hat and fire cape',()=>{
+ const action=(type,item)=>({id:crypto.randomUUID(),type,item});let state={...newMission(),coins:1000};
+ for(const item of ['cap','fire-cape','solar-aura'])state=applyMissionAction(state,action('buy',item));
+ const art=astronautBird(state);for(const marker of ['bird-cap','bird-fire-cape','bird-solar-aura'])assert.ok(art.includes(marker));
+ state=applyMissionAction(state,action('equip','solar-aura'));assert.equal(state.equipped.hat,'cap');assert.equal(state.equipped.gear,'fire-cape');assert.ok(!astronautBird(state).includes('bird-solar-aura'));
+});
