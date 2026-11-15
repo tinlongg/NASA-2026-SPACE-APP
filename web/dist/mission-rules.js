@@ -1,0 +1,74 @@
+// Shared, deterministic rules. The server supplies time and authorizes account actions.
+export const MISSION_TASKS = [
+ {id:'health',name:'Daily health check-in',fuel:60,icon:'♥',hint:'Notice how your body feels. Every honest response counts.'},
+ {id:'suit',name:'Suit layer check',fuel:50,icon:'◉',hint:'A training reflection, never clearance for EVA.'},
+ {id:'wellness',name:'Mind & mood check-in',fuel:40,icon:'☀',hint:'Any state of mind earns the same reward.'},
+ {id:'exercise',name:'Movement & recovery',fuel:30,icon:'↗',hint:'Log movement, an adapted activity, or planned rest.'},
+ {id:'meal',name:'Meal log',fuel:25,icon:'◒',hint:'Record a meal or check in about your nutrition routine.'},
+ {id:'photo',name:'Daily photo check-in',fuel:15,icon:'▣',hint:'Choose a photo to preview on this device only.'},
+ {id:'journal',name:'Journal reflection',fuel:10,icon:'✎',hint:'Write a reflection here or in your journal.'}
+];
+export const MISSION_SHOP=[
+ {id:'cap',name:'Orbit cap',cost:30,slot:'hat',icon:'🧢',description:'A teal flight cap for Pip.'},
+ {id:'crown',name:'Star crown',cost:90,slot:'hat',icon:'♛',description:'A golden constellation crown.'},
+ {id:'scarf',name:'Comet scarf',cost:45,slot:'gear',icon:'🧣',description:'A coral scarf for your explorer.'},
+ {id:'pack',name:'Sample pack',cost:60,slot:'gear',icon:'🎒',description:'Room for imaginary moon rocks.'},
+ {id:'garden',name:'Garden light',cost:75,slot:'buff',icon:'✿',description:'+1 garden growth on each completed daily routine. No change to health or game scoring.'}
+];
+export const MISSION_GAMES=[{id:'dock',name:'Orbital docking',icon:'◎',description:'Tap when the beacon turns green. Three rounds of timing.'},{id:'memory',name:'Planet memory',icon:'✦',description:'Match six pairs of planets. Take as many turns as you need.'},{id:'minerals',name:'Sample collector',icon:'◇',description:'Collect minerals and leave hazards alone. Twelve decisions.'}];
+export const missionDay=now=>new Date(now).toISOString().slice(0,10);
+export const missionGap=(a,b)=>Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000);
+export function newMission(){return {version:1,fuel:0,coins:0,rankPoints:0,distance:0,prestige:0,garden:0,streak:0,lastDay:null,days:{},owned:[],equipped:{},history:[],bests:{},pending:null,actions:[],listed:false};}
+export function missionSummary(state,now=Date.now()) {
+ const day=missionDay(now), gap=state.lastDay?missionGap(state.lastDay,day):0;
+ return {day,done:state.days[day]?.tasks||[],streak:gap>1?0:state.streak,dust:Math.min(7,Math.max(0,gap-1)),percent:Math.min(100,Math.floor(state.distance/10)),gardenStage:['Seed tray','First sprouts','Leafy greens','Space blooms'][Math.min(3,Math.floor(state.garden/3))],plays:state.days[day]?.plays||0};
+}
+export function missionStats(state,game){const runs=state.history.filter(r=>r.game===game).slice(-10),scores=runs.map(r=>r.score);return {count:runs.length,best:state.bests?.[game]??(scores.length?Math.max(...state.history.filter(r=>r.game===game).map(r=>r.score)):null),average:scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):null};}
+export function applyMissionAction(original,action,now=Date.now()) {
+ if(!action||typeof action.id!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(action.id)) throw Error('Invalid action identifier.');
+ const s=structuredClone(original),day=missionDay(now);
+ if(s.actions.includes(action.id)) return s;
+ s.days[day]??={tasks:[],plays:0}; const today=s.days[day];
+ switch(action.type){
+ case 'task': {
+   const task=MISSION_TASKS.find(t=>t.id===action.task); if(!task||action.participated!==true) throw Error('Complete a check-in first.');
+   if(today.tasks.includes(task.id)) return s;
+   today.tasks.push(task.id);s.fuel+=task.fuel;s.distance=Math.min(1000,s.distance+Math.round(task.fuel*(1+Math.min(s.prestige,5)*0.05)));
+   if(s.lastDay!==day){s.streak=s.lastDay&&missionGap(s.lastDay,day)===1?s.streak+1:1;s.lastDay=day;}
+   if(today.tasks.length===3)s.garden+=s.owned.includes('garden')?2:1;
+   break;
+ }
+ case 'start':
+   if(!MISSION_GAMES.some(g=>g.id===action.game))throw Error('Unknown game.');
+   if(s.pending)throw Error('Finish or leave your current game first.');
+   if(today.plays>=6)throw Error('Six rewarded flights completed today. Come back next station day.');
+   if(s.fuel<10)throw Error('Complete a care task to earn 10 flight fuel.');
+   s.fuel-=10;s.pending={id:action.id,game:action.game,started:now};break;
+ case 'finish': {
+   if(!s.pending||s.pending.id!==action.run)throw Error('This game is no longer active.');
+   if(now-s.pending.started<5000)throw Error('Spend a few more seconds in this flight before finishing.');
+   if(!Number.isFinite(action.score)||action.score<0||action.score>100)throw Error('Invalid game score.');
+   const metrics=action.metrics||{}; if(Object.keys(metrics).some(k=>!['reactionMs','consistencyMs','attempts','accuracy','errors'].includes(k))||Object.values(metrics).some(v=>typeof v!=='number'||!Number.isFinite(v)||v<0||v>100000))throw Error('Invalid game measurements.');
+   if(today.plays>=6)throw Error('Daily flight reward limit reached.');
+   s.bests??={};s.bests[s.pending.game]=Math.max(s.bests[s.pending.game]??0,Math.round(action.score));
+   s.history.push({game:s.pending.game,score:Math.round(action.score),metrics,at:now});s.history=s.history.slice(-90);
+   s.pending=null;today.plays++;s.coins+=15;s.rankPoints+=20;break;
+ }
+ case 'cancel':if(s.pending){s.pending=null;s.fuel+=10;}break;
+ case 'buy': {
+   const item=MISSION_SHOP.find(i=>i.id===action.item);if(!item)throw Error('Unknown accessory.');
+   if(s.owned.includes(item.id))return s;
+   if(s.coins<item.cost)throw Error('Not enough shop stars yet.');s.coins-=item.cost;s.owned.push(item.id);if(item.slot!=='buff')s.equipped[item.slot]=item.id;break;
+ }
+ case 'equip': {
+   const item=MISSION_SHOP.find(i=>i.id===action.item);if(!item||!s.owned.includes(item.id)||item.slot==='buff')throw Error('Unlock this accessory first.');
+   s.equipped[item.slot]=s.equipped[item.slot]===item.id?null:item.id;break;
+ }
+ case 'prestige':if(s.distance<1000)throw Error('Reach Mars first.');s.prestige++;s.distance=0;break;
+ case 'listing':if(typeof action.listed!=='boolean')throw Error('Choose leaderboard visibility.');s.listed=action.listed;break;
+ default:throw Error('Unknown mission action.');
+ }
+ s.actions=[...s.actions,action.id].slice(-150);
+ const days=Object.keys(s.days).sort(); for(const d of days.slice(0,-35))delete s.days[d];
+ return s;
+}

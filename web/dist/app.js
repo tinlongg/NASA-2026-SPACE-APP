@@ -1,3 +1,4 @@
+import { initializeMission } from './mission.js';
 import { journalToneElement, museJournalElement, sentimentMetadata } from './journal-sentiment.js';
 import { InactivityDetector, measurePose, STILL_SECONDS } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
@@ -39,7 +40,7 @@ let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, dete
 let coachPending = false;
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
-const titles = { home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded or uploaded'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
+const titles = { mission: ['Mission', 'Care for yourself and your astronaut companion'], home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded or uploaded'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
 function showTab(tab) {
   if (!titles[tab]) return;
   if (tab !== 'monitor') stopSession();
@@ -682,10 +683,10 @@ element('journal-form').onsubmit = async event => {
   if (account) {
     const submit = event.target.querySelector('button'); submit.disabled = true; journalNote('Saving to your account…');
     try {
-      const saved = await api('/api/journal/entries', 'POST', { body, ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }); if (element('journal-body').value.trim() === body) element('journal-body').value = '';
+      const saved = await api('/api/journal/entries', 'POST', { body, ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }); window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'journal'})); if (element('journal-body').value.trim() === body) element('journal-body').value = '';
       let note = 'Saved to your account and added to the vector index.';
       if (pendingPhoto) {
-        try { await api(`/api/journal/entries/${saved.entry.id}/photo`, 'PUT', { image: pendingPhoto.image, width: pendingPhoto.width, height: pendingPhoto.height }); URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; note += ' Photo attached.'; }
+        try { await api(`/api/journal/entries/${saved.entry.id}/photo`, 'PUT', { image: pendingPhoto.image, width: pendingPhoto.width, height: pendingPhoto.height }); URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; note += ' Photo attached.'; window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'photo'})); }
         catch (error) { note += ` The entry was saved but the photo was not: ${journalFailure(error, 'upload failed.')}`; }
       }
       element('journal-sleep').value = ''; selectedDay = null; calMonth = null; journalNote(note); await loadAccountJournal();
@@ -695,7 +696,7 @@ element('journal-form').onsubmit = async event => {
     return;
   }
   const updated = [{ body, date: new Date().toISOString(), ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }, ...journals];
-  try { localStorage.setItem('crewsafety-journal', JSON.stringify(updated)); journals = updated; element('journal-body').value = ''; element('journal-sleep').value = ''; journalNote('Saved on this browser only.'); renderJournals(); } catch { journalNote('Browser storage is unavailable or full. Your text has not been cleared.'); }
+  try { localStorage.setItem('crewsafety-journal', JSON.stringify(updated)); journals = updated; element('journal-body').value = ''; element('journal-sleep').value = ''; journalNote('Saved on this browser only.'); renderJournals(); window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'journal'})); } catch { journalNote('Browser storage is unavailable or full. Your text has not been cleared.'); }
 };
 element('clear-journal').onclick = async () => {
   if (account) {
@@ -725,6 +726,7 @@ element('journal-search').onsubmit = async event => {
   } catch (error) { results.textContent = journalFailure(error, 'Search failed.'); }
 };
 const accountControl = initAccount(user => {
+  window.dispatchEvent(new CustomEvent('crew-account-change', {detail:user}));
   account = user; accountEntries = []; journalLoad++; selectedDay = null; calMonth = null;
   element('home-account').textContent = user ? `@${user.username}` : 'Guest';
   element('hero-account').textContent = user ? 'Open journal' : 'Sign in';
@@ -883,6 +885,7 @@ element('suit-save').onclick = async () => {
     if (account) await api('/api/suit/checks', 'POST', { items });
     else { suitHistory = [{ id: crypto.randomUUID(), date: now, overall, items }, ...suitHistory].slice(0, 5); try { localStorage.setItem(suitHistoryStore, JSON.stringify(suitHistory)); } catch {} }
   } catch (error) { message.textContent = error.status === 401 ? 'Your session ended. Sign in again to save to your account.' : 'Could not save the inspection.'; return; }
+  if (items.every(item => item.status !== 'unchecked')) window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'suit'}));
   // A failed item shows beside camera events, labelled as manually entered.
   for (const item of items.filter(entry => entry.status === 'fail')) {
     const known = ITEMS.find(candidate => candidate.id === item.id);
@@ -892,3 +895,6 @@ element('suit-save').onclick = async () => {
 };
 element('suit-reset').onclick = () => { suit = {}; persistSuit(); renderSuit(); element('suit-message').textContent = 'Started a new check.'; };
 renderSuit(); loadSuitHistory();
+
+initializeMission();
+if (new URLSearchParams(location.search).get('mission') === '1') showTab('mission');

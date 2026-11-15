@@ -1,3 +1,4 @@
+import { handleMission } from './mission.mjs';
 import { handleCrewSync } from './sync.mjs';
 import { createAccounts, accountUser, journalRecall, journalPhotosForCompare } from './account.mjs';
 
@@ -92,6 +93,8 @@ export function createWorker(assets = {}, fetchProvider = fetch) {
       if (count >= 5 || total >= 30) return false;
       visitors.set(visitor, count + 1); total++; return true;
     };
+    const missionResponse = await handleMission(request, env);
+    if (missionResponse) return missionResponse;
     const accountResponse = await handleAccount(request, env);
     if (accountResponse) return accountResponse;
     if (url.pathname === '/api/journal/status' && request.method === 'GET') return json({configured:Boolean(env.META_API_KEY)});

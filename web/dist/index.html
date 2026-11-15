@@ -22,6 +22,7 @@
 <button class="nav" data-tab="dashboard" data-short="Crew"><svg class="icon"><use href="#i-users"/></svg><span>Crew</span></button>
 <button class="nav" data-tab="suit" data-short="Suit"><svg class="icon"><use href="#i-alert"/></svg><span>Suit check</span></button>
 <p class="side-label">Personal</p>
+<button class="nav" data-tab="mission" data-short="Mission"><svg class="icon"><use href="#i-home"/></svg><span>Mission · Pip</span></button>
 <button class="nav" data-tab="journal" data-short="Journal"><svg class="icon"><use href="#i-book"/></svg><span>Journal</span></button>
 </nav>
 <div class="side-group side-extra"><p class="side-label">Quick actions</p>
@@ -33,6 +34,7 @@
 <div class="sidebar-bottom"><button id="account-button" class="nav" aria-haspopup="dialog"><svg class="icon"><use href="#i-user"/></svg><span id="account-label">Sign in</span></button><p>NASA Space Apps 2026<br>Independent team prototype</p></div></aside>
 <main><header class="page-head"><div><h1 id="page-title">Overview</h1><p id="page-subtitle">Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal</p></div><div class="head-meta"><span class="status"><span class="dot" id="head-dot"></span><span id="head-status">Camera off</span></span><span id="clock"></span></div></header>
 
+<section id="mission" class="tab"></section>
 <section id="home" class="tab active">
 <dl class="stats"><div class="stat"><dt>Open safety events</dt><dd id="home-alerts">0</dd><span>This browser session</span></div><div class="stat"><dt>Camera</dt><dd id="home-camera">Off</dd><span>Video stays in this browser</span></div><div class="stat"><dt>Journal</dt><dd id="home-account">Guest</dd><span id="home-journal">Entries saved in this browser</span></div></dl>
 <div class="home-grid"><div class="panel"><div class="panel-head"><strong>Latest safety event</strong><button data-tab="alerts">All events</button></div><div id="home-latest" class="entries"></div></div>

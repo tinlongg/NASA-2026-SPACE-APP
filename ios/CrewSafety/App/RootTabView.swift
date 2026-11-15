@@ -13,6 +13,8 @@ struct RootTabView: View {
 
     private var tabs: some View {
         TabView {
+            MissionView()
+                .tabItem { Label("Mission", systemImage: "sparkles") }
             DashboardView()
                 .tabItem { Label("Dashboard", systemImage: "person.3.fill") }
             CameraMonitorView()
