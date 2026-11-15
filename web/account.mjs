@@ -12,6 +12,8 @@ const ACCT_ITERATIONS = 100000; // Workers' WebCrypto rejects PBKDF2 above 100,0
 const ACCT_MAX_USERS = 5000;
 const ACCT_MAX_ENTRIES = 500;
 const ACCT_MAX_ENTRY = 10000;
+const ACCT_MAX_SUIT_CHECKS = 50;
+const ACCT_MAX_PHOTOS = 60, ACCT_PHOTO_BODY = 400000, ACCT_PHOTO_BYTES = 280000;
 
 const acctJSON = (value, status = 200, headers = {}) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers } });
 const acctError = (status, message) => Object.assign(new Error(message), { status });
@@ -172,6 +174,16 @@ export async function journalRecall(env, userId, text, { limit = 3, minimum = 0.
   return scored.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
+/** The entry's photo plus up to two earlier photos (oldest and most recent) for the same user. */
+export async function journalPhotosForCompare(env, userId, entryId) {
+  const db = acctDB(env);
+  const current = await db.prepare('SELECT e.created AS date, e.sleep_hours, p.mime, p.data FROM journal_entries e JOIN journal_photos p ON p.entry_id = e.id WHERE e.id = ? AND e.user_id = ?').bind(entryId.toLowerCase(), userId).first();
+  if (!current) return null;
+  const { results } = await db.prepare('SELECT e.created AS date, e.sleep_hours, p.mime, p.data FROM journal_entries e JOIN journal_photos p ON p.entry_id = e.id WHERE e.user_id = ? AND e.created < ? ORDER BY e.created ASC').bind(userId, current.date).all();
+  const earlier = results.length > 1 ? [results[0], results.at(-1)] : results;
+  return { current, earlier };
+}
+
 export function createAccounts() {
   const attempts = new Map(); let windowStart = 0;
   const allowAttempt = request => { // Best-effort, per isolate: slows password guessing.
@@ -201,8 +213,8 @@ export function createAccounts() {
   /** Handles /api/auth/* and the journal store routes; returns null for anything else. */
   return async function handleAccount(request, env) {
     const url = new URL(request.url), path = url.pathname, method = request.method;
-    const entryMatch = path.match(/^\/api\/journal\/entries\/([0-9a-f-]{36})$/);
-    if (!path.startsWith('/api/auth/') && path !== '/api/journal/entries' && path !== '/api/journal/search' && !entryMatch) return null;
+    const entryMatch = path.match(/^\/api\/journal\/entries\/([0-9a-f-]{36})$/), photoMatch = path.match(/^\/api\/journal\/entries\/([0-9a-f-]{36})\/photo$/);
+    if (!path.startsWith('/api/auth/') && path !== '/api/journal/entries' && path !== '/api/journal/search' && path !== '/api/suit/checks' && !entryMatch && !photoMatch) return null;
     try {
       if (method !== 'GET' && request.headers.get('Origin') !== url.origin) throw acctError(403, 'Use accounts on this website.');
       if (path === '/api/auth/me' && method === 'GET') return acctJSON({ available: Boolean(env.DB), user: await accountUser(request, env).then(user => user && { username: user.username }) });
@@ -237,30 +249,88 @@ export function createAccounts() {
       const user = await accountUser(request, env);
       if (!user) throw acctError(401, 'Sign in to use your account journal.');
       if (path === '/api/journal/entries' && method === 'GET') {
-        const { results } = await db.prepare('SELECT id, created, body FROM journal_entries WHERE user_id = ? ORDER BY created DESC LIMIT ?').bind(user.id, ACCT_MAX_ENTRIES).all();
-        return acctJSON({ entries: results.map(row => ({ id: row.id, date: new Date(row.created).toISOString(), body: row.body })), index: { model: VEC_MODEL, dimensions: VEC_DIM, limit: ACCT_MAX_ENTRIES } });
+        const { results } = await db.prepare('SELECT e.id, e.created, e.body, e.sleep_hours, (SELECT 1 FROM journal_photos p WHERE p.entry_id = e.id) AS has_photo FROM journal_entries e WHERE e.user_id = ? ORDER BY e.created DESC LIMIT ?').bind(user.id, ACCT_MAX_ENTRIES).all();
+        return acctJSON({ entries: results.map(row => ({ id: row.id, date: new Date(row.created).toISOString(), body: row.body, hasPhoto: Boolean(row.has_photo), sleepHours: row.sleep_hours ?? null })), index: { model: VEC_MODEL, dimensions: VEC_DIM, limit: ACCT_MAX_ENTRIES } });
       }
       if (path === '/api/journal/entries' && method === 'POST') {
         const body = await acctReadJSON(request, 49152);
-        if (!acctOnlyKeys(body, ['body', 'date']) || typeof body.body !== 'string' || !body.body.trim() || body.body.length > ACCT_MAX_ENTRY) throw acctError(400, 'Send one entry of up to 10,000 characters.');
+        if (!acctOnlyKeys(body, ['body', 'date', 'sleepHours']) || typeof body.body !== 'string' || !body.body.trim() || body.body.length > ACCT_MAX_ENTRY) throw acctError(400, 'Send one entry of up to 10,000 characters.');
         let created = Date.now();
         if (body.date !== undefined) { // Lets a browser upload entries it saved earlier, with their dates.
           created = typeof body.date === 'string' && body.date.length <= 40 ? Date.parse(body.date) : NaN;
           if (!Number.isFinite(created) || created > Date.now() + 60000 || created < 0) throw acctError(400, 'Invalid entry date.');
         }
-        const entry = { id: crypto.randomUUID(), date: new Date(created).toISOString(), body: body.body.trim() };
-        const saved = await db.prepare('INSERT INTO journal_entries (id, user_id, created, body, embedding, model) SELECT ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM journal_entries WHERE user_id = ?) < ?').bind(entry.id, user.id, created, entry.body, encodeVector(embedText(entry.body)), VEC_MODEL, user.id, ACCT_MAX_ENTRIES).run();
+        let sleepHours = null;
+        if (body.sleepHours !== undefined && body.sleepHours !== null) {
+          if (typeof body.sleepHours !== 'number' || !Number.isFinite(body.sleepHours) || body.sleepHours < 0 || body.sleepHours > 24) throw acctError(400, 'Sleep hours must be a number from 0 to 24.');
+          sleepHours = Math.round(body.sleepHours * 10) / 10;
+        }
+        const entry = { id: crypto.randomUUID(), date: new Date(created).toISOString(), body: body.body.trim(), sleepHours };
+        const saved = await db.prepare('INSERT INTO journal_entries (id, user_id, created, body, embedding, model, sleep_hours) SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM journal_entries WHERE user_id = ?) < ?').bind(entry.id, user.id, created, entry.body, encodeVector(embedText(entry.body)), VEC_MODEL, sleepHours, user.id, ACCT_MAX_ENTRIES).run();
         if (!saved.meta.changes) throw acctError(409, `Your account journal is full (${ACCT_MAX_ENTRIES} entries). Delete some first.`);
         return acctJSON({ entry }, 201);
       }
+      if (photoMatch) {
+        const entryId = photoMatch[1].toLowerCase();
+        if (!await db.prepare('SELECT id FROM journal_entries WHERE id = ? AND user_id = ?').bind(entryId, user.id).first()) throw acctError(404, 'Entry not found.');
+        if (method === 'GET') {
+          const row = await db.prepare('SELECT mime, data FROM journal_photos WHERE entry_id = ? AND user_id = ?').bind(entryId, user.id).first();
+          if (!row) throw acctError(404, 'No photo on this entry.');
+          return new Response(Uint8Array.from(atob(row.data), char => char.charCodeAt(0)), { headers: { 'Content-Type': row.mime, 'Cache-Control': 'private, no-store', 'X-Content-Type-Options': 'nosniff' } });
+        }
+        if (method === 'DELETE') {
+          await db.prepare('DELETE FROM journal_photos WHERE entry_id = ? AND user_id = ?').bind(entryId, user.id).run();
+          return acctJSON({ deleted: true });
+        }
+        if (method === 'PUT') {
+          const body = await acctReadJSON(request, ACCT_PHOTO_BODY);
+          if (!acctOnlyKeys(body, ['image', 'width', 'height']) || typeof body.image !== 'string' || !/^[A-Za-z0-9+/]+={0,2}$/.test(body.image)) throw acctError(400, 'Send a base64 JPEG as image, with width and height.');
+          const { width, height } = body;
+          if (![width, height].every(value => Number.isInteger(value) && value > 0 && value <= 4096)) throw acctError(400, 'Send the photo width and height.');
+          let bytes; try { bytes = Uint8Array.from(atob(body.image), char => char.charCodeAt(0)); } catch { throw acctError(400, 'Invalid image data.'); }
+          if (bytes.length > ACCT_PHOTO_BYTES) throw acctError(413, 'Photo is too large.');
+          if (bytes.length < 4 || bytes[0] !== 0xff || bytes[1] !== 0xd8 || bytes[2] !== 0xff) throw acctError(415, 'Only JPEG photos are accepted.');
+          const replaced = await db.prepare('SELECT 1 AS found FROM journal_photos WHERE entry_id = ?').bind(entryId).first();
+          if (replaced) await db.prepare('DELETE FROM journal_photos WHERE entry_id = ?').bind(entryId).run();
+          const saved = await db.prepare('INSERT INTO journal_photos (id, user_id, entry_id, created, mime, width, height, data) SELECT ?, ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM journal_photos WHERE user_id = ?) < ?').bind(crypto.randomUUID(), user.id, entryId, Date.now(), 'image/jpeg', width, height, body.image, user.id, ACCT_MAX_PHOTOS).run();
+          if (!saved.meta.changes) throw acctError(409, `Your account has ${ACCT_MAX_PHOTOS} photos. Delete some first.`);
+          return acctJSON({ photo: { width, height } }, 201);
+        }
+        throw acctError(405, 'Unsupported photo operation.');
+      }
       if (path === '/api/journal/entries' && method === 'DELETE') {
+        await db.prepare('DELETE FROM journal_photos WHERE user_id = ?').bind(user.id).run();
         await db.prepare('DELETE FROM journal_entries WHERE user_id = ?').bind(user.id).run();
         return acctJSON({ deleted: true });
       }
       if (entryMatch && method === 'DELETE') {
         const removed = await db.prepare('DELETE FROM journal_entries WHERE id = ? AND user_id = ?').bind(entryMatch[1].toLowerCase(), user.id).run();
         if (!removed.meta.changes) throw acctError(404, 'Entry not found.');
+        await db.prepare('DELETE FROM journal_photos WHERE entry_id = ? AND user_id = ?').bind(entryMatch[1].toLowerCase(), user.id).run();
         return acctJSON({ deleted: true });
+      }
+      if (path === '/api/suit/checks') {
+        if (method === 'GET') {
+          const { results } = await db.prepare('SELECT id, created, overall, items FROM suit_checks WHERE user_id = ? ORDER BY created DESC LIMIT 5').bind(user.id).all();
+          return acctJSON({ checks: results.map(row => ({ id: row.id, date: new Date(row.created).toISOString(), overall: row.overall, items: JSON.parse(row.items) })) });
+        }
+        if (method === 'POST') {
+          const body = await acctReadJSON(request, 16384);
+          if (!acctOnlyKeys(body, ['items']) || !Array.isArray(body.items) || !body.items.length || body.items.length > 40) throw acctError(400, 'Send between 1 and 40 suit check items.');
+          const seen = new Set(), items = body.items.map(item => {
+            if (!item || typeof item !== 'object' || !acctOnlyKeys(item, ['id', 'status', 'note']) || typeof item.id !== 'string' || !/^[a-z0-9-]{1,40}$/.test(item.id) || seen.has(item.id) || !['pass', 'fail', 'unchecked'].includes(item.status) || (item.note !== undefined && (typeof item.note !== 'string' || item.note.length > 300))) throw acctError(400, 'Invalid suit check item.');
+            seen.add(item.id); return { id: item.id, status: item.status, note: (item.note || '').trim() };
+          });
+          const overall = items.some(item => item.status === 'fail') ? 'not-ready' : items.every(item => item.status === 'pass') ? 'ready' : 'incomplete';
+          const check = { id: crypto.randomUUID(), date: new Date().toISOString(), overall, items };
+          const saved = await db.prepare('INSERT INTO suit_checks (id, user_id, created, overall, items) SELECT ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM suit_checks WHERE user_id = ?) < ?').bind(check.id, user.id, Date.parse(check.date), overall, JSON.stringify(items), user.id, ACCT_MAX_SUIT_CHECKS).run();
+          if (!saved.meta.changes) { // Keep the newest inspections: drop the oldest, then insert.
+            await db.prepare('DELETE FROM suit_checks WHERE id = (SELECT id FROM suit_checks WHERE user_id = ? ORDER BY created ASC LIMIT 1)').bind(user.id).run();
+            await db.prepare('INSERT INTO suit_checks (id, user_id, created, overall, items) VALUES (?, ?, ?, ?, ?)').bind(check.id, user.id, Date.parse(check.date), overall, JSON.stringify(items)).run();
+          }
+          return acctJSON({ check }, 201);
+        }
+        throw acctError(405, 'Unsupported suit check operation.');
       }
       if (path === '/api/journal/search' && method === 'POST') {
         const body = await acctReadJSON(request, 4096);

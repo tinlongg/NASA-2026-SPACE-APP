@@ -182,3 +182,45 @@ tests; hiding it releases the camera and stops the session.
 4. Apply and verify hosted migrations/secrets before a separate deployment; a GitHub pull does not
    update the hosted site or the installed simulator app.
 5. A neural embedding API is optional follow-up, not a dependency of the present journal recall.
+
+## Roadmap progress — 2026-11-15 (branch `claude/muse-agent-features-7801dc`)
+
+Plan: `docs/ROADMAP_PLAN.md` (in worktree `crewsafety-roadmap-9c2217`, not yet committed).
+
+- **Phase 0 done.** The six `pbxproj` usage strings no longer say "possible fall". The iOS suite was not rerun for this string-only change.
+- **Phase 2 done (web).** Journal photos: migration `0002_journal_photos.sql`, photo routes in `web/account.mjs`, `web/dist/journal-photo.js`, a day-by-day history in the Journal tab, and `web/tests/journal-photo.test.mjs`. Web suite is now 46/46 on Node 22. Checked in the local browser with a synthetic image: upload, thumbnail and day navigation. Not verified: webcam still capture, hosted D1 migration, mobile camera capture.
+- **Not started:** Phase 1 (needs a live camera test with the user), Phase 3 (D1: confirm the Meta model accepts images first), Phase 4 (needs `ELEVENLABS_API_KEY`), Phase 5 (needs a NASA source for the suit layers, D6), Phase 6, Phase 7 (needs sensor hardware).
+- The Raspberry Pi 4 could not be found on the LAN (no mDNS name, no open SSH port) and no green activity LED was reported; likely not booting.
+
+### Phase 3 — MUSE vision (2026-11-15)
+
+- D1 resolved from Meta's media-understanding and models docs: `muse-spark-1.3` accepts images on chat-completions as `{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}` in a `user` message.
+- Built: `POST /api/journal/photos/compare` (3a) and `POST /api/coach/look` (3b) in `web/worker.mjs`, `journalPhotosForCompare` in `web/account.mjs`, a compare control per photo entry, and the opt-in "second look" in the Monitor tab. The reply is stored on the event as `lookNote`, next to `snapshot`, so the JSON export shows detector metrics and MUSE side by side. Web suite: 51/51 (Node 22).
+- **Live provider check, 2026-11-15:** with the real `META_API_KEY` (copied from the design-auth worktree's ignored `web/.env`), both routes returned 200 from `muse-spark-1.3` for synthetic solid-colour JPEGs, and described them neutrally as having no person. Not yet tried with a real face photo or a real webcam alert.
+- Camera copy changed from "never uploaded" to "stays on this device unless you turn on the second look".
+- The weight idea is not implemented: a photo cannot measure weight. A manual number field on the entry is the suggested route.
+
+### Phase 4 — ElevenLabs check-in voice (2026-11-15)
+
+- `backend/scripts/generate_voice.py` reads `ios/CrewSafety/Resources/Voice/phrases.json` and writes one mp3 per phrase with ElevenLabs (default voice Sarah, `eleven_multilingual_v2`). The key comes from `ELEVENLABS_API_KEY` or the git-ignored `backend/.env`; only the clip is committed. Re-run with `--force` to change voice or wording.
+- `CheckInVoice.speak` plays the bundled clip for an exact phrase match with `AVAudioPlayer`, and falls back to `AVSpeechSynthesizer` for any other phrase or a playback failure. Listening is still on-device. The lazy-creation and repeated-`stop()` behaviour is unchanged.
+- iOS suite: 56/56 on iPhone 17 / iOS 26.5 (two new clip-lookup tests). Verified by ear in the iPhone 17 simulator (Synthetic Stops Moving): the ElevenLabs clip played and the 60-second countdown ran, with speech and notification permission declined. Not verified: a physical iPhone, or listening after the clip with speech permission granted.
+- The ElevenLabs key was pasted in chat; rotate it in the ElevenLabs dashboard and update `backend/.env`.
+
+### Sleep notes, photo trend and suit check (2026-11-15)
+
+- Decision with the user: no feature judges health from photos ("needs more sleep or muscle"). Instead entries take self-reported sleep hours, the Journal tab shows recent photos beside those numbers, and photo comparison gets the numbers as context only.
+- Suit check tab built (`web/dist/suit-layers.js`, `/api/suit/checks`, migration `0003_sleep_and_suit.sql`). **The items are grouped inspection areas, not NASA's 14 layers**: the sources found disagree on the split and the primary PDFs could not be read. A reviewer must read the NASA text and itemise the layers; then edit `suit-layers.js` and the entries in `docs/SOURCES.md`. Helmet/glove and leak-check items come from general knowledge and are also pending review.
+- Web suite 56/56 (Node 22). Checked in the local browser: suit save with a failed item produced a Manual entry event and history row; sleep logging and the photo-trend strip rendered. Not verified: hosted D1 migration, guest-mode suit history across reloads, iOS suit badge (not built).
+
+### Fixes and restyle (2026-11-15)
+
+- **Camera Coach "did not return a complete explanation":** reproduced with the real key. `muse-spark-1.3` spent all 1,200 `max_completion_tokens` on reasoning (1,198 reasoning tokens, no answer). The limit is now 4,000 for the coach, journal reflection and vision routes; the coach then answered normally (about 930 reasoning tokens). The error text still says "try a shorter question", which is misleading for this cause.
+- **Suit check controls:** the global `input:not([type=checkbox])` style gave radios full width. They are now a segmented Pass / Fail / Not checked control.
+- **Journal calendar (web):** month grid above the entries; days with entries are marked, a ring marks a photo; account users see one selected day, guests can click a day to filter and "Show all". Not built on iOS.
+- **iOS restyle:** `Theme.swift` now uses the website's graphite palette with indicator green, amber for the Simulated badge, 12 px cards, dark-only (`preferredColorScheme(.dark)`), and a graphite tab bar. The Space Apps blue/yellow palette is gone. Checked on the Dashboard only; other screens were not reviewed visually. iOS suite 56/56.
+
+### iOS: MUSE chat removed, journal calendar added (2026-11-15)
+
+- Removed the MUSE chat tab and everything behind it: `Features/MuseChat`, `MuseService`, the MUSE settings section, `MUSE_BASE_URL`, the bundled fallback answers and their tests. The FastAPI `/chat` route is untouched but nothing in the iOS app calls it now. `docs/EXECUTION_PLAN.md` and `docs/IOS_WEB_CONNECTION.md` still describe the chat in their bodies.
+- Added a month calendar to the iOS Journal tab (`JournalCalendarView.swift`): days with entries are marked, tapping one filters History to that day, "Show all" clears it. iOS suite is now 43 tests (the removed MUSE tests were 16, the new calendar tests 3), all passing. Checked in the simulator that the calendar renders with the marked day; tapping a day to filter was not confirmed visually.

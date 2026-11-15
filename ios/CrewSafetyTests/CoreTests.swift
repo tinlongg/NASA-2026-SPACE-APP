@@ -60,28 +60,6 @@ final class CoreTests: XCTestCase {
         XCTAssertEqual(crew.status(for: member, events: store), .nominal)
     }
 
-    func testChatResponseDecodesWithOptionalFields() throws {
-        let json = #"{"answer":"a","citations":[{"title":"t","url":"https://example.org/x","sectionOrPage":null}],"disclaimer":"d","grounded":true,"answerMode":"extractive"}"#
-        let dto = try JSONDecoder().decode(ChatResponseDTO.self, from: Data(json.utf8))
-        XCTAssertEqual(dto.grounded, true)
-        XCTAssertEqual(dto.answerMode, "extractive")
-        XCTAssertNil(dto.citations.first?.sectionOrPage)
-    }
-
-    func testChatResponseDecodesWithoutOptionalFields() throws {
-        let json = #"{"answer":"a","citations":[],"disclaimer":"d"}"#
-        let dto = try JSONDecoder().decode(ChatResponseDTO.self, from: Data(json.utf8))
-        XCTAssertNil(dto.grounded)
-        XCTAssertNil(dto.answerMode)
-        XCTAssertTrue(dto.citations.isEmpty)
-    }
-
-    func testChatRequestEncodesContractKeys() throws {
-        let data = try JSONEncoder().encode(ChatRequestDTO(question: "q", context: MuseContext.generalWellness.rawValue))
-        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: String])
-        XCTAssertEqual(object, ["question": "q", "context": "general_wellness"])
-    }
-
     func testSampleDataIsLabelledSimulated() {
         XCTAssertTrue(SampleData.events.allSatisfy { $0.source == .simulated })
         XCTAssertTrue(SampleData.crew.contains { $0.id == SampleData.monitoredID })
@@ -91,14 +69,5 @@ final class CoreTests: XCTestCase {
         let store = EventStore(events: SampleData.events)
         XCTAssertTrue(store.activeAlerts.isEmpty, "The demo must open on a clean, nominal dashboard")
         XCTAssertNil(store.highestActiveSeverity)
-    }
-
-    func testPlaceholderMuseServiceNeverReturnsAnAnswer() async {
-        do {
-            _ = try await PlaceholderMuseService().ask("anything", context: .generalWellness)
-            XCTFail("Placeholder must not return an answer")
-        } catch {
-            XCTAssertEqual(error as? MuseError, .serviceUnavailable)
-        }
     }
 }

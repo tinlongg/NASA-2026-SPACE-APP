@@ -5,9 +5,14 @@ import Speech
 ///
 /// Listening starts only after the question has finished playing, so the app never hears its own
 /// prompt ("Say I'm okay") as an answer. Audio is not stored or sent.
+///
+/// Fixed phrases are played from bundled clips (generated once with ElevenLabs by
+/// `backend/scripts/generate_voice.py`), so the check-in works offline and never waits on a network
+/// request. Any phrase without a clip, or a clip that fails to play, falls back to the system voice.
 @MainActor
-final class CheckInVoice: NSObject, AVSpeechSynthesizerDelegate {
+final class CheckInVoice: NSObject, AVSpeechSynthesizerDelegate, AVAudioPlayerDelegate {
     private var synthesizer: AVSpeechSynthesizer?
+    private var player: AVAudioPlayer?
     private var engine: AVAudioEngine?
     private var tappedInput: AVAudioInputNode?
     private var sessionActive = false
@@ -18,6 +23,7 @@ final class CheckInVoice: NSObject, AVSpeechSynthesizerDelegate {
     /// Speaks `text` and returns when it has finished (or was stopped).
     func speak(_ text: String) async {
         configureSession()
+        if await playClip(for: text) { return }
         let synthesizer = synthesizer ?? AVSpeechSynthesizer()
         self.synthesizer = synthesizer
         synthesizer.delegate = self
@@ -27,6 +33,31 @@ final class CheckInVoice: NSObject, AVSpeechSynthesizerDelegate {
             utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
             synthesizer.speak(utterance)
         }
+    }
+
+    /// The bundled clip for an exact phrase, listed in `Voice/phrases.json`, or nil when there is none.
+    static func clipURL(for text: String, in bundle: Bundle = .main) -> URL? {
+        guard let list = bundle.url(forResource: "phrases", withExtension: "json"),
+              let data = try? Data(contentsOf: list),
+              let phrases = try? JSONDecoder().decode([Phrase].self, from: data),
+              let name = phrases.first(where: { $0.text == text })?.name else { return nil }
+        return bundle.url(forResource: name, withExtension: "mp3")
+    }
+
+    private struct Phrase: Decodable { let name: String; let text: String }
+
+    /// Plays the bundled clip and returns true when it played to the end (or was stopped).
+    private func playClip(for text: String) async -> Bool {
+        guard let url = Self.clipURL(for: text),
+              let player = try? AVAudioPlayer(contentsOf: url) else { return false }
+        player.delegate = self
+        self.player = player
+        guard player.prepareToPlay() else { self.player = nil; return false }
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            speechFinished = continuation
+            if !player.play() { resumeSpeech() }
+        }
+        return true
     }
 
     /// Asks for microphone and speech permission. Call when monitoring starts, never during a check-in,
@@ -85,6 +116,8 @@ final class CheckInVoice: NSObject, AVSpeechSynthesizerDelegate {
     /// Stops speaking and listening and releases the microphone.
     func stop() {
         if let synthesizer, synthesizer.isSpeaking { synthesizer.stopSpeaking(at: .immediate) }
+        player?.stop()
+        player = nil
         resumeSpeech()
         if let engine, engine.isRunning { engine.stop() }
         // Accessing engine.inputNode creates audio I/O. Cleanup must not open a microphone
@@ -126,6 +159,14 @@ final class CheckInVoice: NSObject, AVSpeechSynthesizerDelegate {
         }
         guard speech else { return false }
         return await AVAudioApplication.requestRecordPermission()
+    }
+
+    nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
+        Task { @MainActor in self.resumeSpeech() }
+    }
+
+    nonisolated func audioPlayerDecodeErrorDidOccur(_ player: AVAudioPlayer, error: Error?) {
+        Task { @MainActor in self.resumeSpeech() }
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {

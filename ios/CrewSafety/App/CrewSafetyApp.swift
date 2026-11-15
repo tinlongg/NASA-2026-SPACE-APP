@@ -10,18 +10,37 @@ struct CrewSafetyApp: App {
     @State private var services: AppServices
 
     init() {
-        let settings = AppSettings(museMode: .demo, museBaseURL: AppConfig.museBaseURL)
+        let settings = AppSettings()
         _eventStore = State(initialValue: EventStore(events: SampleData.events))
         _crewStore = State(initialValue: CrewStore(crew: SampleData.crew,
                                                    monitoredCrewMemberID: SampleData.monitoredID))
         _settings = State(initialValue: settings)
         _services = State(initialValue: ServiceFactory.makeServices(settings: settings))
         AlertNotifier.shared.install()
+        Self.applyAppearance()
+    }
+
+    /// Graphite bars to match the website: flat surfaces, a hairline, green selection.
+    private static func applyAppearance() {
+        let tab = UITabBarAppearance()
+        tab.configureWithOpaqueBackground()
+        tab.backgroundColor = Brand.surface
+        tab.shadowColor = Brand.line
+        for item in [tab.stackedLayoutAppearance, tab.inlineLayoutAppearance, tab.compactInlineLayoutAppearance] {
+            item.selected.iconColor = Brand.accent
+            item.selected.titleTextAttributes = [.foregroundColor: Brand.accent]
+            item.normal.iconColor = Brand.text3
+            item.normal.titleTextAttributes = [.foregroundColor: Brand.text3]
+        }
+        UITabBar.appearance().standardAppearance = tab
+        UITabBar.appearance().scrollEdgeAppearance = tab
     }
 
     var body: some Scene {
         WindowGroup {
             RootTabView()
+                .preferredColorScheme(.dark)
+                .tint(Theme.accent)
                 .environment(eventStore)
                 .environment(crewStore)
                 .environment(settings)
@@ -34,12 +53,7 @@ struct CrewSafetyApp: App {
                         dashboardSync.status = "Paused while app is in the background"
                     }
                 }
-                .onChange(of: settings.museMode) { rebuildMuse() }
-                .onChange(of: settings.museBaseURL) { rebuildMuse() }
         }
     }
 
-    private func rebuildMuse() {
-        services.muse = ServiceFactory.makeMuse(settings: settings)
-    }
 }

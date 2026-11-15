@@ -5,7 +5,7 @@ import { pathToFileURL } from 'node:url';
 
 export async function loadAssets() {
   const assets = {};
-  for (const [name, type] of Object.entries({ 'index.html': 'text/html', 'journal-sentiment.js': 'application/javascript', 'sentiment-lexicon.js': 'application/javascript', 'sentiment-license.txt': 'text/plain', 'styles.css': 'text/css', 'app.js': 'application/javascript', 'detector.js': 'application/javascript', 'fixtures.js': 'application/javascript', 'offline-config.js': 'application/javascript', 'crew-sync.js': 'application/javascript', 'account.js': 'application/javascript', 'crew-sync.css': 'text/css', 'research.js': 'application/javascript', 'research.css': 'text/css', 'data/nasa-research.json': 'application/json' })) {
+  for (const [name, type] of Object.entries({ 'index.html': 'text/html', 'journal-sentiment.js': 'application/javascript', 'sentiment-lexicon.js': 'application/javascript', 'sentiment-license.txt': 'text/plain', 'styles.css': 'text/css', 'app.js': 'application/javascript', 'detector.js': 'application/javascript', 'fixtures.js': 'application/javascript', 'offline-config.js': 'application/javascript', 'crew-sync.js': 'application/javascript', 'account.js': 'application/javascript', 'journal-photo.js': 'application/javascript', 'suit-layers.js': 'application/javascript', 'crew-sync.css': 'text/css', 'research.js': 'application/javascript', 'research.css': 'text/css', 'data/nasa-research.json': 'application/json' })) {
     assets[`/${name}`] = { body: await readFile(new URL(`../dist/${name}`, import.meta.url), 'utf8'), type: `${type}; charset=utf-8` };
   }
   const serviceWorker = await readFile(new URL('../dist/sw.js', import.meta.url), 'utf8');
@@ -18,7 +18,7 @@ export async function loadAssets() {
 async function build() {
 const assets = await loadAssets();
 const sync = await readFile(new URL('../sync.mjs', import.meta.url), 'utf8');
-const source = (await readFile(new URL('../worker.mjs', import.meta.url), 'utf8')).replace("import { handleCrewSync } from './sync.mjs';", '').replace("import { createAccounts, accountUser, journalRecall } from './account.mjs';", '');
+const source = (await readFile(new URL('../worker.mjs', import.meta.url), 'utf8')).replace("import { handleCrewSync } from './sync.mjs';", '').replace("import { createAccounts, accountUser, journalRecall, journalPhotosForCompare } from './account.mjs';", '');
 if (/^import /m.test(source)) throw new Error('worker.mjs has an import the bundle does not inline.');
 const account = await readFile(new URL('../account.mjs', import.meta.url), 'utf8');
 const hosting = JSON.parse(await readFile(new URL('../.openai/hosting.json', import.meta.url), 'utf8'));

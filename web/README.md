@@ -9,7 +9,7 @@ Worker. The public test site is [CrewSafety Connected](https://crew-safety-conne
 
 Camera access needs HTTPS or localhost. The browser webcam will not work over a LAN HTTP address; the paired dashboard and synthetic replay do work there. The hosted HTTPS link uses each visitor's own camera; no remote camera video is streamed. Start camera explicitly and grant access. Stop, navigating away from Monitor, hiding the tab, and closing the page release the webcam. Permission failures and model-download failures show recovery messages. Use synthetic replay to test alerts without holding still for real.
 
-Camera frames are processed locally and never recorded/uploaded. MediaPipe JS/WASM and the model download from jsDelivr and Google. First use needs internet. Guest journal entries persist in localStorage; signed-in entries persist in the account database. Browser-generated events are session-only. Paired iPhone events persist in hosted D1 or the local backend. Any paired telemetry remains labelled Simulated.
+Camera frames are processed locally and never recorded. Only if you turn on the opt-in MUSE second look is one downscaled frame sent to the server and Meta when a live alert fires; it is not stored. MediaPipe JS/WASM and the model download from jsDelivr and Google. First use needs internet. Guest journal entries persist in localStorage; signed-in entries persist in the account database. Browser-generated events are session-only. Paired iPhone events persist in hosted D1 or the local backend. Any paired telemetry remains labelled Simulated.
 
 ## Paired iPhone dashboard
 
@@ -79,6 +79,32 @@ account journal. Server code is in `account.mjs`; tables are in `drizzle/0001_ac
   stay in localStorage. Browser entries move to the account only when the user clicks the move link.
 - Local `npm start` keeps accounts in ignored `web/.data/local.sqlite`; set `PORT` or `CREW_DB_PATH` to
   change the port or file. The FastAPI `/dashboard/` copy has no account routes, so it stays guest-only.
+
+### Journal photos
+
+Signed-in users can attach one JPEG to a journal entry (file picker or a single webcam still). The browser
+resizes it to at most 768 px and re-encodes it, which drops EXIF data, before upload. Photos live in the
+`journal_photos` table (`drizzle/0002_journal_photos.sql`; apply it to hosted D1 before deploying) as base64,
+unencrypted, capped at 60 per account and about 280 KB each. Routes: `PUT|GET|DELETE
+/api/journal/entries/:id/photo`; `GET /api/journal/entries` only reports `hasPhoto`. Photo responses send
+`Cache-Control: private, no-store` and are never cached by the service worker. Deleting an entry or all entries
+deletes its photos. Guests cannot add photos. The Journal tab groups account entries by day with earlier/later controls.
+
+### MUSE vision
+
+Both routes call `muse-spark-1.3` on the Meta chat-completions endpoint with an `image_url` data URL (confirmed in the Meta media-understanding docs on 2026-11-15; not yet exercised against the live provider from this repo).
+
+- `POST /api/journal/photos/compare` `{ entryId, consent: true }` (sign-in required). The server picks the entry's photo plus the oldest and most recent earlier photos; the browser never supplies images. Replies describe visible differences only, with the fixed line "Describes visible differences only. Not a health assessment." No weight estimate, condition or advice.
+- `POST /api/coach/look` `{ source: 'live', frame }`: one JPEG of at most about 250 KB, live input only (replay is rejected). Off by default; the Monitor tab has the opt-in. The reply is attached to the event as `lookNote` beside the detector `snapshot` in the JSON export, so the team can compare MUSE with MediaPipe. It never raises, lowers, acknowledges or suppresses an alert, and the frame is not stored.
+- Both use the shared per-visitor generation rate limit.
+
+### Sleep notes and photo trend
+
+Entries can carry optional self-reported `sleepHours` (0–24, account and guest). The Journal tab shows a strip of the last eight photos with the sleep the person logged next to each. Photo comparison passes the logged hours to MUSE as context only; the prompt forbids saying sleep explains or caused anything, or that the person needs more or less of anything. No feature infers sleep, muscle or health from a photo.
+
+### Suit check
+
+The Suit check tab is a manual inspection record (Pass, Fail or Not checked per item, with a note). Overall state: Ready only if every item passes, Not ready if any fails, otherwise Incomplete. A failed item adds a "Manual entry" event to Safety events. Signed-in users save to `suit_checks` (`drizzle/0003_sleep_and_suit.sql`, which also adds `journal_entries.sleep_hours`; apply it to hosted D1) via `GET|POST /api/suit/checks`, keeping the newest 50 and showing five; guests keep the current check and last five in localStorage. The items are in `dist/suit-layers.js`. They are inspection areas, not NASA's final per-layer list: see `docs/SOURCES.md` (pending review). It does not sense the suit.
 
 ## Secrets and request limits
 

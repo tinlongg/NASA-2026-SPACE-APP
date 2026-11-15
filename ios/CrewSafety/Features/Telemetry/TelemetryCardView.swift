@@ -55,10 +55,10 @@ struct TelemetryCardView: View {
                             if let activity = sample.activityLevel {
                                 AreaMark(x: .value("Time", sample.timestamp), y: .value("Activity", activity))
                                     .interpolationMethod(.catmullRom)
-                                    .foregroundStyle(Theme.Palette.blueYonder.opacity(0.22))
+                                    .foregroundStyle(Theme.accent.opacity(0.22))
                                 LineMark(x: .value("Time", sample.timestamp), y: .value("Activity", activity))
                                     .interpolationMethod(.catmullRom)
-                                    .foregroundStyle(Theme.Palette.blueYonder)
+                                    .foregroundStyle(Theme.accent)
                             }
                         }
                         .chartYScale(domain: 0...1)
@@ -101,11 +101,11 @@ struct TelemetryCardView: View {
                 if let bpm = sample.heartRateBPM {
                     AreaMark(x: .value("Time", sample.timestamp), yStart: .value("Base", 50), yEnd: .value("Heart rate", bpm))
                         .interpolationMethod(.catmullRom)
-                        .foregroundStyle(LinearGradient(colors: [Theme.Palette.nasaRed.opacity(0.16), Theme.Palette.nasaRed.opacity(0)],
+                        .foregroundStyle(LinearGradient(colors: [Theme.critical.opacity(0.16), Theme.critical.opacity(0)],
                                                         startPoint: .top, endPoint: .bottom))
                     LineMark(x: .value("Time", sample.timestamp), y: .value("Heart rate", bpm))
                         .interpolationMethod(.catmullRom)
-                        .foregroundStyle(Theme.Palette.nasaRed)
+                        .foregroundStyle(Theme.critical)
                         .lineStyle(StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
                 }
             }
