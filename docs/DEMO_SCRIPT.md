@@ -1,28 +1,32 @@
 # Demo script
 
-About 2 minutes 45 seconds. One presenter talks, one operates the phone, one performs the fall onto a mat. Phone on a stand, mirrored to the projector.
+About 2 minutes 45 seconds. Use the native iPhone app when a working Xcode/signing setup is available.
+The web companion is the cross-platform testing fallback. Current fixtures are generated poses, so
+the default demonstration uses synthetic replay and says so explicitly. Real camera/phone validation
+remains pending; do not act out a fall to make the demo work.
 
 | Time | On screen | Say |
 | --- | --- | --- |
-| 0:00 | Slide: problem | "Crews in isolated habitats have limited medical support and long stretches alone. We built a prototype that watches for a possible fall and puts NASA wellness research one question away. This is a hackathon prototype, not a medical device." |
-| 0:20 | Dashboard | "This is a simulated crew. The heart-rate chart is simulated data and is labelled that way. Status is nominal." |
-| 0:35 | Monitor tab, Start monitoring | "Pose estimation runs on the phone with Apple's Vision framework. No video is stored or sent." |
-| 0:50 | Teammate falls onto the mat and stays down | "Our heuristic looks for a fast drop followed by staying low. It flags a *possible* fall." |
-| 1:00 | Banner appears; open the alert | "Here is the alert: timestamp, the reason the heuristic fired, and a heuristic score, which is not a probability. Sitting or lying down slowly does not trigger it." |
-| 1:15 | Acknowledge; back to dashboard | "A crewmate acknowledges it and the status clears." |
-| 1:25 | MUSE tab; ask a prepared question on exercise or isolation | "MUSE retrieves passages from a small set of NASA documents we curated and answers only from those." |
-| 1:45 | Answer with citations; tap one | "Every answer shows its sources, and they open the real document. If nothing relevant is found, it says so." |
-| 2:00 | Journal tab; type a short note; save | "The journal stays on the device. The summary lists themes the person wrote about. It does not score mood or diagnose anything." |
-| 2:20 | Slide: limitations and next steps | "Limits: the fall heuristic assumes gravity, one person and a fixed camera, and it will make mistakes. Vital signs are simulated. Next: validated sensors, a larger corpus, testing in an analog habitat." |
+| 0:00 | Problem slide | “This prototype flags possible falls and puts NASA research one question away. It is not a medical device.” |
+| 0:20 | Dashboard | “This is a simulated crew. The heart-rate values are generated, not wearable readings.” |
+| 0:35 | Monitor → Synthetic Fall / Possible fall replay | “This is a generated pose sequence, not a recording of a person. It exercises our deterministic detector locally.” |
+| 0:55 | Event banner → Safety events | “The heuristic flagged a possible fall after a rapid drop and sustained low posture. This does not establish an actual fall or injury.” |
+| 1:10 | Acknowledge | “Acknowledging clears this event. Synthetic sit and slow-descent tests do not alert; real-device behavior still needs validation.” |
+| 1:25 | MUSE Research → a prepared question | “MUSE retrieves passages from our small NASA corpus. Camera Coach is a separate optional explanation of numerical camera data.” |
+| 1:45 | Source links | “These links identify the documents and sections. OSDR study OSD-946 is a ground bed-rest study; this app does not analyze its raw data. Independent source review is pending.” |
+| 2:00 | Journal → save a sample note | “The journal stays on this device. Its summary describes written themes without scoring mood or diagnosing.” |
+| 2:20 | Limitations slide | “The camera heuristic assumes one person, gravity and fixed framing. Telemetry is simulated, the corpus is small, and real-world camera/offline tests remain to be completed.” |
 
-**If something fails live**
+## Fallbacks
 
-| Failure | Fallback | What to say |
+| Failure | Action | Accurate wording |
 | --- | --- | --- |
-| Live detection does not fire | Use the Replay control | "This is a replay of a fall we recorded earlier, running through the same detector." |
-| Backend unreachable | Switch MUSE to demo mode in settings | "We're offline, so this is a precomputed answer from the same system. It's labelled Demo mode." |
-| App or phone fails | Play the backup recording | "This is a recording of the app from earlier today." |
+| Webcam/phone camera unavailable | Use generated replay | “This is synthetic input through the same detector.” |
+| Model fails | Show extractive answer | “Generation is unavailable, so these are unedited retrieved passages.” |
+| Backend unreachable | Native: settings → MUSE Demo; web: Demo mode and a prepared question | “This is a saved answer exported from the same research service, labelled Demo mode.” |
+| App or phone fails | Open the web companion online | “This is the browser testing companion, using MediaPipe instead of Apple Vision.” |
+| Network unavailable | Use a previously prepared browser cache or native demo | “These features are local; external source pages and live AI may be unavailable.” |
 
-Never describe a replay, a precomputed answer or the simulated chart as live or real.
-
-In the app the fallback controls are: **Monitor → Replay → Synthetic Fall**, and **Dashboard → gear → MUSE mode → Demo**.
+No backup recording exists yet. Do not claim to play a recording unless someone has actually recorded
+and checked it. Before relying on browser offline mode, cache the shell/model and test a disconnected
+reload on the actual device. Never describe replay, precomputed answers, or generated telemetry as live.

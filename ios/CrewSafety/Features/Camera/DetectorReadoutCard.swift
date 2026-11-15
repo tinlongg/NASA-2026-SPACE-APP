@@ -36,7 +36,7 @@ struct DetectorReadoutCard: View {
                 if let score = model.lastDetection?.score {
                     Text("Last heuristic score \(percent(score)) · not a probability")
                         .font(.caption.monospacedDigit())
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
         }

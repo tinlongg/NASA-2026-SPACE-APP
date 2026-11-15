@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Small status dot, the one place a status color appears as a shape.
+/// Small status dot, used in event rows and the camera status line.
 struct StatusDot: View {
     let color: Color
     var body: some View {
@@ -10,15 +10,24 @@ struct StatusDot: View {
 
 struct StatusBadge: View {
     let status: CrewStatus
-    var body: some View {
-        HStack(spacing: 6) {
-            StatusDot(color: status.color)
-            Text(status.displayName)
-                .font(.caption.weight(.medium))
-                .foregroundStyle(status.color)
+
+    private var foreground: Color {
+        switch status {
+        case .nominal: Theme.onAccent
+        case .attention: Theme.onHighlight
+        case .alert: Theme.onCritical
         }
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel("Status: \(status.displayName)")
+    }
+
+    var body: some View {
+        Label(status.displayName, systemImage: status.symbolName)
+            .font(.caption.weight(.semibold))
+            .padding(.horizontal, Theme.Spacing.s)
+            .padding(.vertical, Theme.Spacing.xs)
+            .foregroundStyle(foreground)
+            .background(status.color, in: Capsule())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel("Status: \(status.displayName)")
     }
 }
 
@@ -26,12 +35,12 @@ struct StatusBadge: View {
 struct SimulatedBadge: View {
     var text: String = "Simulated"
     var body: some View {
-        Text(text)
-            .font(.caption2.weight(.medium))
-            .padding(.horizontal, Theme.Spacing.s)
+        Text(text.uppercased())
+            .font(.caption2.weight(.bold))
+            .padding(.horizontal, 6)
             .padding(.vertical, 2)
-            .foregroundStyle(.secondary)
-            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.secondary.opacity(0.4), lineWidth: 0.5))
+            .foregroundStyle(Theme.onHighlight)
+            .background(Theme.highlight, in: Capsule())
             .accessibilityLabel("\(text) data")
     }
 }
@@ -44,12 +53,12 @@ struct EmptyStateView: View {
         VStack(spacing: Theme.Spacing.s) {
             Image(systemName: systemImage)
                 .font(.largeTitle)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
             Text(title).font(.headline)
             if let message {
                 Text(message)
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                     .multilineTextAlignment(.center)
             }
         }

@@ -2,11 +2,17 @@
 from __future__ import annotations
 
 import logging
+import os
+import hashlib
+from pathlib import Path
 from typing import Callable, Optional
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
+from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
+from .sync import make_router
 
 from . import llm
 from .config import DISCLAIMER, MAX_QUESTION_LENGTH, Settings, load_settings
@@ -54,11 +60,21 @@ def create_app(settings: Optional[Settings] = None, generator: Optional[Generato
 
     if generator is None and settings.llm_configured:
         def generator(question: str, hits: list[Hit]) -> str:  # noqa: F811
-            return llm.generate(question, hits, model=settings.llm_model)
+            return llm.generate(question, hits, model=settings.llm_model, provider=settings.llm_provider)
     app.state.generator = generator
+    app.include_router(make_router(Path(os.environ.get("CREW_SYNC_DB", str(Path(__file__).resolve().parents[1] / "runtime" / "crew-sync.sqlite3")))))
+    app.add_middleware(CORSMiddleware,
+                       allow_origins=os.environ.get("CREW_WEB_ORIGINS", "http://localhost:4173,http://127.0.0.1:4173").split(","),
+                       allow_methods=["GET", "POST", "PUT", "DELETE"],
+                       allow_headers=["Authorization", "Content-Type"])
+    web_root = Path(__file__).resolve().parents[2] / "web" / "dist"
+    if web_root.is_dir():
+        app.mount("/dashboard", StaticFiles(directory=web_root, html=True), name="dashboard")
 
     @app.exception_handler(RequestValidationError)
-    async def invalid_body(_: Request, __: RequestValidationError) -> JSONResponse:
+    async def invalid_body(request: Request, __: RequestValidationError) -> JSONResponse:
+        if request.url.path.startswith("/sync/"):
+            return error_response(422, "invalid_sync_payload", "Invalid crew sync payload.")
         return error_response(400, "invalid_question", "Send JSON with a 'question' string.")
 
     @app.get("/health", response_model=HealthResponse)
@@ -88,12 +104,27 @@ def create_app(settings: Optional[Settings] = None, generator: Optional[Generato
         answer, mode = extractive_answer(hits), "extractive"
         if app.state.generator is not None:
             try:
-                answer, mode = app.state.generator(question, hits), "generated"
+                generated = app.state.generator(question, hits)
+                if not isinstance(generated, str) or not generated.strip():
+                    raise llm.LLMError("empty response")
+                answer, mode = generated.strip(), "generated"
             except Exception as error:  # any generation problem falls back to quoting the passages
-                logger.warning("generation failed, using extractive answer: %s", error)
+                logger.warning("generation failed, using extractive answer (%s)", type(error).__name__)
         return ChatResponse(answer=answer, citations=citations_for(hits), disclaimer=DISCLAIMER,
                             grounded=True, answerMode=mode)
 
+    if web_root.is_dir():
+        @app.get("/sw.js")
+        def service_worker():
+            # The Node/Worker build versions this file too. Preserve that guarantee locally.
+            assets = sorted(p for p in web_root.rglob("*") if p.is_file() and "server" not in p.relative_to(web_root).parts)
+            digest = hashlib.sha256(b"".join(p.read_bytes() for p in assets)).hexdigest()[:16]
+            script = (web_root / "sw.js").read_text(encoding="utf-8").replace("__CACHE_VERSION__", f"crewsafety-{digest}")
+            return Response(script, media_type="application/javascript", headers={"Cache-Control": "no-cache"})
+
+        # Absolute shell URLs (/fallback.json, /sw.js) remain compatible with the Node website.
+        # API routes above always win; /sync data is never in the service-worker asset allowlist.
+        app.mount("/", StaticFiles(directory=web_root, html=True), name="web-shell")
     return app
 
 

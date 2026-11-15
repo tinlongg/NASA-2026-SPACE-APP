@@ -20,10 +20,8 @@ enum SampleData {
 
     static var events: [SafetyEvent] {
         let now = Date()
+        // Start with a clean incident state: history only, no active alert banner.
         return [
-            SafetyEvent(crewMemberID: secondID, type: .manualTest, timestamp: now.addingTimeInterval(-600),
-                        severity: .warning, source: .simulated,
-                        details: "Sample event created at launch to show an unacknowledged alert."),
             SafetyEvent(crewMemberID: monitoredID, type: .manualTest, timestamp: now.addingTimeInterval(-3600),
                         severity: .info, source: .simulated,
                         details: "Sample event created at launch to show an acknowledged entry.",

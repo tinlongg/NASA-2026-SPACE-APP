@@ -17,14 +17,14 @@ struct CameraMonitorView: View {
                     if model.mode == .webCamera { easyDetectionToggle }
                     controls
                     if let message = model.cameraError {
-                        Text(message).font(.footnote).foregroundStyle(Theme.alert)
+                        Text(message).font(.footnote).foregroundStyle(Theme.critical)
                     }
                     if let detection = model.lastDetection {
                         detectionCard(detection)
                     }
                     Text("Possible-fall detection is a heuristic and will make mistakes. It is not a diagnosis. Video is analysed on this device and is not stored or sent.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
                 .padding(Theme.Spacing.l)
             }
@@ -140,7 +140,7 @@ struct CameraMonitorView: View {
                          ? "Bend your knees a little, lean far to one side and hold for a second. Testing only."
                          : "Standard thresholds, the same as the iPhone camera. A real, fast fall is needed.")
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
             .tint(Theme.accent)
@@ -151,11 +151,11 @@ struct CameraMonitorView: View {
         let alerting = model.showsDetectionFlash
         return HStack(spacing: Theme.Spacing.s) {
             Circle()
-                .fill(alerting ? Theme.alert : (model.isActive ? Theme.nominal : Color.secondary))
+                .fill(alerting ? Theme.critical : (model.isActive ? Theme.accent : Theme.secondaryText))
                 .frame(width: 10, height: 10)
             Text(model.statusText)
                 .font(.headline)
-                .foregroundStyle(alerting ? Theme.alert : Color.primary)
+                .foregroundStyle(alerting ? Theme.critical : Theme.primaryText)
             Spacer()
         }
         .accessibilityElement(children: .combine)
@@ -212,14 +212,14 @@ struct CameraMonitorView: View {
                 Text(detection.explanation).font(.subheadline)
                 Text("Heuristic score \(Int((detection.score * 100).rounded()))% · not a probability")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                 if let outcome = model.lastOutcome {
                     Text(outcome.summary)
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(outcomeColor(outcome))
                     Text(outcomeNote(outcome))
                         .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
         }

@@ -32,7 +32,7 @@ struct CheckInView: View {
                             .monospacedDigit()
                         Text("seconds")
                             .font(.subheadline)
-                            .foregroundStyle(.secondary)
+                            .foregroundStyle(Theme.secondaryText)
                     }
                 }
                 .frame(width: 200, height: 200)
@@ -41,7 +41,7 @@ struct CheckInView: View {
 
                 Text("If there's no answer, the crew is alerted when the timer runs out")
                     .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                     .multilineTextAlignment(.center)
 
                 voiceStatus
@@ -79,11 +79,11 @@ struct CheckInView: View {
             Label(model.isListening ? "Listening · say \"I'm okay\" or \"help\"" : "Tap a button to answer",
                   systemImage: model.isListening ? "mic" : "hand.tap")
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Theme.secondaryText)
             if let heard = model.heardText, !heard.isEmpty {
                 Text("Heard \"\(heard)\"")
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(Theme.secondaryText)
                     .lineLimit(2)
             }
         }

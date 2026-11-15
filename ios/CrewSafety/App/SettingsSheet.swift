@@ -2,6 +2,7 @@ import SwiftUI
 
 struct SettingsSheet: View {
     @Environment(AppSettings.self) private var settings
+    @Environment(DashboardSync.self) private var dashboardSync
     @Environment(\.dismiss) private var dismiss
     @State private var urlText = ""
     @State private var urlIsInvalid = false
@@ -10,6 +11,26 @@ struct SettingsSheet: View {
         @Bindable var settings = settings
         NavigationStack {
             Form {
+                Section {
+                    TextField("http://your-computer.local:8000", text: $settings.dashboardBaseURL)
+                        .keyboardType(.URL)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .disabled(settings.dashboardSyncEnabled)
+                    SecureField("Website pairing code", text: $settings.dashboardPairingCode)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .disabled(settings.dashboardSyncEnabled)
+                    Toggle("Share with website dashboard", isOn: $settings.dashboardSyncEnabled)
+                    Text(dashboardSync.status).font(.footnote)
+                    if let date = dashboardSync.lastSynced {
+                        Text("Last synced: \(date.formatted(date: .omitted, time: .standard))").font(.caption)
+                    }
+                } header: {
+                    Text("Website connection")
+                } footer: {
+                    Text("Open the local website, create a pairing session, and enter its code here. Shares crew names, safety events and labeled telemetry while this app is open. Website acknowledgements sync back. Video, journal and chat stay outside this connection. Pairing is not saved when the app closes.")
+                }
                 Section {
                     Picker("MUSE mode", selection: $settings.museMode) {
                         Text("Demo").tag(MuseMode.demo)
@@ -31,20 +52,22 @@ struct SettingsSheet: View {
                     if urlIsInvalid {
                         Text("Enter a full http or https address.")
                             .font(.footnote)
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Theme.critical)
                     }
                 } header: {
                     Text("Backend address")
                 } footer: {
-                    Text("Only the question you type is sent. Camera video and journal entries stay on this device.")
+                    Text("MUSE sends only the question you type. Website sharing above is controlled separately. Camera video and journal entries stay on this device.")
                 }
 
                 Section("About") {
                     Text("Prototype for a simulated crew. Not a medical device. Detections are possible falls, not diagnoses.")
                         .font(.footnote)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Theme.secondaryText)
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Theme.screenBackground)
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

@@ -1,5 +1,7 @@
 # MUSE research service
 
+The backend also serves the website at `/dashboard/` and pairs it with the iPhone app through `/sync/`. See [Connect iOS and the website locally](../docs/IOS_WEB_CONNECTION.md). Local camera detection remains independent of the server; the sync API shares only opted-in crew data, events and labeled telemetry.
+
 FastAPI service that answers wellness questions from a small curated set of NASA documents and
 returns citations. Contract: `docs/EXECUTION_PLAN.md` section 5.3.
 
@@ -15,7 +17,7 @@ python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 
 ## Add the source documents
 
-Nothing is bundled. The team supplies the documents; do not add a source nobody has opened and checked.
+The user-selected corpus now contains five NASA source records and eight passages, including OSDR study OSD-946. Opened sources, included sections, and independent-review status are recorded in `docs/SOURCES.md`. New sources must still come from the team and be opened and checked; never invent metadata. A second human reviewer has not yet signed off this initial set.
 
 1. Save each document under `sources/raw/` as `.txt`, `.md` or `.html` (`.pdf` needs `pip install pypdf`).
 2. List it in `sources/manifest.json`:
@@ -47,9 +49,12 @@ the usual workaround. The Simulator can use `http://localhost:8000`.
 ## Answer modes
 
 - **Extractive (default, no key needed):** quotes the top retrieved passages verbatim.
-- **Generated:** set `ANTHROPIC_API_KEY` in the environment (see `.env.example`). Claude writes a short
-  answer from the retrieved passages only. On any model error or timeout the service falls back to
-  extractive. This path has not been exercised against the live API yet.
+- **Generated:** set server-side `META_API_KEY` (see `.env.example`). The user-selected default is
+  `MUSE_LLM_PROVIDER=meta`, `MUSE_LLM_MODEL=muse-spark-1.3`. Only the question and retrieved passages go
+  to Meta. On model errors, empty/truncated output, or the 12-second timeout, return extractive mode.
+  The Meta adapter is covered by request/error mocks; live hosted verification is tracked in HANDOFF.
+  `MUSE_LLM_ENABLED=0` disables generation explicitly. The existing optional Anthropic adapter remains
+  available with `MUSE_LLM_PROVIDER=anthropic`, `MUSE_LLM_MODEL` and `ANTHROPIC_API_KEY` set explicitly.
 
 Citations always come from `manifest.json` and chunk metadata, never from model output. If nothing
 relevant is retrieved the response has `grounded: false` and no citations.
@@ -59,8 +64,36 @@ relevant is retrieved the response has `grounded: false` and no citations.
 With the real corpus indexed and the service running:
 
 ```bash
-.venv/bin/python scripts/export_fallback.py --questions questions.txt
+.venv/bin/python scripts/export_fallback.py --questions sources/demo-questions.txt
 ```
 
 `questions.txt` has one `keyword1,keyword2 | Question text` per line. The script writes
 `ios/CrewSafety/Resources/MuseFallbackAnswers.json` from the service's real responses.
+
+
+Six extractive replies are currently bundled. To regenerate after a source change, run these from
+`backend/`, restarting the running service after rebuilding the index:
+
+```bash
+.venv/bin/python scripts/build_index.py
+```
+
+In a second terminal, start a fresh service (`MUSE_LLM_ENABLED=0` for reproducible excerpts), then:
+
+```bash
+.venv/bin/python scripts/export_fallback.py --questions sources/demo-questions.txt
+.venv/bin/python scripts/export_web.py
+.venv/bin/python scripts/export_web.py --check
+.venv/bin/python -m pytest -q
+```
+
+The exporter copies the same demo file into `web/dist/fallback.json` and writes `web/research-data.json`
+with chunks, scoring metadata, tokenizer stopwords, and the generation prompt. No credentials enter
+these snapshots. The browser deployment is a JavaScript adapter because Sites runs Workers; Python
+remains canonical. The parity test requires Node 20+ and skips with an explicit reason if unavailable.
+After regeneration, run the web tests/build and deploy the new snapshot. Do not hand-edit generated
+snapshots or demo answers. Export scripts are run locally, never during a visitor's request.
+
+The exact `/chat` response remains `{answer,citations,disclaimer,grounded,answerMode}`. Citation entries
+remain `{title,url,sectionOrPage}`. Unknown contexts are treated as `general_wellness`. OSDR ground-study
+metadata is not a diagnosis, personal training plan, or evidence validating the camera heuristic.
