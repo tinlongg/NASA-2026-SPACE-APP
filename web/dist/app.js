@@ -12,6 +12,7 @@ import { onDeviceSupport, installLanguagePack, listenForAnswer, ANSWER_LABEL } f
 import { BlinkDetector, PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthMotion, lipAperture, faceBox, cropRect, describePerson } from './people.js';
 import { startVoiceActivity } from './voice-activity.js';
 import { initializeResearch } from './research.js';
+import { startAgentConversation } from './voice-agent.js';
 import { initializeCrewSync, onWearable, requestWatchCheckIn, cancelWatchCheckIn, sendPhoneAlert } from './crew-sync.js';
 import { initAccount, api } from './account.js';
 import { downscaleJpeg, webcamStill, groupByDay, dayKey } from './journal-photo.js';
@@ -349,18 +350,55 @@ function startCheckIn(person, detection, snapshot) {
   watchCheckIn(person);
   phoneAlert(person, 'checkin', `No movement for ${Math.round(detection.stillFor)} s. Asking "Are you OK?"`);
   checkInTimers.set(person.id, setInterval(() => { renderCheckIns(); for (const ended of checkIns.tick(Date.now(), id => Boolean(people.get(id)?.detector.alerted))) finishCheckIn(ended); }, 500));
-  playClip('/voice/web-checkin.mp3', { respectToggle: false }).then(async () => {
+  const quiet = () => playClip('/voice/web-checkin.mp3', { respectToggle: false }).then(async () => {
     if (!checkIns.has(person.id) || !element('voice-answer-enabled').checked) return;
     const listener = listenForAnswer({ seconds: checkIns.secondsLeft(person.id, Date.now()) });
     checkInListeners.set(person.id, listener);
     const answer = await listener;
     const ended = checkIns.answer(person.id, answer); if (ended) finishCheckIn(ended);
   });
+  // Opt-in live conversation with the ElevenLabs agent (one at a time). If it cannot start, the recorded clip plays instead.
+  if (mode === 'live' && element('voice-agent-enabled').checked && !agentSession) beginAgentCheckIn(person, quiet); else quiet();
   renderCheckIns();
 }
+
+// Live two-way check-in with the ElevenLabs agent. Microphone audio goes to ElevenLabs only while this is open.
+let agentSession = null;
+const agentStatus = text => { element('voice-agent-status').textContent = text; };
+const agentHeard = text => { if (text) element('voice-agent-heard').textContent = text; };
+async function beginAgentCheckIn(person, fallback) {
+  const fail = message => { if (agentSession?.id === person.id) { agentSession.stop(); agentSession = null; } if (checkIns.has(person.id)) { agentStatus(message); fallback(); } };
+  try {
+    agentStatus('Connecting to the voice agent…');
+    const response = await fetch('/api/checkin/voice/session', { method: 'POST' });
+    if (!response.ok) return fail('The voice agent is not available, so the recorded question was used.');
+    const { signedUrl } = await response.json();
+    if (!checkIns.has(person.id)) return;
+    const id = person.id, session = startAgentConversation({
+      signedUrl,
+      onUser: (text, answer) => { agentHeard(text ? `You: ${text}` : ''); const ended = answer && checkIns.answer(id, answer); if (ended) finishCheckIn(ended); },
+      onAgent: text => agentHeard(text ? `Agent: ${text}` : ''),
+      onState: state => agentStatus(state === 'connecting' ? 'Connecting to the voice agent…' : state === 'speaking' ? 'The agent is speaking.' : state === 'listening' ? 'Listening. Say that you are okay, or ask for help.' : 'Voice conversation ended.')
+    });
+    agentSession = { id, ...session };
+    await session.ready;
+  } catch { fail('The voice agent could not start, so the recorded question was used.'); }
+}
+function endAgentCheckIn(id) { if (agentSession && (id === undefined || agentSession.id === id)) { agentSession.stop(); agentSession = null; } }
+element('voice-agent-enabled').onchange = async () => {
+  const box = element('voice-agent-enabled');
+  if (!box.checked) { agentStatus('Off.'); return; }
+  agentStatus('Checking the voice agent…');
+  try {
+    const status = await (await fetch('/api/checkin/voice/status')).json();
+    if (!status.configured) throw new Error('not configured');
+    const mic = await navigator.mediaDevices.getUserMedia({ audio: true }); mic.getTracks().forEach(track => track.stop());
+    agentStatus('On. During a live check-in you can talk with the agent. Your voice is sent to ElevenLabs while it is open.');
+  } catch { box.checked = false; agentStatus('The voice agent is not set up or the microphone was not allowed, so it stays off.'); }
+};
 function answerCheckIn(id, kind) { const ended = checkIns.answer(id, kind); if (ended) finishCheckIn(ended); }
 function finishCheckIn({ id, outcome, info }) {
-  clearInterval(checkInTimers.get(id)); checkInTimers.delete(id); checkInListeners.get(id)?.stop?.(); checkInListeners.delete(id); endWatchCheckIn(info.person);
+  clearInterval(checkInTimers.get(id)); checkInTimers.delete(id); checkInListeners.get(id)?.stop?.(); checkInListeners.delete(id); endAgentCheckIn(id); endWatchCheckIn(info.person);
   const { person, detection, snapshot } = info, now = Date.now();
   if (RAISES_ALERT[outcome]) raiseEvent(person, detection, snapshot, outcome === 'help' ? `Person ${id} asked for help at the check-in. Go to them now.` : `Person ${id} did not answer the "Are you OK?" check-in for ${checkIns.seconds} s after ${Math.round(detection.stillFor)} s without movement. Check in with them.`);
   else {
@@ -372,7 +410,7 @@ function finishCheckIn({ id, outcome, info }) {
   }
   renderCheckIns();
 }
-function cancelCheckIns() { for (const info of checkIns.cancelAll()) endWatchCheckIn(info.person); for (const timer of checkInTimers.values()) clearInterval(timer); for (const listener of checkInListeners.values()) listener.stop?.(); checkInTimers.clear(); checkInListeners.clear(); renderCheckIns(); }
+function cancelCheckIns() { endAgentCheckIn(); for (const info of checkIns.cancelAll()) endWatchCheckIn(info.person); for (const timer of checkInTimers.values()) clearInterval(timer); for (const listener of checkInListeners.values()) listener.stop?.(); checkInTimers.clear(); checkInListeners.clear(); renderCheckIns(); }
 function renderCheckIns() {
   const box = element('checkin-box'); box.hidden = !checkIns.size; box.replaceChildren();
   for (const [id, entry] of checkIns.active) {

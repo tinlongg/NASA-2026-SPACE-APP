@@ -66,6 +66,10 @@ final class AppSettings {
     var dashboardPairingCode = ""
     /// Keeps the iPhone awake while paired, so website alerts keep arriving as notifications.
     var keepScreenOnWhilePaired = false
+    /// Opt-in: talk with the ElevenLabs check-in agent. The microphone audio is sent to ElevenLabs while a check-in is open.
+    var voiceAgentEnabled = UserDefaults.standard.bool(forKey: "voiceAgentEnabled") {
+        didSet { UserDefaults.standard.set(voiceAgentEnabled, forKey: "voiceAgentEnabled") }
+    }
     var dashboardSyncKey: String { "\(dashboardSyncEnabled)|\(dashboardBaseURL)|\(dashboardPairingCode)" }
 }
 

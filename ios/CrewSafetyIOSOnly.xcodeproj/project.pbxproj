@@ -12,7 +12,11 @@
 		121407B799FE792E08CD3A0A /* CrewSafetyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8EDC9B72266434B419D623E /* CrewSafetyApp.swift */; };
 		124C1D3AB0F081150C1CCB3D /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9117AB7A035F9162700F583 /* SettingsSheet.swift */; };
 		130C5D69E678D1B846452B03 /* CheckInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DC07B11A5DA74A49EF4AA61 /* CheckInView.swift */; };
+		A1B2C3D4E5F60718293A4B5C /* AgentConversation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5D /* AgentConversation.swift */; };
 		15D898A6D555BF6974894D20 /* TelemetryCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640811DD12799C511FA458C4 /* TelemetryCardView.swift */; };
+		ADC4077BA05DDF5CE33348BE /* HealthReadingsProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 26CE8BA3B884F9C2FF57E6DF /* HealthReadingsProvider.swift */; };
+		467296CE6EA2A7EEF8170923 /* HealthComparisonCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9CF23E895FEF04D1D13C1FA /* HealthComparisonCard.swift */; };
+		0DFF42921750F8D876380A00 /* HealthComparison.swift in Sources */ = {isa = PBXBuildFile; fileRef = E2FFF37E017BD295F13559AF /* HealthComparison.swift */; };
 		334A8A631629C2EECB5B7C53 /* InactivityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4504B336ABC022FCBC07F717 /* InactivityDetector.swift */; };
 		3573AF5578F7A977DECF3C7E /* PoseTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF9DCA564E86059B418D14B /* PoseTypes.swift */; };
 		3879C6946A418807F9E21981 /* DashboardSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95A21C1D57874C97620BA0D /* DashboardSync.swift */; };
@@ -27,6 +31,7 @@
 		5855C598980C543539E02E44 /* CheckInVoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D7B7B6C8A585DC4B8741620 /* CheckInVoice.swift */; };
 		5FCE6E265DB58A633C0D847C /* OnDeviceJournalAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C342AA15D4FCB30B90EE5CF5 /* OnDeviceJournalAnalyzer.swift */; };
 		716A3ACF17B75FEDC82A9BB0 /* JournalCalendarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C63A7E93D7F9E97F968E63CF /* JournalCalendarTests.swift */; };
+		5689DBDBDD2D74C47FA795B1 /* HealthComparisonTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC7D0B2C6E506A207FE0686B /* HealthComparisonTests.swift */; };
 		733A8390B3788D0437F470DC /* WristMotionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E8292426B146821FB78116B /* WristMotionTests.swift */; };
 		74F48BF4FAFB00358151A261 /* WatchLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = F54956FE15A555A3060C3058 /* WatchLink.swift */; };
 		7E65F7E84E61A1D399F375D5 /* PoseFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A5DBA9E50AB61905F03C9F /* PoseFixture.swift */; };
@@ -53,6 +58,7 @@
 		D746DA2B0F77B2F6BE9CBFFB /* JournalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F670733E10B84F357B22FA0 /* JournalStore.swift */; };
 		D7D219A023D5DA54FF7EA212 /* JournalCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC10D93ABB2A7F443B0234D3 /* JournalCalendarView.swift */; };
 		D9F797FE3A11E6C9005049D1 /* CrewCheckInTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1535FB091CA86337E868342D /* CrewCheckInTests.swift */; };
+		A1B2C3D4E5F60718293A4B5E /* AgentConversationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D4E5F60718293A4B5F /* AgentConversationTests.swift */; };
 		DA5E8EF2329B81726D21B97E /* MissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4137F88A42E1807A1572FF6A /* MissionView.swift */; };
 		E23C9D3B38C23D77C6D0C4B1 /* AlertBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD1204A432F3C5719ACA8C5 /* AlertBannerView.swift */; };
 		E4ED0B56DCD88BB8A55A3648 /* JournalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95DA7E54FFF27991AC568ED /* JournalTests.swift */; };
@@ -77,10 +83,12 @@
 		10F8A09446027B6A37F7970D /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
 		145B0B1B4682698E0AA5DEC7 /* ServiceFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceFactory.swift; sourceTree = "<group>"; };
 		1535FB091CA86337E868342D /* CrewCheckInTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewCheckInTests.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5F /* AgentConversationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentConversationTests.swift; sourceTree = "<group>"; };
 		17BCF3E267B9B8E2651406B1 /* DetectorReadoutCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectorReadoutCard.swift; sourceTree = "<group>"; };
 		1A6BC9F1FBB01C8642BE5D19 /* WristMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WristMotion.swift; sourceTree = "<group>"; };
 		265C0941A5C969830D698BFF /* CrewSafety.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CrewSafety.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		2DC07B11A5DA74A49EF4AA61 /* CheckInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInView.swift; sourceTree = "<group>"; };
+		A1B2C3D4E5F60718293A4B5D /* AgentConversation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AgentConversation.swift; sourceTree = "<group>"; };
 		351E58903ED5103832392F03 /* SimulatedTelemetryProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulatedTelemetryProvider.swift; sourceTree = "<group>"; };
 		37ED3D952964237C27B4BFDA /* checkin-prompt.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "checkin-prompt.mp3"; sourceTree = "<group>"; };
 		3F670733E10B84F357B22FA0 /* JournalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStore.swift; sourceTree = "<group>"; };
@@ -93,6 +101,9 @@
 		5F25596915C099A7381225CD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		5FD1204A432F3C5719ACA8C5 /* AlertBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertBannerView.swift; sourceTree = "<group>"; };
 		640811DD12799C511FA458C4 /* TelemetryCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryCardView.swift; sourceTree = "<group>"; };
+		26CE8BA3B884F9C2FF57E6DF /* HealthReadingsProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthReadingsProvider.swift; sourceTree = "<group>"; };
+		B9CF23E895FEF04D1D13C1FA /* HealthComparisonCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthComparisonCard.swift; sourceTree = "<group>"; };
+		E2FFF37E017BD295F13559AF /* HealthComparison.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthComparison.swift; sourceTree = "<group>"; };
 		72F5F2E9C2296E449D9949B3 /* PlaceholderServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderServices.swift; sourceTree = "<group>"; };
 		8296539067E1E99E53E52B5C /* Stores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stores.swift; sourceTree = "<group>"; };
 		84D105A28E21F203098A8EBA /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
@@ -116,6 +127,7 @@
 		C342AA15D4FCB30B90EE5CF5 /* OnDeviceJournalAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceJournalAnalyzer.swift; sourceTree = "<group>"; };
 		C56D84F65077CB5D8DA910F6 /* CoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTests.swift; sourceTree = "<group>"; };
 		C63A7E93D7F9E97F968E63CF /* JournalCalendarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalCalendarTests.swift; sourceTree = "<group>"; };
+		EC7D0B2C6E506A207FE0686B /* HealthComparisonTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthComparisonTests.swift; sourceTree = "<group>"; };
 		CE9C28461C644FC52E7ABE10 /* AppAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccount.swift; sourceTree = "<group>"; };
 		D5614DBE5F4F00FCA6B79713 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
 		DCF9DCA564E86059B418D14B /* PoseTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseTypes.swift; sourceTree = "<group>"; };
@@ -170,6 +182,7 @@
 				F91D09FE8A4BE15AF7553313 /* CameraPreviewView.swift */,
 				5C9E4A4C2346EC3B92BEB994 /* CameraService.swift */,
 				2DC07B11A5DA74A49EF4AA61 /* CheckInView.swift */,
+				A1B2C3D4E5F60718293A4B5D /* AgentConversation.swift */,
 				8D7B7B6C8A585DC4B8741620 /* CheckInVoice.swift */,
 				B436BDE090A8FD333095D4AF /* CrewCheckIn.swift */,
 				17BCF3E267B9B8E2651406B1 /* DetectorReadoutCard.swift */,
@@ -286,6 +299,9 @@
 				8C45DA12B877E03FB5A8B4E4 /* HealthKitTelemetryProvider.swift */,
 				351E58903ED5103832392F03 /* SimulatedTelemetryProvider.swift */,
 				640811DD12799C511FA458C4 /* TelemetryCardView.swift */,
+				26CE8BA3B884F9C2FF57E6DF /* HealthReadingsProvider.swift */,
+				B9CF23E895FEF04D1D13C1FA /* HealthComparisonCard.swift */,
+				E2FFF37E017BD295F13559AF /* HealthComparison.swift */,
 			);
 			path = Telemetry;
 			sourceTree = "<group>";
@@ -305,8 +321,10 @@
 				AE04E50ED349F2D931BD87A3 /* AlertsTelemetryTests.swift */,
 				C56D84F65077CB5D8DA910F6 /* CoreTests.swift */,
 				1535FB091CA86337E868342D /* CrewCheckInTests.swift */,
+				A1B2C3D4E5F60718293A4B5F /* AgentConversationTests.swift */,
 				9FA6EF60F35F29F7A7DB8184 /* InactivityDetectorTests.swift */,
 				C63A7E93D7F9E97F968E63CF /* JournalCalendarTests.swift */,
+				EC7D0B2C6E506A207FE0686B /* HealthComparisonTests.swift */,
 				A95DA7E54FFF27991AC568ED /* JournalTests.swift */,
 				5E8292426B146821FB78116B /* WristMotionTests.swift */,
 			);
@@ -458,6 +476,7 @@
 				E9FC98E849936605A257DEF5 /* CameraPreviewView.swift in Sources */,
 				847CAC036BE64EE5F441CEFE /* CameraService.swift in Sources */,
 				130C5D69E678D1B846452B03 /* CheckInView.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5C /* AgentConversation.swift in Sources */,
 				5855C598980C543539E02E44 /* CheckInVoice.swift in Sources */,
 				427571048F244A1A59154B01 /* CrewCheckIn.swift in Sources */,
 				121407B799FE792E08CD3A0A /* CrewSafetyApp.swift in Sources */,
@@ -484,6 +503,9 @@
 				D0B21D73712551AE0238D3EA /* SimulatedTelemetryProvider.swift in Sources */,
 				BA498A792C4171748974C377 /* Stores.swift in Sources */,
 				15D898A6D555BF6974894D20 /* TelemetryCardView.swift in Sources */,
+				ADC4077BA05DDF5CE33348BE /* HealthReadingsProvider.swift in Sources */,
+				467296CE6EA2A7EEF8170923 /* HealthComparisonCard.swift in Sources */,
+				0DFF42921750F8D876380A00 /* HealthComparison.swift in Sources */,
 				86F2D87186A2C0E2B17BE32E /* Theme.swift in Sources */,
 				74F48BF4FAFB00358151A261 /* WatchLink.swift in Sources */,
 				92A2B56B57F5F79D745A4DF2 /* WebCameraClient.swift in Sources */,
@@ -499,8 +521,10 @@
 				3CA2C433B226FE4F56D37AE4 /* AlertsTelemetryTests.swift in Sources */,
 				46F34927D30B94CD189A01A3 /* CoreTests.swift in Sources */,
 				D9F797FE3A11E6C9005049D1 /* CrewCheckInTests.swift in Sources */,
+				A1B2C3D4E5F60718293A4B5E /* AgentConversationTests.swift in Sources */,
 				480A3D569BD28BC8A6C4256F /* InactivityDetectorTests.swift in Sources */,
 				716A3ACF17B75FEDC82A9BB0 /* JournalCalendarTests.swift in Sources */,
+				5689DBDBDD2D74C47FA795B1 /* HealthComparisonTests.swift in Sources */,
 				E4ED0B56DCD88BB8A55A3648 /* JournalTests.swift in Sources */,
 				733A8390B3788D0437F470DC /* WristMotionTests.swift in Sources */,
 			);
@@ -620,7 +644,7 @@
 				INFOPLIST_FILE = "CrewSafety-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = CrewSafety;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Used on-device to check whether a crew member is moving. Video is not stored or sent.";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads heart rate from your Apple Watch to show it next to camera alerts. It never decides an alert.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads heart rate, heart rate variability, resting heart rate, breathing rate, blood oxygen and ECG recordings from your Apple Watch, to show them next to camera alerts and compare them with your own usual range. They stay on this iPhone and never decide an alert.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Starts a monitoring session on your Apple Watch so heart rate arrives every few seconds. The session is discarded, not saved as a workout.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your computer's CrewSafety dashboard to share crew status and safety alerts.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used on-device to hear whether you're OK after no movement is detected. Audio is not stored or sent.";
@@ -651,7 +675,7 @@
 				INFOPLIST_FILE = "CrewSafety-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = CrewSafety;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Used on-device to check whether a crew member is moving. Video is not stored or sent.";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads heart rate from your Apple Watch to show it next to camera alerts. It never decides an alert.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads heart rate, heart rate variability, resting heart rate, breathing rate, blood oxygen and ECG recordings from your Apple Watch, to show them next to camera alerts and compare them with your own usual range. They stay on this iPhone and never decide an alert.";
 				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Starts a monitoring session on your Apple Watch so heart rate arrives every few seconds. The session is discarded, not saved as a workout.";
 				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your computer's CrewSafety dashboard to share crew status and safety alerts.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used on-device to hear whether you're OK after no movement is detected. Audio is not stored or sent.";

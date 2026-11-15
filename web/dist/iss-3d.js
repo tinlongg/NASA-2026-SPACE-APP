@@ -133,7 +133,7 @@ export function createIssView(canvas, { onSelect, getStatuses, autoRotate=true }
 
 
   const modulePolygons=Object.fromEntries(Object.keys(MODULES).map(id=>[id,scene.modules.filter(p=>p.module===id)])),fills=new Map();
-  function resize() { const ratio = ((dragging||rotating)?1:Math.min(window.devicePixelRatio || 1,1.5)), width = canvas.clientWidth || 600, height = Math.round(width * 0.62); if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) { canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); } view.width = canvas.width; view.height = canvas.height; return ratio; }
+  function resize() { const ratio = Math.min(window.devicePixelRatio || 1,1.5), width = canvas.clientWidth || 600, height = Math.round(width * 0.62); if (canvas.width !== Math.round(width * ratio) || canvas.height !== Math.round(height * ratio)) { canvas.width = Math.round(width * ratio); canvas.height = Math.round(height * ratio); } view.width = canvas.width; view.height = canvas.height; return ratio; }
   function draw() {
     const ratio = resize(), statuses = getStatuses?.() ?? {};
     context.clearRect(0, 0, canvas.width, canvas.height);
@@ -143,7 +143,7 @@ export function createIssView(canvas, { onSelect, getStatuses, autoRotate=true }
     const cachedFill=(polygon,base,brightness)=>{const key=(polygon.color||base)+polygon.normal.join(',');if(!fills.has(key))fills.set(key,shade(polygon.color||base,brightness(polygon.normal)));return fills.get(key);};
     const enqueue = (list, base, brightness, extra = {}) => { for (const polygon of list) { const normal=transform(polygon.normal,true);if(normal[2]>=.02&&!polygon.double)continue;const points=polygon.points.map(screen); polygons.push({ points, depth: points.reduce((sum, point) => sum + point[2], 0) / points.length, fill: cachedFill(polygon,base,brightness), ...extra, module: polygon.module, line:polygon.line, radius:polygon.r }); } };
     enqueue(scene.arrays, '#3b66b0', normal => 0.8 + 0.3 * Math.abs(dot(norm(normal), LIGHT)), { stroke: 'rgba(160,190,235,.5)' });
-    if(!dragging&&!rotating)enqueue(scene.details, '#cbd0d5', normal => 0.7 + 0.3 * Math.abs(dot(normal,LIGHT)), {stroke:'rgba(10,20,32,.16)'});
+    enqueue(scene.details, '#cbd0d5', normal => 0.7 + 0.3 * Math.abs(dot(normal,LIGHT)), {stroke:'rgba(10,20,32,.16)'});
     enqueue(scene.structure, '#b4b9c1', normal => 0.6 + 0.5 * Math.max(0, dot(norm(normal), LIGHT)), { stroke: 'rgba(175,190,210,.25)', width:.45 });
     for (const [id] of Object.entries(MODULES)) {
       const status = statuses[id] ?? (MODULES[id].private ? 'offline' : 'none'), base = STATUS_COLOUR[status] ?? STATUS_COLOUR.none;

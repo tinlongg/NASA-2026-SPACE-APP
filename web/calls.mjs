@@ -88,3 +88,27 @@ export async function handleCalls(request, env, fetcher = fetch) {
     throw cllError(405, 'Unsupported calls operation.');
   } catch (error) { return cllJSON({ error: error.status ? error.message : 'Calls are temporarily unavailable.' }, error.status || 503); }
 }
+
+/** Live two-way check-in conversation. The browser asks for a short-lived signed URL; the API key never leaves the server.
+ *  Needs ELEVENLABS_API_KEY and ELEVENLABS_CHECKIN_AGENT_ID (the "CrewSafety Check-in" agent). */
+export const cllCheckinConfigured = env => Boolean(env.ELEVENLABS_API_KEY && env.ELEVENLABS_CHECKIN_AGENT_ID);
+const cllVoiceStarts = new Map();
+export async function handleCheckinVoice(request, env, fetcher = fetch) {
+  const url = new URL(request.url), path = url.pathname, method = request.method;
+  if (path === '/api/checkin/voice/status' && method === 'GET') return cllJSON({ configured: cllCheckinConfigured(env) });
+  if (path !== '/api/checkin/voice/session') return null;
+  if (method !== 'POST') return cllJSON({ error: 'Use POST.' }, 405);
+  if (request.headers.get('Origin') !== url.origin) return cllJSON({ error: 'Use the check-in on this website.' }, 403);
+  if (!cllCheckinConfigured(env)) return cllJSON({ error: 'The voice check-in is not set up on the server.' }, 503);
+  const visitor = request.headers.get('CF-Connecting-IP') || 'shared', now = Date.now();
+  const recent = (cllVoiceStarts.get(visitor) || []).filter(time => now - time < 60000);
+  if (recent.length >= 6) return cllJSON({ error: 'Too many voice check-ins. Wait a minute.' }, 429);
+  cllVoiceStarts.set(visitor, [...recent, now]);
+  try {
+    const response = await fetcher(`https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=${encodeURIComponent(env.ELEVENLABS_CHECKIN_AGENT_ID)}`, { headers: { 'xi-api-key': env.ELEVENLABS_API_KEY }, signal: AbortSignal.timeout(10000) });
+    if (!response.ok) return cllJSON({ error: 'ElevenLabs would not start the conversation.' }, 502);
+    const data = await response.json().catch(() => ({}));
+    if (typeof data.signed_url !== 'string' || !data.signed_url.startsWith('wss://')) return cllJSON({ error: 'ElevenLabs returned no conversation link.' }, 502);
+    return cllJSON({ signedUrl: data.signed_url });
+  } catch { return cllJSON({ error: 'ElevenLabs could not be reached.' }, 504); }
+}

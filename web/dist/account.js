@@ -21,6 +21,8 @@ export function initAccount(onChange) {
     el('account-submit').textContent = registering ? 'Create account' : 'Sign in';
     el('account-mode').textContent = registering ? 'I already have an account' : 'Create an account instead';
     el('account-password').autocomplete = registering ? 'new-password' : 'current-password';
+    el('account-password').minLength = registering ? 8 : 1;
+    document.querySelector('label[for="account-password"]').textContent = registering ? 'Password, at least 8 characters' : 'Password';
     if (user) el('account-summary').textContent = `Signed in as @${user.username}${user.role==='admin'?' · Administrator across CrewSafety':''}. Journal entries you save are stored in your account and indexed for search and MUSE memory.`;
   }
   function set(next) { user = next; render(); onChange(user); }

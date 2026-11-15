@@ -4,6 +4,7 @@ import UIKit
 struct CameraMonitorView: View {
     @Environment(EventStore.self) private var eventStore
     @Environment(CrewStore.self) private var crewStore
+    @Environment(AppSettings.self) private var settings
     @Environment(\.scenePhase) private var scenePhase
     @State private var model = CameraMonitorViewModel()
 
@@ -37,6 +38,10 @@ struct CameraMonitorView: View {
         .onAppear {
             model.attach(eventStore: eventStore, crewStore: crewStore)
             model.refreshAccess()
+            model.configureVoiceAgent(enabled: settings.voiceAgentEnabled, base: URL(string: settings.dashboardBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)))
+        }
+        .onChange(of: settings.voiceAgentEnabled) { _, _ in
+            model.configureVoiceAgent(enabled: settings.voiceAgentEnabled, base: URL(string: settings.dashboardBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)))
         }
         .onDisappear { model.stop() }
         .onChange(of: scenePhase) { _, phase in

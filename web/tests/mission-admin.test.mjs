@@ -28,7 +28,7 @@ test('admin simulations require server authority and preserve ordinary shop rule
  assert.throws(()=>applyMissionAction(s,action('admin',{distance:1001}),Date.now(),{admin:true}));
  assert.throws(()=>applyMissionAction(s,action('admin',{prestige:1}),Date.now()),/Admin/);
  for(const extra of [{stage:'made-up'},{growth:-1},{growth:101}])assert.throws(()=>applyMissionAction(s,action('admin',extra),Date.now(),{admin:true}));
- assert.throws(()=>applyMissionAction(s,action('listing',{listed:true}),Date.now(),{admin:true}),/outside public/);
+ assert.throws(()=>applyMissionAction(s,action('listing',{listed:true}),Date.now(),{admin:true}),/global leaderboard/);
 });
 test('provisioned admin authenticates by hashed password and ID; client flags cannot elevate',async()=>{
  const DB=localSyncDB(),worker=createWorker(),password=randomUUID(),salt=randomBytes(16).toString('hex');
@@ -54,11 +54,12 @@ test('provisioned admin authenticates by hashed password and ID; client flags ca
  assert.equal((await regular('/api/mission/action',action('admin',{stage:'healthy'}))).status,403);
  assert.equal((await regular('/api/mission/action',action('buy',{item:'cap',admin:true}))).status,400);
  assert.equal((await regular('/api/mission/action',action('buy',{item:'cap'}))).status,400);
- assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,0);
+ assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,2);
  assert.equal(DB.sqlite.prepare('SELECT hash FROM users WHERE id=?').get(config.id).hash,config.hash);
  await a('/api/mission/action',action('admin',{bots:true}));
  const demo=await(await a('/api/mission/leaderboard')).json();assert.equal(demo.demo,true);assert.equal(demo.rows.length,10);assert.ok(demo.rows.every(r=>r.bot));assert.equal(demo.self.rank,13);
- assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,0);
+ const visitor=client(),publicBoard=await(await visitor('/api/mission/leaderboard')).json();assert.equal(publicBoard.demo,false);assert.equal(publicBoard.self,null);assert.equal(publicBoard.rows.length,2);assert.ok(publicBoard.rows.every(r=>!r.bot&&typeof r.owner==='string'));
+ assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,2);
  assert.equal((await regular('/api/mission/action',action('admin',{bots:true}))).status,403);
  const edit=action('admin',{points:600});
  assert.equal((await regular('/api/mission/action',edit)).status,403);
@@ -67,18 +68,34 @@ test('provisioned admin authenticates by hashed password and ID; client flags ca
  const saved=await(await a('/api/mission/state')).json();assert.equal(saved.state.rankPoints,600);
  const editedBoard=await(await a('/api/mission/leaderboard')).json();assert.equal(editedBoard.self.points,600);assert.equal(editedBoard.self.rank,1);assert.equal(editedBoard.rows[0].self,true);
  assert.equal((await(await regular('/api/mission/state')).json()).state.rankPoints,0);
- assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,0);
+ assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,2);
  for(const points of [-1,1.5,'600',null,1000000001])assert.equal((await a('/api/mission/action',action('admin',{points}))).status,400);
  assert.equal((await(await a('/api/mission/state')).json()).state.rankPoints,600);
  await a('/api/mission/action',action('admin',{points:0}));assert.equal((await(await a('/api/mission/leaderboard')).json()).self.rank,13);
  await a('/api/mission/action',action('admin',{bots:false}));assert.equal((await(await a('/api/mission/leaderboard')).json()).demo,false);
- await regular('/api/mission/action',action('listing',{listed:true}));
  const renamed=await(await regular('/api/mission/action',action('rename',{name:'Captain Chirp'}))).json();assert.equal(renamed.state.birdName,'Captain Chirp');assert.equal(renamed.alias,'Captain Chirp');
  const persisted=await(await regular('/api/mission/state')).json();assert.equal(persisted.alias,'Captain Chirp');
  const namedBoard=await(await regular('/api/mission/leaderboard')).json();assert.equal(namedBoard.rows.find(r=>r.self).alias,'Captain Chirp');
  for(const name of ['', '<script>', 'x'.repeat(25)])assert.equal((await regular('/api/mission/action',action('rename',{name}))).status,400);
 
- for(let i=0;i<12;i++)DB.sqlite.prepare('INSERT INTO mission_profiles (user_id,state,revision,points,listed,alias) VALUES (?,?,0,?,1,?)').run(randomUUID(),JSON.stringify(newMission()),100+i,'Test-'+i);
- const ranked=await(await regular('/api/mission/leaderboard')).json();assert.equal(ranked.rows.length,10);assert.equal(ranked.self.rank,13);assert.equal(ranked.self.points,0);
+ for(let i=0;i<12;i++){const id=randomUUID();DB.sqlite.prepare('INSERT INTO users (id,username,salt,hash,created) VALUES (?,?,?,?,?)').run(id,'rank-user-'+i,'fixture','fixture',Date.now());DB.sqlite.prepare('INSERT INTO mission_profiles (user_id,state,revision,points,listed,alias) VALUES (?,?,0,?,0,?)').run(id,JSON.stringify(newMission()),100+i,'Test-'+i);}
+ const ranked=await(await regular('/api/mission/leaderboard')).json();assert.equal(ranked.rows.length,14);assert.equal(ranked.self.rank,13);assert.equal(ranked.self.points,0);
+ DB.sqlite.close();
+});
+test('multiple configured admins can sign in with short provisioned passwords without changing registration rules',async()=>{
+ const DB=localSyncDB(),worker=createWorker(),password='1234',origin='https://test.example';
+ const configs=['test-admin-one','test-admin-two','test-admin-three'].map(username=>{const salt=randomBytes(16).toString('hex');return {id:randomUUID(),username,salt,hash:pbkdf2Sync(password,Buffer.from(salt,'hex'),100000,32,'sha256').toString('hex')};});
+ const env={DB,MISSION_ADMIN_ACCOUNTS:JSON.stringify(configs)};
+ const request=(path,body,cookie='')=>worker.fetch(new Request(origin+path,{method:body?'POST':'GET',headers:{Origin:origin,Cookie:cookie,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}),env);
+ for(const config of configs){
+  const login=await request('/api/auth/login',{username:config.username,password});assert.equal(login.status,200);assert.equal((await login.json()).user.role,'admin');
+  const cookie=login.headers.get('set-cookie').split(';')[0];
+  assert.equal((await(await request('/api/auth/me',null,cookie)).json()).user.role,'admin');
+  assert.equal((await(await request('/api/mission/state',null,cookie)).json()).admin,true);
+ }
+ assert.equal((await request('/api/auth/register',{username:'ordinary-crew',password})).status,400);
+ assert.equal((await request('/api/auth/login',{username:'ordinary-crew',password})).status,400);
+ assert.equal((await request('/api/auth/login',{username:configs[0].username,password:'wrong'})).status,401);
+ assert.equal((await request('/api/auth/register',{username:configs[0].username,password:'long-password'})).status,409);
  DB.sqlite.close();
 });
