@@ -12,7 +12,7 @@ struct SettingsSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("http://your-computer.local:8000", text: $settings.dashboardBaseURL)
+                    TextField("https://your-dashboard.example", text: $settings.dashboardBaseURL)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -29,7 +29,7 @@ struct SettingsSheet: View {
                 } header: {
                     Text("Website connection")
                 } footer: {
-                    Text("Open the local website, create a pairing session, and enter its code here. Shares crew names, safety events and labeled telemetry while this app is open. Website acknowledgements sync back. Video, journal and chat stay outside this connection. Pairing is not saved when the app closes.")
+                    Text("Open the website, create a pairing session, and enter its code here. Shares crew names, safety events and labeled telemetry while this app is open. Website acknowledgements sync back. Video, journal and chat stay outside this connection. Pairing is not saved when the app closes.")
                 }
                 Section {
                     Picker("MUSE mode", selection: $settings.museMode) {

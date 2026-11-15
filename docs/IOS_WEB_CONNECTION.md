@@ -1,4 +1,16 @@
-# Connect the iPhone app and dashboard locally
+# Connect the iPhone app and dashboard
+
+## Hosted connection — no local server required
+
+Open https://crew-safety-connected.lustrousbush32.chatgpt.site and select **Crew dashboard → Create pairing session**. Pull the latest `main` and rebuild iOS in Xcode. In **Dashboard → Settings → Website connection**, the hosted backend URL is prefilled; enter the website's pairing code and enable sharing. Keep the app open. The phone can use Wi-Fi or cellular; it no longer needs the computer's network.
+
+The website is public, but each session's crew data requires its random pairing code. Sessions expire after 24 hours and can be revoked with **End shared session**. Hosted snapshots use D1; session tokens are stored hashed. Concurrent updates use revision checks so a stale phone upload cannot overwrite a browser acknowledgment. Camera frames, journals and chat are not part of sync. `web/sync.mjs` implements the same wire contract as FastAPI, with migrations in `web/drizzle`. The website serves `/sync/*` on its own HTTPS origin.
+
+The standalone Node preview (`npm start` in `web`, Node 22.13+) uses an in-memory SQLite adapter and loses its test sessions when stopped. Hosted D1 and local FastAPI storage persist across server restarts.
+
+The published API was verified using synthetic crew data: create, upload, acknowledge, retry, read and revoke. A physical iPhone/Xcode build still requires Mac verification.
+
+## Optional local connection
 
 The existing FastAPI backend now serves the website at `/dashboard/` and provides paired crew sync at `/sync/`. You do not need a cloud account. The public Sites deployment is a separate copy: it is not updated or connected by starting this local server.
 

@@ -64,7 +64,7 @@ enum MuseMode: String, Codable, Sendable { case live, demo }
 @MainActor @Observable
 final class AppSettings {
     var dashboardSyncEnabled = false
-    var dashboardBaseURL = ""
+    var dashboardBaseURL = "https://crew-safety-connected.lustrousbush32.chatgpt.site"
     var dashboardPairingCode = ""
     var dashboardSyncKey: String { "\(dashboardSyncEnabled)|\(dashboardBaseURL)|\(dashboardPairingCode)" }
     /// `.demo` uses bundled precomputed answers and must show a visible "Demo mode" badge.
