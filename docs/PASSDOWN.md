@@ -245,3 +245,10 @@ Built without the live test (that still needs a person in front of the camera; s
 - New synthetic replays: "Seated, typing" (0 events) and "Seated, slumped and still" (1 event). Web suite 67/67. These are generated numbers, not validation on people.
 - **Not done:** the iOS detector (`InactivityDetector.swift`) still needs shoulders and hips; it has the same false negative. Eyes are not used by any detector.
 - Likely cause of "no sound" in the live test: the local server loads assets once at startup, so a server started before the voice change serves no clip. Restart `npm start` and hard-reload (the service worker also caches the old page).
+
+### Multi-person tracking, close-up view, readings (2026-11-15)
+
+- Web only. Up to 4 people tracked with stable ids (`web/dist/people.js`), a detector per person, per-person events, labelled boxes on the overview, click to follow someone. A **Close-up** second view zooms on the face of the flagged or clicked person with eyes (open/closed/mixed) and mouth (moving/still) readings from MediaPipe `FaceLandmarker` blendshapes (new 3.7 MB model, added to the offline download). A **What the monitor sees** panel lists rule-generated plain-language statements per person.
+- Eye and mouth readings are **information for the person watching only**; no alert depends on them (decision: info only; closed eyes cannot tell sleep from a problem). They are recorded on each event as `eyes` and `mouth`.
+- Tests: web 75/75, including a guard that every imported browser module is served by the Worker and cached by the shell (a missing allowlist entry had broken the whole page once during this work).
+- **Not verified:** anything with a real camera. Multi-person tracking, face matching to people, blink and mouth thresholds (0.55 blink score, 0.04 jaw spread) and the crop framing are untested on real people. The tracker matches by position only, so people who cross paths can swap ids. Not done: iOS multi-person, the iOS upper-body fallback, and a layout check at narrow widths (the toolbar overflowed sideways in the narrow browser pane).
