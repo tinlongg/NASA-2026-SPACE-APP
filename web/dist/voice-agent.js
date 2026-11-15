@@ -6,6 +6,9 @@ import { classifyAnswer } from './voice-answer.js';
 
 export const INPUT_RATE = 16000;
 
+/** The first message a client must send. The agent does not start speaking until it arrives. */
+export const INIT_MESSAGE = { type: 'conversation_initiation_client_data' };
+
 /** Averages samples down to the target rate (the browser may not honour a 16 kHz AudioContext). */
 export function downsample(input, fromRate, toRate = INPUT_RATE) {
   if (toRate >= fromRate) return input;
@@ -93,6 +96,7 @@ export function startAgentConversation({ signedUrl, onState = () => {}, onUser =
       context = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: INPUT_RATE });
       await context.resume?.();
       socket = new WebSocketImpl(signedUrl);
+      socket.onopen = () => send(INIT_MESSAGE);
       socket.onmessage = event => {
         let message; try { message = JSON.parse(event.data); } catch { return; }
         const effect = interpretMessage(message);

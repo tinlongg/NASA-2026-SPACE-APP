@@ -33,6 +33,10 @@ final class AgentConversationTests: XCTestCase {
         XCTAssertEqual(AgentMessage.parse(#"{"type":"something_new"}"#), .ignored)
     }
 
+    func testConversationStartsWithTheInitiationMessage() {
+        XCTAssertEqual(AgentMessage.initiation, #"{"type":"conversation_initiation_client_data"}"#)
+    }
+
     func testAgentTranscriptsAreClassifiedLikeAnyOtherAnswer() {
         XCTAssertEqual(CrewCheckIn.classify(transcript: "I'm okay"), .ok)
         XCTAssertEqual(CrewCheckIn.classify(transcript: "help me please"), .help)
