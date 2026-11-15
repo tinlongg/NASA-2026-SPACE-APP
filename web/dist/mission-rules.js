@@ -24,12 +24,18 @@ export function missionSummary(state,now=Date.now()) {
  return {day,done:state.days[day]?.tasks||[],streak:gap>1?0:state.streak,dust:Math.min(7,Math.max(0,gap-1)),percent:Math.min(100,Math.floor(state.distance/10)),gardenStage:['Seed tray','First sprouts','Leafy greens','Space blooms'][Math.min(3,Math.floor(state.garden/3))],plays:state.days[day]?.plays||0};
 }
 export function missionStats(state,game){const runs=state.history.filter(r=>r.game===game).slice(-10),scores=runs.map(r=>r.score);return {count:runs.length,best:state.bests?.[game]??(scores.length?Math.max(...state.history.filter(r=>r.game===game).map(r=>r.score)):null),average:scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):null};}
-export function applyMissionAction(original,action,now=Date.now()) {
+export function applyMissionAction(original,action,now=Date.now(),{admin=false}={}) {
  if(!action||typeof action.id!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(action.id)) throw Error('Invalid action identifier.');
  const s=structuredClone(original),day=missionDay(now);
  if(s.actions.includes(action.id)) return s;
  s.days[day]??={tasks:[],plays:0}; const today=s.days[day];
  switch(action.type){
+ case 'admin': {
+   if(!admin)throw Error('Admin access required.');
+   if(action.stage!==undefined){if(!['auto','healthy','tired','needs-care'].includes(action.stage))throw Error('Unknown bird stage.');s.birdStage=action.stage;}
+   if(action.growth!==undefined){if(!Number.isInteger(action.growth)||action.growth<0||action.growth>100)throw Error('Choose garden growth from 0 to 100.');s.garden=action.growth;}
+   break;
+ }
  case 'task': {
    const task=MISSION_TASKS.find(t=>t.id===action.task); if(!task||action.participated!==true) throw Error('Complete a check-in first.');
    if(today.tasks.includes(task.id)) return s;
@@ -58,16 +64,17 @@ export function applyMissionAction(original,action,now=Date.now()) {
  case 'buy': {
    const item=MISSION_SHOP.find(i=>i.id===action.item);if(!item)throw Error('Unknown accessory.');
    if(s.owned.includes(item.id))return s;
-   if(s.coins<item.cost)throw Error('Not enough shop stars yet.');s.coins-=item.cost;s.owned.push(item.id);if(item.slot!=='buff')s.equipped[item.slot]=item.id;break;
+   if(!admin&&s.coins<item.cost)throw Error('Not enough shop stars yet.');if(!admin)s.coins-=item.cost;s.owned.push(item.id);if(item.slot!=='buff')s.equipped[item.slot]=item.id;break;
  }
  case 'equip': {
    const item=MISSION_SHOP.find(i=>i.id===action.item);if(!item||!s.owned.includes(item.id)||item.slot==='buff')throw Error('Unlock this accessory first.');
    s.equipped[item.slot]=s.equipped[item.slot]===item.id?null:item.id;break;
  }
  case 'prestige':if(s.distance<1000)throw Error('Reach Mars first.');s.prestige++;s.distance=0;break;
- case 'listing':if(typeof action.listed!=='boolean')throw Error('Choose leaderboard visibility.');s.listed=action.listed;break;
+ case 'listing':if(admin)throw Error('Admin simulations stay outside public rankings.');if(typeof action.listed!=='boolean')throw Error('Choose leaderboard visibility.');s.listed=action.listed;break;
  default:throw Error('Unknown mission action.');
  }
+ if(admin)s.listed=false;
  s.actions=[...s.actions,action.id].slice(-150);
  const days=Object.keys(s.days).sort(); for(const d of days.slice(0,-35))delete s.days[d];
  return s;
