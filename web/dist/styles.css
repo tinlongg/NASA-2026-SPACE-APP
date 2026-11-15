@@ -301,3 +301,9 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .checkin-card .count { font: 500 32px var(--mono); }
 .checkin-card .answers { display: flex; gap: 8px; flex-wrap: wrap; }
 .checkin-card .answers .help { border-color: var(--danger); color: var(--danger); }
+.views { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; align-items: start; margin-bottom: 16px; }
+.views .closeup-panel { margin: 0; }
+.views .closeup-body { grid-template-columns: 1fr; }
+.views .closeup-read { display: flex; gap: 24px; }
+.closeup-panel .popout { padding: 4px 10px; font-size: 12px; }
+@media (max-width: 980px) { .views { grid-template-columns: 1fr; } }

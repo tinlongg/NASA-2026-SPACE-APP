@@ -71,7 +71,7 @@ function stopSession(message = 'Session stopped. Camera released.') {
   element('camera-message').textContent = message;
 }
 
-let poseModel = 'lite', landmarkerModel = null, landmarkerDelegate = '—';
+let poseModel = 'full', landmarkerModel = null, landmarkerDelegate = '—';
 const framing = new FramingMonitor();
 const percent = value => value == null ? '—' : `${Math.round(value * 100)}%`;
 function updateDiagnostics(time, groups) {
@@ -85,6 +85,7 @@ function resetDiagnostics() {
 }
 // Model choice control.
 for (const [value, choice] of Object.entries(MODEL_CHOICES)) element('model-select').add(new Option(`${choice.label} · ${choice.size}`, value));
+element('model-select').value = poseModel;
 element('model-select').onchange = () => { poseModel = element('model-select').value; element('model-note').textContent = poseModel === 'heavy' ? 'Heavy is 31 MB and needs a connection the first time. Start the camera again to use it.' : 'Start the camera again to use this model.'; if (mode === 'live') stopSession(`Model changed to ${MODEL_CHOICES[poseModel].label}. Start the camera again.`); };
 
 async function startCamera() {
@@ -165,10 +166,11 @@ const statusColour = person => !person.result ? '#5ccf8e' : person.result.alerte
 // Second view: a zoomed crop of the video around the face of whoever the monitor is following.
 const faceCanvas = element('face-view'), faceContext = faceCanvas.getContext('2d');
 function closeUpTarget() {
-  const list = mode === 'replay' ? [] : [...people.values()];
+  // Always on: the flagged person, else the one clicked, else whoever the monitor is following.
+  if (mode === 'replay') return null;
   const flagged = people.get(focusId);
   if (flagged?.result && (flagged.result.alerted || flagged.result.stillFor >= STILL_SECONDS / 3)) return flagged;
-  return list.find(person => person.id === selectedId) ?? null;
+  return people.get(selectedId) ?? (flagged?.pose ? flagged : null) ?? [...people.values()].find(person => person.pose) ?? null;
 }
 function headBox(pose) { // fallback when the face model has nothing: a box around the head from the pose
   const nose = pose?.[0]; if (!nose || (nose.visibility ?? 0) < 0.3) return null;
@@ -177,7 +179,7 @@ function headBox(pose) { // fallback when the face model has nothing: a box arou
 }
 function drawCloseUp() {
   const target = closeUpTarget(), box = target && (target.face?.box ?? headBox(target.pose));
-  element('closeup-placeholder').hidden = Boolean(box);
+  element('closeup-placeholder').hidden = Boolean(box); element('closeup-placeholder').textContent = mode === 'replay' ? 'No close-up in replays' : 'Waiting for a person';
   if (!box || video.readyState < 2) { faceContext.clearRect(0, 0, faceCanvas.width, faceCanvas.height); return; }
   const crop = cropRect(box, video.videoWidth, video.videoHeight, faceCanvas.width / faceCanvas.height);
   faceContext.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, faceCanvas.width, faceCanvas.height);
@@ -191,7 +193,7 @@ function renderViews(force = false) {
   element('closeup-title').textContent = target ? `Close-up · Person ${target.id}` : 'Close-up';
   element('closeup-eyes').textContent = target ? READING[target.face?.eyes?.state ?? 'unknown'] : '—';
   element('closeup-mouth').textContent = target ? READING[target.face?.mouth?.state ?? 'unknown'] : '—';
-  element('closeup-note').textContent = !target ? 'Appears when someone stops moving, or click a person in the camera view.' : target.face ? 'Readings come from the face model, on this device.' : faceLandmarker ? 'No clear face in view. Showing the head area.' : 'Face model unavailable. Showing the head area.';
+  element('closeup-note').textContent = !target ? 'Follows the person who stops moving, or click a person in the camera view.' : target.face ? 'Readings come from the face model, on this device.' : faceLandmarker ? 'No clear face in view. Showing the head area.' : 'Face model unavailable. Showing the head area.';
   const boxes = element('thought-boxes'); boxes.replaceChildren();
   if (!list.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No one is being tracked yet. Start the camera or a replay.'; boxes.append(empty); return; }
   for (const person of list) {
@@ -208,6 +210,18 @@ function renderViews(force = false) {
     boxes.append(card);
   }
 }
+// A literal second screen: the close-up in its own window, drawn from the same canvas.
+element('closeup-popout').onclick = () => {
+  const win = window.open('', 'crewsafety-closeup', 'popup,width=640,height=560');
+  if (!win) { element('closeup-note').textContent = 'The browser blocked the new window. Allow pop-ups for this site and try again.'; return; }
+  win.document.title = 'CrewSafety close-up';
+  win.document.body.style.cssText = 'margin:0;background:#121314;color:#ececef;font:14px system-ui,sans-serif';
+  const view = win.document.createElement('video'); view.autoplay = true; view.muted = true; view.playsInline = true; view.style.cssText = 'width:100%;display:block;background:#0e0f10';
+  view.srcObject = faceCanvas.captureStream(15);
+  const caption = win.document.createElement('div'); caption.style.cssText = 'padding:12px 16px';
+  win.document.body.replaceChildren(view, caption);
+  const timer = setInterval(() => { if (win.closed) return clearInterval(timer); caption.textContent = `${element('closeup-title').textContent} · Eyes: ${element('closeup-eyes').textContent} · Mouth: ${element('closeup-mouth').textContent}`; }, 500);
+};
 canvas.addEventListener('click', event => {
   if (mode !== 'live') return;
   const rect = canvas.getBoundingClientRect(), point = [(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height];
@@ -250,7 +264,9 @@ function drawPose(pose, colour = '#5ccf8e') {
 
 // One person's detector step. Raises an event when the detector fires; the display is separate.
 function evaluatePerson(person, time, measurement) {
-  const d = person.detector, detection = d.process(time, measurement);
+  const d = person.detector;
+  d.wholeBody = mode === 'replay' ? Boolean(REPLAYS[replayKind]?.wholeBody) : element('whole-body-enabled').checked; // synthetic replays were written for microgravity unless they say otherwise
+  const detection = d.process(time, measurement);
   // Talking or blinking is activity: a person standing still while speaking is not unresponsive.
   if (mode !== 'replay' && element('face-activity-enabled').checked && person.activeAt != null && person.activeAt !== person.appliedAt) { d.noteActivity(person.activeAt); person.appliedAt = person.activeAt; }
   const stillFor = d.stillFor(time);
@@ -359,8 +375,9 @@ function drawPoints(points) {
   }
 }
 
+let replayKind = null;
 function replay(kind) {
-  stopSession('Synthetic replay running. No camera is used.');
+  stopSession('Synthetic replay running. No camera is used.'); replayKind = kind;
   latestSnapshot = { source: 'none', capturedAt: null, measurement: null, detection: null };
   updateCoachContext();
   const session = generation; mode = 'replay';
