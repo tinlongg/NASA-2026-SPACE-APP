@@ -52,6 +52,7 @@
 .mission-game-dialog .salvage-window{display:block;flex:1;min-height:0;padding:0;container-type:size;border-width:4px;border-radius:20px}
 .mission-game-dialog .sample-object{position:absolute;box-sizing:border-box;width:clamp(28px,min(11cqw,17cqh),60px);height:clamp(28px,min(11cqw,17cqh),60px);min-height:0;min-width:0;padding:3px;margin:0;transform:translate(-50%,-50%) rotate(var(--tilt));border-radius:12px}
 .mission-game-dialog .sample-object svg{width:100%;height:100%}
+.mission-game-dialog .sample-object:active:not(:disabled){transform:translate(-50%,-50%) rotate(var(--tilt)) scale(.98)}
 .mission-game-dialog .orbit-window{flex:1;min-height:0;display:flex;align-items:center}
 .mission-game-dialog .orbit-window svg{max-height:100%}
 @media(max-height:500px){.mission-game-dialog{padding:12px;gap:5px}.mission-game-dialog>h2{font-size:18px}.mission-game-dialog>.game-participation{display:none}.mission-game-dialog>.game-stage{gap:5px}.mission-game-dialog .planet-grid{gap:4px}.mission-game-dialog .sample-legend svg{width:16px;height:16px}.mission-game-dialog>.game-stage>button,.mission-game-dialog>button{min-height:32px;padding:4px 8px}}
