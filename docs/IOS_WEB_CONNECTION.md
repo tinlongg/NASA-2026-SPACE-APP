@@ -6,7 +6,7 @@ Open https://crew-safety-connected.lustrousbush32.chatgpt.site and select **Crew
 
 The website is public, but each session's crew data requires its random pairing code. Sessions expire after 24 hours and can be revoked with **End shared session**. Hosted snapshots use D1; session tokens are stored hashed. Concurrent updates use revision checks so a stale phone upload cannot overwrite a browser acknowledgment. Camera frames, journals and chat are not part of sync. `web/sync.mjs` implements the same wire contract as FastAPI, with migrations in `web/drizzle`. The website serves `/sync/*` on its own HTTPS origin.
 
-The standalone Node preview (`npm start` in `web`, Node 22.13+) uses an in-memory SQLite adapter and loses its test sessions when stopped. Hosted D1 and local FastAPI storage persist across server restarts.
+The standalone Node preview (`npm start` in `web`, Node 22.13+) persists accounts, journal entries and pairing sessions in ignored `web/.data/local.sqlite` (override with `CREW_DB_PATH`). Hosted D1 and local FastAPI storage also persist across server restarts.
 
 The published API was verified using synthetic crew data: create, upload, acknowledge, retry, read and revoke. A physical iPhone/Xcode build still requires Mac verification.
 
@@ -46,7 +46,7 @@ Do not enter `localhost` on the physical iPhone: it means the phone itself. Both
 
 One session accepts one publishing iPhone. Its code allows other browsers to view the session and acknowledge events. Keep it with your team. Codes are generated randomly, stored only as hashes on the backend, and expire after 24 hours. The phone and browser keep the code in memory for this run; re-enter/re-pair after closing them.
 
-**Disconnect browser** stops viewing but does not revoke the phone's access. **End shared session** deletes that session from the backend and revokes its code. Disable the iOS sharing toggle to stop uploads. Sharing also pauses while the app is backgrounded. Local fall detection does not depend on network access.
+**Disconnect browser** stops viewing but does not revoke the phone's access. **End shared session** deletes that session from the backend and revokes its code. Disable the iOS sharing toggle to stop uploads. Sharing also pauses while the app is backgrounded. Local no-movement detection does not depend on network access.
 
 ## Reliability and limits
 

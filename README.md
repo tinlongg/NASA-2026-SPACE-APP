@@ -1,6 +1,6 @@
 # CrewSafety — NASA Space Apps 2026
 
-A native SwiftUI iPhone prototype for a **simulated** space crew: a crew dashboard, camera-based
+A native SwiftUI iPhone prototype for a **simulated** space crew: a crew dashboard,
 camera-based possible-unresponsive alerts with an "Are you OK?" check-in, a research assistant (MUSE) that answers from curated NASA
 documents and shows its sources, and an on-device wellness journal.
 
@@ -34,7 +34,8 @@ The same rules run in `ios/CrewSafety/Features/Camera/InactivityDetector.swift` 
 | `ios/` | Xcode project `CrewSafety.xcodeproj`, app sources, unit tests |
 | `backend/` | FastAPI service for MUSE (`POST /chat`, `GET /health`) |
 | `web/` | Browser companion for Windows/Mac: webcam pose detection, replay, alerts, paired crew status, accounts and a journal with MUSE reflections; see `web/README.md` |
-| `docs/HANDOFF.md` | **Start here**: current state, what is untested, what to do next |
+| `docs/PASSDOWN.md` | **Start here**: current state, verified results, remaining checks and run commands |
+| `docs/HANDOFF.md` | Historical status before the station-detector/account changes |
 | `docs/BUILD_BRIEF.md` | Original project brief |
 | `docs/EXECUTION_PLAN.md` | Architecture, shared contracts, team plan |
 | `docs/INTEGRATION_CHECKLIST.md` | What to check on the demo iPhone |
@@ -47,7 +48,7 @@ For iPhone-to-website crew status, events, telemetry and shared acknowledgements
 
 Open `ios/CrewSafety.xcodeproj` in Xcode 16 or later, set your development team and a bundle
 identifier under Signing & Capabilities, and run on an iPhone (iOS 17+). The Simulator works for
-everything except the live camera; use **Monitor → Replay** there.
+everything except the live camera; use **Monitor → Test → Synthetic Stops Moving** there.
 
 ```bash
 cd ios && xcodebuild test -project CrewSafety.xcodeproj -scheme CrewSafety -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO
@@ -65,18 +66,17 @@ In the app: Dashboard → gear → MUSE mode **Live**, and set the backend addre
 
 ## Status
 
-This revision aligns the native MVP and web companion with the documented research and camera scope.
-The SwiftUI app is primary; the web companion is the user-requested
-Windows/Mac testing extension. It uses MediaPipe, not Apple's Vision model.
+The station detector, browser accounts and journal recall were merged in PR #4 (`19906a1`). SwiftUI
+remains primary; the browser companion uses MediaPipe for Windows/Mac testing. Xcode 26.6 and an iOS
+26.5 simulator now run on this Mac. Current test results and interactive QA are in
+[PASSDOWN.md](docs/PASSDOWN.md).
 
-Current verification: 27 backend tests and 29 web tests pass. The backend suite includes ranking parity
-between Python and the hosted Worker adapter. Previous handoff reported 40 iOS simulator tests; those
-were not rerun during this pass. The current Mac's Xcode installation cannot launch successfully.
-
-MUSE Research now uses five opened NASA sources, including OSDR and study OSD-946, with eight indexed
-passages and six exported, cited demo answers. The user selected this source set; independent human
-source review is still pending. Optional Camera Coach explains numerical pose summaries through Meta
-and is clearly separate from MUSE Research. Secrets remain server-side.
+NASA-grounded MUSE Research remains in iOS, backed by FastAPI `/chat` and six bundled cited demo answers.
+It was removed from the website and hosted Worker. The browser has Camera Coach, an optional MUSE
+journal reflection, and accounts with server-side journal storage and lexical vector recall. Guest
+entries and the native journal stay local unless a browser user explicitly sends or moves an entry.
+Optional related account entries can accompany a MUSE reflection when selected. Keys stay server-side.
+The five-source NASA corpus still needs independent human review.
 
 Remaining acceptance work:
 
@@ -86,4 +86,4 @@ Remaining acceptance work:
 - Record and review real pose fixtures. All current replay sequences are synthetic.
 - Complete independent source verification in `docs/SOURCES.md` and rehearse `docs/DEMO_SCRIPT.md`.
 
-See `docs/HANDOFF.md` for exact scope, verification, and known limits.
+See `docs/PASSDOWN.md` for exact scope, verification, and known limits.

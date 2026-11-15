@@ -23,7 +23,7 @@ These suggested application uses are our selection decisions, not NASA recommend
 - Seven chart series: white blood cells, red blood cells, platelets, glucose, calcium, sodium and potassium.
 - Each chart point includes the mean, observed minimum/maximum, available sample count, missing count, unit and timepoint.
 
-The JSON is available at `./data/nasa-research.json` when the existing web folder is served. The Crew dashboard now renders seven selectable charts, accessible data tables, and five source cards from this JSON. The chart module, styles and JSON snapshot are included in the Worker build and offline shell. Publishing uses the existing Sites project; see `docs/HANDOFF.md` for deployment verification. Keep the existing simulated heart-rate panel labeled as simulated. Display these data separately under **NASA research / Historical measurements**.
+The JSON is available at `./data/nasa-research.json` when the existing web folder is served. The Crew dashboard now renders seven selectable charts, accessible data tables, and five source cards from this JSON. The chart module, styles and JSON snapshot are included in the Worker build and offline shell. Publishing uses the existing Sites project; see [PASSDOWN](../../docs/PASSDOWN.md) for current deployment prerequisites and verification limits. The standalone website's simulated heart-rate panel was removed; any paired telemetry must retain its Simulated label. Display these research data separately under **NASA research / Historical measurements**.
 
 ```js
 const response = await fetch('./data/nasa-research.json');

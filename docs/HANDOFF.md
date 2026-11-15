@@ -1,5 +1,12 @@
 # Handoff — CrewSafety
 
+> **Historical snapshot. Start with [PASSDOWN.md](PASSDOWN.md) for current status.** PR #4 merged the
+> station detector, accounts and journal recall into `main` at `19906a1`. The old test counts, fall
+> acceptance cases, browser research/export instructions and hosted `/chat` advice below no longer
+> describe current code. Native research still uses FastAPI; the website no longer serves `/chat`.
+> The local Xcode installation now works. This file preserves earlier implementation/deployment
+> evidence rather than claiming those checks were repeated on the current revision.
+
 
 > **Direction change (2026-11-14): fall detection is scrapped.** The product now targets crew aboard a
 > space station, where nobody falls. The camera feature is a *possible-unresponsive* check: it alerts

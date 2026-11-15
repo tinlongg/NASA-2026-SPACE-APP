@@ -9,7 +9,7 @@ Worker. The public test site is [CrewSafety Connected](https://crew-safety-conne
 
 Camera access needs HTTPS or localhost. The browser webcam will not work over a LAN HTTP address; the paired dashboard and synthetic replay do work there. The hosted HTTPS link uses each visitor's own camera; no remote camera video is streamed. Start camera explicitly and grant access. Stop, navigating away from Monitor, hiding the tab, and closing the page release the webcam. Permission failures and model-download failures show recovery messages. Use synthetic replay to test alerts without holding still for real.
 
-Camera frames are processed locally and never recorded/uploaded. MediaPipe JS/WASM and the model download from jsDelivr and Google. First use needs internet. Journal entries persist in localStorage on that browser; browser-generated events are session-only. Paired iPhone events persist in hosted D1 or the local FastAPI backend. Telemetry is generated and labelled Simulated.
+Camera frames are processed locally and never recorded/uploaded. MediaPipe JS/WASM and the model download from jsDelivr and Google. First use needs internet. Guest journal entries persist in localStorage; signed-in entries persist in the account database. Browser-generated events are session-only. Paired iPhone events persist in hosted D1 or the local backend. Any paired telemetry remains labelled Simulated.
 
 ## Paired iPhone dashboard
 
@@ -98,22 +98,23 @@ Monitor page reports whether this cache is ready. Click **Download camera model 
 while online to cache the pinned MediaPipe module, both WASM variants, and the model. Success is shown
 only after all resources are present. Initial loading/downloads need internet. System fonts are local.
 
-Replay, alerts, telemetry and the journal run locally; prepared MUSE questions use labelled Demo mode
-when the service is unreachable. Camera Coach needs connectivity. API requests, journal entries, and
+Replay, browser events and the guest journal run locally. Accounts, pairing, Camera Coach and MUSE
+journal reflections need connectivity. The website has no research tab or saved research-answer fallback.
+API requests, journal entries, and
 camera data never enter the service-worker cache. Cache versioning follows asset content; browser
 storage eviction, clearing site data, private browsing or a new deployment can require preparation
 again. Test a reload with networking disabled on the actual demo device before relying on it.
 
 Automated tests simulate cache installation, model-download failure, and network-off asset retrieval.
-This is not a completed physical-device airplane-mode test. Live Windows webcam/offline use is still
-pending. Local browser QA verified replay → one event and MUSE → a cited OSDR answer. With the local server
-stopped, the cached shell reloaded and a prepared OSDR question returned a labelled Demo answer.
-The camera-model cache reported complete; camera inference while disconnected remains untested.
+This is not a completed physical-device airplane-mode test. Current browser QA verified Stops moving →
+one labelled event after 15 seconds of stillness → acknowledgement. A Mac webcam startup reached 8–13 fps
+but did not acquire a reliable pose, so live detection remains unverified. Windows webcam/offline use
+and camera inference while disconnected remain pending. See [PASSDOWN](../docs/PASSDOWN.md) for evidence.
 
 ## Hosting
 
 `.openai/hosting.json` retains the existing Site identity and has no static directory. `scripts/build.mjs`
-embeds allowlisted browser assets and the exported corpus into `dist/server/index.js`; runtime secrets
+embeds allowlisted browser assets plus the account/sync handlers into `dist/server/index.js`; runtime secrets
 are excluded. Publish an isolated copy of this `web/` folder through the Sites source helper so the
 managed Site repository does not modify the parent GitHub history. A hosted deployment does not mean
 these changes have been committed/pushed to GitHub `main`.
@@ -123,4 +124,4 @@ References: [MediaPipe web pose API](https://developers.google.com/edge/mediapip
 
 ## Journal sentiment
 
-The website journal uses the MIT-licensed VADER lexicon (7,506 unique rated terms) with a custom local wording heuristic. Entries stay in browser storage; local sentiment is not sent to the server or iPhone sync. The optional Send this entry to MUSE action sends only that entry to Meta via the server for an AI reflection. Toggle analysis on or off and expand the explanation for matched words. It is not the full VADER algorithm and does not assess mood, health or risk. See [dataset provenance](data/sentiment/README.md). The iOS journal remains a separate on-device theme summarizer.
+The website journal uses the MIT-licensed VADER lexicon (7,506 unique rated terms) with a custom local wording heuristic. Guest entries stay in browser storage; account entries are server-stored. Sentiment analysis runs locally and its scores are not sent to Meta or iPhone sync. The optional MUSE action sends the selected entry and, when enabled for a signed-in user, up to three related account entries. Toggle local analysis on or off and expand the explanation for matched words. It is not the full VADER algorithm and does not assess mood, health or risk. See [dataset provenance](data/sentiment/README.md). The iOS journal remains a separate on-device theme summarizer.
