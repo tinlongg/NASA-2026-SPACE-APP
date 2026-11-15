@@ -199,6 +199,9 @@ Data lives in Turso (SQLite-compatible, added from the Vercel Marketplace), thro
 `turso-db.mjs`, which applies `drizzle/*.sql` on first use. Environment variables: `TURSO_DATABASE_URL`,
 `TURSO_AUTH_TOKEN` (set by the integration), `META_API_KEY`, `META_MODEL`. Deploy from `web/` with
 `vercel deploy --prod`; the project is `crew-safety` on the Tin'tastic Team.
+The project is on a Vercel Hobby team, which only deploys commits authored by its owner (tinlongg) and is not
+connected to GitHub, so pushes do not deploy by themselves. If the newest commit on `main` is someone else's,
+`vercel deploy --prod` is refused: the owner adds a commit on top, or deploys a copy of `web/` from outside Git.
 
 ### Publishing an update to ChatGPT Sites
 1. `npm test`, then `npm run build`. The build writes `dist/server/index.js` (ignored by git) and gives the
