@@ -16,7 +16,7 @@ Validation: `npm test` and `npm run build`. Local launch: `npm start` (Node with
 
 ## Admin demonstrations
 
-A deployment can provision one mission admin through the secret `MISSION_ADMIN_ACCOUNT` JSON value (`id`, `username`, PBKDF2-SHA256 `salt` and `hash`, 100,000 iterations). Login creates the account if absent; an existing conflicting username is never overwritten. Authorization matches the immutable account ID, not a client flag or username alone. The secret must stay outside source control.
+A deployment can provision multiple mission admins through the secret `MISSION_ADMIN_ACCOUNTS` JSON array, while retaining the legacy `MISSION_ADMIN_ACCOUNT` JSON value (`id`, `username`, PBKDF2-SHA256 `salt` and `hash`, 100,000 iterations). Login creates the account if absent; an existing conflicting username is never overwritten. Authorization matches the immutable account ID, not a client flag or username alone. The secrets must stay outside source control. Provisioned admins may sign in with shorter passwords; ordinary account registration still requires 8–200 characters.
 
 The admin panel selects automatic, healthy, tired or needs-care bird appearance and garden growth presets. Shop purchases are free for that account and flight fuel is unlimited. Admin simulation accounts cannot join the public leaderboard. The stages describe a fictional pet and never infer the crew member’s health. Native iOS Mission uses the same hosted account and controls.
 

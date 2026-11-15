@@ -43,7 +43,7 @@ test('idempotency, purchases, prestige and permanent best with rolling baseline'
  assert.deepEqual(missionStats(s,'dock'),{count:10,best:100,average:20});
  assert.throws(()=>task(s,'invented'),/check-in/);
 });
-test('mission API isolates accounts, enforces origin and keeps leaderboard opt-in',async()=>{
+test('mission API isolates accounts, enforces origin and includes all accounts in global rankings',async()=>{
  const DB=localSyncDB(),worker=createWorker(),origin='https://test.example';
  const client=()=>{let cookie='';return async(path,method='GET',body,from=origin)=>{const res=await worker.fetch(new Request(origin+path,{method,headers:{Origin:from,Cookie:cookie,'Content-Type':'application/json'},...(body?{body:JSON.stringify(body)}:{})}),{DB});if(res.headers.get('set-cookie'))cookie=res.headers.get('set-cookie').split(';')[0];return res;};};
  const a=client(),b=client();assert.equal((await a('/api/mission/state')).status,401);
@@ -53,9 +53,9 @@ test('mission API isolates accounts, enforces origin and keeps leaderboard opt-i
  const results=await Promise.all([a('/api/mission/action','POST',check),a('/api/mission/action','POST',check)]);assert.ok(results.every(r=>r.status===200));
  assert.equal((await (await a('/api/mission/state')).json()).state.fuel,60);
  assert.equal((await (await b('/api/mission/state')).json()).state.fuel,0);
- assert.equal((await (await a('/api/mission/leaderboard')).json()).rows.length,0);
- await a('/api/mission/action','POST',action('listing',{listed:true}));
- const board=await(await b('/api/mission/leaderboard')).json();assert.equal(board.rows.length,1);assert.deepEqual(Object.keys(board.rows[0]).sort(),['alias','points','rank','self']);assert.match(board.rows[0].alias,/^Bird-/);
+ assert.equal((await (await a('/api/mission/leaderboard')).json()).rows.length,2);
+ assert.equal((await a('/api/mission/action','POST',action('listing',{listed:false}))).status,400);
+ const board=await(await b('/api/mission/leaderboard')).json();assert.equal(board.rows.length,2);assert.deepEqual(Object.keys(board.rows[0]).sort(),['alias','points','rank','self']);assert.match(board.rows[0].alias,/^Bird-/);
  assert.equal((await a('/api/mission/action','POST',{...check,answers:['private']})).status,400);
  DB.sqlite.close();
 });
