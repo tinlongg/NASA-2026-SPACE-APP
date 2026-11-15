@@ -9,7 +9,7 @@ acceptance remain pending; synthetic replays do not validate real-person detecti
 - [x] Web: 39 tests pass on Node 22.23.5, including detector fixtures, account isolation, journal recall,
   provider mocks, offline-cache simulations and pairing/sync. Node 20 cannot load `node:sqlite`.
 - [x] Backend: 31 tests pass — `cd backend && .venv/bin/python -m pytest -q`.
-- [x] iOS: 48 tests pass on Xcode 26.6, iPhone 17 / iOS 26.5 Simulator using the iPhone-only
+- [x] iOS: 62 tests pass on Xcode 26.6, iPhone 17 / iOS 26.5 Simulator using the iPhone-only
   `CrewSafety-iOSOnly` scheme, including repeated voice cleanup before listening. The 60-second
   check-in timeout is unit-tested. The shipping `CrewSafety` scheme also embeds the Watch app and
   needs the watchOS 26.5 simulator runtime; see `ios/scripts/test-ios-only.sh`.

@@ -1,7 +1,0 @@
-# Description
-
-Exercise training during the National Aeronautics and Space Administration 70-d bed rest study effectively counteracted the decline in aerobic capacity, muscle mass, strength, and endurance. We aimed to characterize the genomic response of the participants' vastus lateralis on day 64 of bed rest with and without exercise countermeasures. Twenty-two healthy young males were randomized into three groups: 1) bed rest only (n equals 7), 2) bed rest + aerobic (6 d/wk) and resistance training (3 d/wk) on standard equipment (n equals 7), and 3) bed rest + aerobic and resistance training using a flywheel device (n equals 8). The vastus lateralis gene and microRNA microarrays were analyzed using GeneSpring GX 14.9.1 (Agilent Technologies, Palo Alto, CA). This study hosts the microRNA microarray dataset. Gene expression microarray datasets are available in OSD-942.
-
-# OSDR metadata: study identifier, project type, organism, study assay technology type
-
-Study identifier: OSD-946. Project type: Ground Study. Organism: Homo sapiens. Study assay technology type: miRNA Microarray.
