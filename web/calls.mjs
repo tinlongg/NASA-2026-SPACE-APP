@@ -5,7 +5,6 @@
 // and ELEVENLABS_PHONE_NUMBER_ID (the id ElevenLabs shows for the imported number, not the number itself).
 import { accountUser } from './account.mjs';
 
-const CLL_COOLDOWN_MS = 10 * 60000, CLL_DAILY_CAP = 5, CLL_TEST_COOLDOWN_MS = 2 * 60000;
 const cllJSON = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
 const cllError = (status, message) => Object.assign(new Error(message), { status });
 const cllDB = env => { if (!env.DB) throw cllError(503, 'Calls need the account database.'); return env.DB.withSession ? env.DB.withSession('first-primary') : env.DB; };
@@ -34,16 +33,13 @@ export async function cllPlace(env, phone, info, fetcher = fetch) {
   } catch { return 'failed'; }
 }
 
-/** Calls every opted-in member of the given users, within the cooldown and the daily cap. Returns how many calls were placed. */
+/** Calls every opted-in member of the given users. There is no cooldown or daily cap. Returns how many calls were placed. */
 export async function callMembers(env, userIds, info, fetcher = fetch) {
   if (!cllConfigured(env) || !userIds.length) return 0;
   const db = cllDB(env), now = Date.now(), marks = userIds.map(() => '?').join(',');
   const { results } = await db.prepare(`SELECT user_id, phone, last_called FROM call_contacts WHERE enabled = 1 AND user_id IN (${marks})`).bind(...userIds).all();
   let placed = 0;
   for (const contact of results) {
-    if (contact.last_called && now - contact.last_called < CLL_COOLDOWN_MS) continue;
-    const today = (await db.prepare('SELECT COUNT(*) AS n FROM call_log WHERE user_id = ? AND created > ? AND outcome = ?').bind(contact.user_id, now - 24 * 3600000, 'placed').first()).n;
-    if (today >= CLL_DAILY_CAP) continue;
     const outcome = await cllPlace(env, contact.phone, info, fetcher);
     await db.prepare('INSERT INTO call_log (user_id, created, outcome) VALUES (?, ?, ?)').bind(contact.user_id, now, outcome).run();
     if (outcome === 'placed') { placed++; await db.prepare('UPDATE call_contacts SET last_called = ? WHERE user_id = ?').bind(now, contact.user_id).run(); }
@@ -78,8 +74,6 @@ export async function handleCalls(request, env, fetcher = fetch) {
       if (!cllConfigured(env)) throw cllError(503, 'Phone calls are not set up on this server yet.');
       const row = await db.prepare('SELECT phone FROM call_contacts WHERE user_id = ? AND enabled = 1').bind(user.id).first();
       if (!row) throw cllError(404, 'Save your number first.');
-      const recent = await db.prepare('SELECT created FROM call_log WHERE user_id = ? ORDER BY created DESC LIMIT 1').bind(user.id).first();
-      if (recent && Date.now() - recent.created < CLL_TEST_COOLDOWN_MS) throw cllError(429, 'Wait a couple of minutes before another test call.');
       const outcome = await cllPlace(env, row.phone, { person: 'Person 2', room: 'Destiny', camera: 'Test camera', kind: 'test' }, fetcher);
       await db.prepare('INSERT INTO call_log (user_id, created, outcome) VALUES (?, ?, ?)').bind(user.id, Date.now(), outcome === 'placed' ? 'test' : 'failed').run();
       if (outcome !== 'placed') throw cllError(502, 'The call could not be placed. Check the ElevenLabs agent, number and key.');

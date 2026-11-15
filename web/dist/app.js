@@ -308,14 +308,15 @@ function evaluatePerson(person, time, measurement) {
   raiseEvent(person, detection, snapshot);
 }
 
-function raiseEvent(person, detection, snapshot, why = '') {
+function raiseEvent(person, detection, snapshot, why = '', options = {}) {
   const who = mode === 'replay' ? '' : `Person ${person.id}: `;
   let details = `${who}${why || `No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`}`;
   details += watchNote(person);
   events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', personId: mode === 'replay' ? null : person.id, type: 'Possible unresponsive', details, snapshot: structuredClone(snapshot), eyes: person.face?.eyes?.state ?? null, mouth: person.face?.mouth?.state ?? null, acknowledged: false, lookNote: null });
   if (mode === 'live') phoneAlert(person, 'alert', why || `No movement for ${Math.round(detection.stillFor)} s.`);
   if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
-  if (element('voice-answer-enabled').checked && mode === 'live' && !why) listenAfterAlert(events[0]); else speakAlert();
+  // When the voice agent is already telling the person help is coming, do not cut in with the recorded clip: it is a different voice.
+  if (options.agentSpoke) { /* the agent is speaking */ } else if (element('voice-answer-enabled').checked && mode === 'live' && !why) listenAfterAlert(events[0]); else speakAlert();
   element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${events[0].source}. ${details}`;
   if (mode === 'live' && account) { lastCirclePost = Date.now(); api('/api/circle/alert', 'POST', { title: 'Alert: live camera', body: `${person.id ? `Person ${person.id}: ` : ''}${why ? (why.includes('help') ? 'asked for help' : 'did not answer the check-in') : 'no movement for a while'}. Go to them now.`, callKind: why ? (why.includes('help') ? 'help' : 'timeout') : 'still', person: person.id ? `Person ${person.id}` : 'A crew member', room: 'the live camera', camera: 'Live monitor' }).catch(() => {}); }
   renderEvents();
@@ -375,13 +376,15 @@ async function beginAgentCheckIn(person, fallback) {
     const id = person.id, session = startAgentConversation({
       signedUrl,
       onUser: (text, answer) => { agentHeard(text ? `You: ${text}` : ''); const ended = answer && checkIns.answer(id, answer); if (ended) finishCheckIn(ended); },
-      onAgent: text => { agentHeard(text ? `Agent: ${text}` : ''); const decided = agentOutcome(text), ended = decided && checkIns.answer(id, decided); if (ended) finishCheckIn(ended); },
+      onAgent: text => { agentHeard(text ? `Agent: ${text.replace(/\[[^\]]*\]\s*/g, '').trim()}` : ''); const decided = agentOutcome(text), ended = decided && checkIns.answer(id, decided); if (ended) finishCheckIn(ended); },
       onState: state => agentStatus(state === 'connecting' ? 'Connecting to the voice agent…' : state === 'speaking' ? 'The agent is speaking.' : state === 'listening' ? 'Listening. Say that you are okay, or ask for help.' : 'Voice conversation ended.')
     });
     agentSession = { id, ...session };
     await session.ready;
   } catch { fail('The voice agent could not start, so the recorded question was used.'); }
 }
+// After a spoken answer, let the agent finish its sentence ("I'm alerting the crew now") before the conversation closes.
+function endAgentCheckInSoon(id, ms = 8000) { const session = agentSession; if (!session || session.id !== id) return; setTimeout(() => { session.stop(); if (agentSession === session) agentSession = null; }, ms); }
 function endAgentCheckIn(id) { if (agentSession && (id === undefined || agentSession.id === id)) { agentSession.stop(); agentSession = null; } }
 element('voice-agent-enabled').onchange = async () => {
   const box = element('voice-agent-enabled');
@@ -396,9 +399,9 @@ element('voice-agent-enabled').onchange = async () => {
 };
 function answerCheckIn(id, kind) { const ended = checkIns.answer(id, kind); if (ended) finishCheckIn(ended); }
 function finishCheckIn({ id, outcome, info }) {
-  clearInterval(checkInTimers.get(id)); checkInTimers.delete(id); checkInListeners.get(id)?.stop?.(); checkInListeners.delete(id); endAgentCheckIn(id); endWatchCheckIn(info.person);
+  clearInterval(checkInTimers.get(id)); checkInTimers.delete(id); checkInListeners.get(id)?.stop?.(); checkInListeners.delete(id); const agentActive = agentSession?.id === id; if (agentActive && (outcome === 'help' || outcome === 'ok')) endAgentCheckInSoon(id); else endAgentCheckIn(id); endWatchCheckIn(info.person);
   const { person, detection, snapshot } = info, now = Date.now();
-  if (RAISES_ALERT[outcome]) raiseEvent(person, detection, snapshot, outcome === 'help' ? `Person ${id} asked for help at the check-in. Go to them now.` : `Person ${id} did not answer the "Are you OK?" check-in for ${checkIns.seconds} s after ${Math.round(detection.stillFor)} s without movement. Check in with them.`);
+  if (RAISES_ALERT[outcome]) raiseEvent(person, detection, snapshot, outcome === 'help' ? `Person ${id} asked for help at the check-in. Go to them now.` : `Person ${id} did not answer the "Are you OK?" check-in for ${checkIns.seconds} s after ${Math.round(detection.stillFor)} s without movement. Check in with them.`, { agentSpoke: agentActive && outcome === 'help' });
   else {
     // Said OK, or showed activity again: log it quietly. After OK, give a longer grace before asking again.
     if (outcome === 'ok') person.detector.noteActivity(performance.now() / 1000 + GRACE_SECONDS); // the detector clock is performance.now() in seconds

@@ -65,7 +65,7 @@ Get the listener to check on the person, and note whether they are going.
 
 ## Limits and privacy
 
-Each person is called at most once every 10 minutes and 5 times a day. Phone numbers are stored in the `call_contacts` table
+There is no cooldown or daily cap: every serious alert rings every opted-in person. Phone numbers are stored in the `call_contacts` table
 unencrypted and are shared with ElevenLabs and Twilio to place calls; people can remove their number at any time. The agent
-is told only the four variables above. A test call is limited to one every 2 minutes. The "Are you OK?" check-in still runs
+is told only the four variables above. A test call can be repeated at any time. The "Are you OK?" check-in still runs
 first, so calls happen only after help is asked for or the check-in goes unanswered.
