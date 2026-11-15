@@ -8,19 +8,40 @@ function setup(){
  const pet={isConnected:true,classList:{add(...names){names.forEach(n=>classes.add(n));},remove(...names){names.forEach(n=>classes.delete(n));}},querySelector:()=>bird,querySelectorAll:()=>children,setAttribute(){},append(n){children.push(n);},setPointerCapture(id){captures.add(id);},hasPointerCapture(id){return captures.has(id);},releasePointerCapture(id){captures.delete(id);},offsetWidth:100};
  wirePet(pet,()=>speech);return{pet,bird,speech,children,classes};
 }
-const pointer=(x=0,y=0)=>({pointerId:1,button:0,clientX:x,clientY:y});
+const pointer=(x=0,y=0,timeStamp=0)=>({pointerId:1,button:0,clientX:x,clientY:y,timeStamp});
 test('tap and keyboard happiness restore the normal eye after a moment',t=>{
  t.mock.timers.enable({apis:['setTimeout']});
  const {pet,classes}=setup();pet.onpointerdown(pointer());pet.onpointerup(pointer());assert.ok(classes.has('pip-happy'));assert.ok(!classes.has('pip-dizzy'));
  t.mock.timers.tick(1601);assert.ok(!classes.has('pip-happy'));
  pet.onkeydown({key:'Enter',preventDefault(){}});assert.ok(classes.has('pip-happy'));
 });
-test('extended dragging makes the eye dizzy without a small drag doing so',t=>{
+test('steady fast or long dragging does not make the eye dizzy',t=>{
  t.mock.timers.enable({apis:['setTimeout']});
- const {pet,classes,bird}=setup();pet.onpointerdown(pointer());pet.onpointermove(pointer(20));assert.ok(!classes.has('pip-dizzy'));
- pet.onpointermove(pointer(150));pet.onpointermove(pointer(-150));assert.ok(classes.has('pip-dizzy'));
- pet.onpointerup(pointer(-150));assert.equal(bird.style.transform,'');assert.ok(classes.has('pip-dizzy'));
+ for(const speed of [.2,2]){
+  const {pet,classes}=setup();pet.onpointerdown(pointer());
+  for(let time=40;time<=800;time+=40)pet.onpointermove(pointer(speed*time,0,time));
+  assert.ok(!classes.has('pip-dizzy'));pet.onpointerup(pointer(speed*800,0,800));assert.ok(!classes.has('pip-dizzy'));
+ }
+});
+test('sharp acceleration after movement starts makes the eye dizzy, then recovers',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const {pet,classes,bird}=setup();pet.onpointerdown(pointer());
+ for(let time=40;time<=160;time+=40)pet.onpointermove(pointer(time*2,0,time));
+ assert.ok(!classes.has('pip-dizzy'));
+ pet.onpointermove(pointer(240,0,200));assert.ok(classes.has('pip-dizzy'));
+ pet.onpointerup(pointer(240,0,200));assert.equal(bird.style.transform,'');assert.ok(classes.has('pip-dizzy'));assert.ok(classes.has('pip-returning'));
  t.mock.timers.tick(2601);assert.ok(!classes.has('pip-dizzy'));
+});
+test('small pointer jitter and movement after an idle gap do not cause dizziness',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const {pet,classes}=setup();pet.onpointerdown(pointer());
+ for(let time=24;time<=480;time+=24)pet.onpointermove(pointer(time%48?2:0,0,time));
+ pet.onpointermove(pointer(200,0,1500));pet.onpointermove(pointer(210,0,1540));assert.ok(!classes.has('pip-dizzy'));
+});
+test('release keeps the bird above the hero while it floats home',t=>{
+ t.mock.timers.enable({apis:['setTimeout']});
+ const {pet,classes}=setup();pet.onpointerdown(pointer());pet.onpointermove(pointer(100,30,100));pet.onpointerup(pointer(100,30,100));
+ assert.ok(classes.has('pip-returning'));assert.ok(!classes.has('pip-held'));t.mock.timers.tick(1799);assert.ok(classes.has('pip-returning'));t.mock.timers.tick(2);assert.ok(!classes.has('pip-returning'));
 });
 test('every rapid tap responds without a cooldown and hearts stay bounded',()=>{
  const {pet,children,speech}=setup();for(let i=0;i<20;i++){pet.onpointerdown(pointer());pet.onpointerup(pointer());}
