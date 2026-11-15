@@ -57,6 +57,7 @@ final class CameraMonitorViewModel {
     @ObservationIgnored private let webCamera = WebCameraClient()
     @ObservationIgnored private var countdownTask: Task<Void, Never>?
     @ObservationIgnored private var voiceTask: Task<Void, Never>?
+    @ObservationIgnored private var watchCheckInID: String?
     @ObservationIgnored private var checkInContext: (detection: InactivityDetection, source: EventSource, easyDetection: Bool)?
     private static let pendingNotificationID = "crewsafety.checkin.no-response"
 
@@ -267,6 +268,12 @@ final class CameraMonitorViewModel {
         lastOutcome = nil
         isListening = false
         UINotificationFeedbackGenerator().notificationOccurred(.warning)
+        // The Apple Watch vibrates and offers I'm OK / Need help; its answer counts like a spoken one.
+        let watchID = "ios-\(UUID().uuidString)"
+        watchCheckInID = watchID
+        WatchLink.shared.requestCheckIn(id: watchID, deadline: now.addingTimeInterval(Self.checkInDuration)) { [weak self] response in
+            self?.answer(response)
+        }
         webCamera.send(["type": "checkin", "state": "awaiting",
                         "deadline": now.addingTimeInterval(Self.checkInDuration).timeIntervalSince1970,
                         "duration": Self.checkInDuration])
@@ -322,6 +329,8 @@ final class CameraMonitorViewModel {
         voiceTask = nil
         voice.stop()
         isListening = false
+        if let watchCheckInID { WatchLink.shared.cancelCheckIn(id: watchCheckInID) }
+        watchCheckInID = nil
         lastOutcome = outcome
         let context = checkInContext
         checkInContext = nil
