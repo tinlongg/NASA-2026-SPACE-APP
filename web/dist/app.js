@@ -2,7 +2,7 @@ import {PAGE_ROUTES,pageForPath} from './page-routes.js';
 import { initializeMission } from './mission.js';
 import { openJournalDemo } from './journal-demo.js';
 import { deviceJournalPayload, journalReflectionElement } from './journal-reflection.js';
-import { InactivityDetector, measurePose, STILL_SECONDS } from './detector.js';
+import { InactivityDetector, measurePose, STILL_SECONDS, MOVE_THRESHOLD } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
 import { VISION_MODULE, VISION_WASM, POSE_MODELS, FACE_MODEL } from './offline-config.js';
 import { visibilityGroups, FramingMonitor, MODEL_CHOICES } from './camera-health.js';
@@ -181,14 +181,14 @@ async function startCamera() {
   }
 }
 
-const statusColour = person => !person.result ? '#5ccf8e' : person.result.alerted ? '#df6a5e' : person.result.stillFor >= STILL_SECONDS / 3 ? '#d6a24e' : '#5ccf8e';
+const statusColour = person => !person.result ? '#5ccf8e' : person.result.alerted ? '#df6a5e' : person.result.stillFor >= stillLimit() / 3 ? '#d6a24e' : '#5ccf8e';
 // Second view: a zoomed crop of the video around the face of whoever the monitor is following.
 const faceCanvas = element('face-view'), faceContext = faceCanvas.getContext('2d');
 function closeUpTarget() {
   // Always on: the flagged person, else the one clicked, else whoever the monitor is following.
   if (mode === 'replay') return null;
   const flagged = people.get(focusId);
-  if (flagged?.result && (flagged.result.alerted || flagged.result.stillFor >= STILL_SECONDS / 3)) return flagged;
+  if (flagged?.result && (flagged.result.alerted || flagged.result.stillFor >= stillLimit() / 3)) return flagged;
   return people.get(selectedId) ?? (flagged?.pose ? flagged : null) ?? [...people.values()].find(person => person.pose) ?? null;
 }
 function headBox(pose) { // fallback when the face model has nothing: a box around the head from the pose
@@ -217,9 +217,9 @@ function renderViews(force = false) {
     const result = person.result, card = document.createElement('article'); card.className = 'thought' + (person.id === focusId ? ' focus' : '') + (result?.alerted ? ' alert' : '');
     const head = document.createElement('div'); head.className = 'thought-head';
     const name = document.createElement('strong'); name.textContent = mode === 'replay' ? 'Synthetic person' : `Person ${person.id}`;
-    const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = result?.alerted ? 'Alert' : !result?.measurement ? 'Not tracked' : result.stillFor >= STILL_SECONDS / 3 ? 'Still' : 'Moving';
+    const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = result?.alerted ? 'Alert' : !result?.measurement ? 'Not tracked' : result.stillFor >= stillLimit() / 3 ? 'Still' : 'Moving';
     head.append(name, chip); card.append(head);
-    const lines = describePerson({ tracked: Boolean(result?.measurement), upper: result?.upper, motion: result?.motion, threshold: result?.threshold, stillFor: result?.stillFor ?? 0, stillSeconds: STILL_SECONDS, alerted: result?.alerted, eyes: person.face?.eyes, mouth: person.face?.mouth, museMouth: person.muse ? { state: person.muse.mouthMoving ? 'moving' : 'still' } : null, replay: mode === 'replay', faceActiveAgo: person.activeAt == null || mode === 'replay' ? null : performance.now() / 1000 - person.activeAt, activeReason: person.activeReason, watch: watchReading(person) });
+    const lines = describePerson({ tracked: Boolean(result?.measurement), upper: result?.upper, motion: result?.motion, threshold: result?.threshold, stillFor: result?.stillFor ?? 0, stillSeconds: stillLimit(), alerted: result?.alerted, eyes: person.face?.eyes, mouth: person.face?.mouth, museMouth: person.muse ? { state: person.muse.mouthMoving ? 'moving' : 'still' } : null, replay: mode === 'replay', faceActiveAgo: person.activeAt == null || mode === 'replay' ? null : performance.now() / 1000 - person.activeAt, activeReason: person.activeReason, watch: watchReading(person) });
     for (const line of lines) { const item = document.createElement('p'); item.textContent = line; card.append(item); }
     const look = events.find(event => event.personId === person.id && event.lookNote?.status === 'done');
     if (person.muse?.thinking) { const note = document.createElement('p'); note.className = 'look'; note.textContent = `MUSE: ${person.muse.thinking}`; card.append(note); }
@@ -289,7 +289,8 @@ function drawPose(pose, colour = '#5ccf8e') {
 
 // One person's detector step. Raises an event when the detector fires; the display is separate.
 function evaluatePerson(person, time, measurement) {
-  const d = person.detector;
+  const d = person.detector, limits = detectorLimits();
+  d.stillSeconds = limits.stillSeconds; d.threshold = limits.threshold;
   d.wholeBody = mode === 'replay' ? Boolean(REPLAYS[replayKind]?.wholeBody) : element('whole-body-enabled').checked; // synthetic replays were written for microgravity unless they say otherwise
   const detection = d.process(time, measurement);
   // Talking or blinking is activity: a person standing still while speaking is not unresponsive.
@@ -320,7 +321,26 @@ function raiseEvent(person, detection, snapshot, why = '') {
 
 // "Are you OK?" check-in: a spoken and written question with a countdown. Saying or tapping OK, or moving
 // again, ends it quietly; asking for help or no answer raises the alert. Voice answers are on-device only.
+// Sensitivity: how long someone must hold still, how much movement counts, and how long the check-in waits.
+// Presets make testing easy; the live camera uses them, synthetic replays always use the standard values.
+const SENSITIVITY = { quick: { stillSeconds: 5, threshold: 0.45, checkInSeconds: 10 }, standard: { stillSeconds: STILL_SECONDS, threshold: MOVE_THRESHOLD, checkInSeconds: CHECKIN_SECONDS }, relaxed: { stillSeconds: 45, threshold: 0.15, checkInSeconds: 60 } };
+let sensitivity = { preset: 'standard', ...SENSITIVITY.standard };
+try { const saved = JSON.parse(localStorage.getItem('crewsafety-sensitivity') || 'null'); if (saved && (SENSITIVITY[saved.preset] || saved.preset === 'custom')) sensitivity = { ...sensitivity, ...(SENSITIVITY[saved.preset] || {}), ...(saved.preset === 'custom' ? { stillSeconds: clampNumber(saved.stillSeconds, 3, 120, 15), threshold: clampNumber(saved.threshold, 0.1, 0.6, 0.25), checkInSeconds: clampNumber(saved.checkInSeconds, 5, 90, 30) } : {}), preset: saved.preset }; } catch {}
+function clampNumber(value, min, max, fallback) { return Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback; }
+function detectorLimits() { return mode === 'replay' ? SENSITIVITY.standard : sensitivity; }
+function stillLimit() { return detectorLimits().stillSeconds; }
+function renderSensitivity() {
+  for (const radio of document.querySelectorAll('input[name="sens-preset"]')) radio.checked = radio.value === sensitivity.preset;
+  element('sens-still').value = sensitivity.stillSeconds; element('sens-still-out').textContent = `${sensitivity.stillSeconds} s`;
+  element('sens-move').value = sensitivity.threshold; element('sens-move-out').textContent = `${sensitivity.threshold.toFixed(2)} torso lengths`;
+  element('sens-checkin').value = sensitivity.checkInSeconds; element('sens-checkin-out').textContent = `${sensitivity.checkInSeconds} s`;
+  checkIns.seconds = sensitivity.checkInSeconds;
+  try { localStorage.setItem('crewsafety-sensitivity', JSON.stringify(sensitivity)); } catch {}
+}
+for (const radio of document.querySelectorAll('input[name="sens-preset"]')) radio.onchange = () => { sensitivity = { ...sensitivity, ...(SENSITIVITY[radio.value] || {}), preset: radio.value }; renderSensitivity(); };
+for (const [id, key] of [['sens-still', 'stillSeconds'], ['sens-move', 'threshold'], ['sens-checkin', 'checkInSeconds']]) element(id).oninput = () => { sensitivity = { ...sensitivity, [key]: Number(element(id).value), preset: 'custom' }; renderSensitivity(); };
 const checkIns = new CheckIns({ seconds: CHECKIN_SECONDS }), checkInTimers = new Map(), checkInListeners = new Map();
+renderSensitivity();
 function startCheckIn(person, detection, snapshot) {
   if (!checkIns.start(person.id, { person, detection, snapshot }, Date.now())) return;
   watchCheckIn(person);
@@ -376,7 +396,7 @@ function answerCheckIn(id, kind) { const ended = checkIns.answer(id, kind); if (
 function finishCheckIn({ id, outcome, info }) {
   clearInterval(checkInTimers.get(id)); checkInTimers.delete(id); checkInListeners.get(id)?.stop?.(); checkInListeners.delete(id); endAgentCheckIn(id); endWatchCheckIn(info.person);
   const { person, detection, snapshot } = info, now = Date.now();
-  if (RAISES_ALERT[outcome]) raiseEvent(person, detection, snapshot, outcome === 'help' ? `Person ${id} asked for help at the check-in. Go to them now.` : `Person ${id} did not answer the "Are you OK?" check-in for ${CHECKIN_SECONDS} s after ${Math.round(detection.stillFor)} s without movement. Check in with them.`);
+  if (RAISES_ALERT[outcome]) raiseEvent(person, detection, snapshot, outcome === 'help' ? `Person ${id} asked for help at the check-in. Go to them now.` : `Person ${id} did not answer the "Are you OK?" check-in for ${checkIns.seconds} s after ${Math.round(detection.stillFor)} s without movement. Check in with them.`);
   else {
     // Said OK, or showed activity again: log it quietly. After OK, give a longer grace before asking again.
     if (outcome === 'ok') person.detector.noteActivity(performance.now() / 1000 + GRACE_SECONDS); // the detector clock is performance.now() in seconds
@@ -408,7 +428,7 @@ function chooseFocus() {
   const alerted = list.filter(person => person.result.alerted).sort((a, b) => b.result.stillFor - a.result.stillFor)[0];
   if (alerted) return alerted.id;
   const stillest = list.filter(person => person.pose).sort((a, b) => b.result.stillFor - a.result.stillFor)[0];
-  if (stillest && stillest.result.stillFor >= STILL_SECONDS / 3) return stillest.id;
+  if (stillest && stillest.result.stillFor >= stillLimit() / 3) return stillest.id;
   if (selectedId !== null && people.has(selectedId)) return selectedId;
   return stillest?.id ?? [...people.keys()][0] ?? null;
 }
@@ -423,7 +443,7 @@ function renderFocus(person, time) {
   element('tracking').textContent = measurement ? (mode === 'replay' ? 'Synthetic pose · not a recording' : measurement.upper ? 'Upper-body tracking (hips not visible)' : 'Pose tracking active') : 'No reliable pose · show your shoulders';
   element('motion').textContent = summary ? summary.motion.toFixed(2) : '—';
   element('still').textContent = summary ? Math.floor(stillFor) : '—';
-  element('detector-state').textContent = !measurement ? 'Waiting for crew member' : result.alerted ? 'Alert raised · waiting for movement' : stillFor >= STILL_SECONDS / 3 ? `No movement · alert at ${STILL_SECONDS} s` : 'Monitoring';
+  element('detector-state').textContent = !measurement ? 'Waiting for crew member' : result.alerted ? 'Alert raised · waiting for movement' : stillFor >= stillLimit() / 3 ? `No movement · alert at ${stillLimit()} s` : 'Monitoring';
   renderViews();
 }
 function handleMeasurement(time, measurement) { // synthetic replay: one person, no faces
