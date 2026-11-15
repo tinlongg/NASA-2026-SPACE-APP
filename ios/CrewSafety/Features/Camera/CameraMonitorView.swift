@@ -22,7 +22,7 @@ struct CameraMonitorView: View {
                     if let detection = model.lastDetection {
                         detectionCard(detection)
                     }
-                    Text("Possible-fall detection is a heuristic and will make mistakes. It is not a diagnosis. Video is analysed on this device and is not stored or sent.")
+                    Text("No-movement detection is a heuristic and will make mistakes; sleep or holding still on purpose can trigger it. It is not a diagnosis. Video is analysed on this device and is not stored or sent.")
                         .font(.footnote)
                         .foregroundStyle(Theme.secondaryText)
                 }
@@ -114,7 +114,7 @@ struct CameraMonitorView: View {
                 .foregroundStyle(.white)
         case .unknown, .authorized:
             EmptyStateView(title: "Not monitoring", systemImage: "video",
-                           message: "Place the phone upright on a stand with the whole body in view, then start monitoring.")
+                           message: "Mount the phone so the crew member's shoulders and hips stay in view, then start monitoring.")
                 .foregroundStyle(.white)
         }
     }
@@ -126,7 +126,7 @@ struct CameraMonitorView: View {
             systemImage: "web.camera",
             message: failed
                 ? "On the Mac, run node webcam/server.js, then choose Web camera again."
-                : "On the Mac, open http://localhost:8765 and start the camera. Stand back so your whole body is in view.")
+                : "On the Mac, open http://localhost:8765 and start the camera. Keep your shoulders and hips in view.")
             .foregroundStyle(.white)
     }
 
@@ -137,8 +137,8 @@ struct CameraMonitorView: View {
                 VStack(alignment: .leading, spacing: Theme.Spacing.xs) {
                     Text("Easy test detection").font(.headline)
                     Text(model.easyTestDetection
-                         ? "Bend your knees a little, lean far to one side and hold for a second. Testing only."
-                         : "Standard thresholds, the same as the iPhone camera. A real, fast fall is needed.")
+                         ? "Alerts after 8 seconds without movement. Testing only."
+                         : "Standard thresholds, the same as the iPhone camera: 15 seconds without movement.")
                         .font(.caption)
                         .foregroundStyle(Theme.secondaryText)
                 }
@@ -200,19 +200,16 @@ struct CameraMonitorView: View {
         .controlSize(.large)
     }
 
-    private func detectionCard(_ detection: FallDetection) -> some View {
+    private func detectionCard(_ detection: InactivityDetection) -> some View {
         Card {
             VStack(alignment: .leading, spacing: Theme.Spacing.s) {
                 HStack {
-                    Text("Last possible fall").font(.headline)
+                    Text("Last no-movement alert").font(.headline)
                     if let source = model.lastDetectionSource, source != .liveCamera {
                         SimulatedBadge(text: source.displayName)
                     }
                 }
                 Text(detection.explanation).font(.subheadline)
-                Text("Heuristic score \(Int((detection.score * 100).rounded()))% · not a probability")
-                    .font(.caption)
-                    .foregroundStyle(Theme.secondaryText)
                 if let outcome = model.lastOutcome {
                     Text(outcome.summary)
                         .font(.subheadline.weight(.medium))

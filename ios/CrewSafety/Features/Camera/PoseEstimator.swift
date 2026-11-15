@@ -9,6 +9,7 @@ final class PoseEstimator {
     private static let jointKeys: [VNHumanBodyPoseObservation.JointName: String] = [
         .nose: "nose", .neck: "neck", .root: "root",
         .leftShoulder: "leftShoulder", .rightShoulder: "rightShoulder",
+        .leftElbow: "leftElbow", .rightElbow: "rightElbow", .leftWrist: "leftWrist", .rightWrist: "rightWrist",
         .leftHip: "leftHip", .rightHip: "rightHip",
         .leftKnee: "leftKnee", .rightKnee: "rightKnee",
         .leftAnkle: "leftAnkle", .rightAnkle: "rightAnkle",

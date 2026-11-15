@@ -6,6 +6,12 @@
       "runtimeExecutable": "node",
       "runtimeArgs": ["webcam/server.js"],
       "port": 8765
+    },
+    {
+      "name": "web",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--env-file-if-exists=web/.env", "web/scripts/serve.mjs"],
+      "port": 4173
     }
   ]
 }

@@ -30,7 +30,7 @@ final class CheckInVoice: NSObject, AVSpeechSynthesizerDelegate {
     }
 
     /// Asks for microphone and speech permission. Call when monitoring starts, never during a check-in,
-    /// so a system prompt can't cover the "I'm OK" button after a fall.
+    /// so a system prompt can't cover the "I'm OK" button during a check-in.
     func prepare() async {
         _ = await Self.requestPermissions()
     }

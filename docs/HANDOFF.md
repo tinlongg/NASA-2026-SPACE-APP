@@ -1,5 +1,13 @@
 # Handoff — CrewSafety
 
+
+> **Direction change (2026-11-14): fall detection is scrapped.** The product now targets crew aboard a
+> space station, where nobody falls. The camera feature is a *possible-unresponsive* check: it alerts
+> when a tracked crew member shows no limb movement for 15 seconds (drifting and tumbling are ignored),
+> then runs the same "Are you OK?" check-in. Wherever this document says fall, possible fall, low posture
+> or hip drop, read the no-movement check described in `README.md` → *Setting and detection*. The
+> event type is `possibleUnresponsive` (was `possibleFall`).
+
 Updated 2026-11-14. Read this before continuing. This revision adds the research/camera alignment to
 the native MVP and browser companion, plus the rebased native UI pass. Deployment uses a separate Sites
 source repository; GitHub commits and pushes are handled independently.
@@ -39,7 +47,7 @@ Its five study records are separate from MUSE's five-document corpus; neither af
   `backend/scripts/export_web.py --check` detects stale snapshots.
 - Six real extractive service responses were exported into native and browser demo files. Browser
   fallback matches prepared questions exactly and visibly displays Demo mode and the original question.
-- Seven browser replay scenarios cover stand, walk, sit, slow descent, fall, and falls 5/20 seconds
+- (Superseded 2026-11-14) Browser replays now cover working, resting, leaving view, stopping moving and limp tumbling. Older note: seven replay scenarios covered stand, walk, sit, slow descent, fall, and falls 5/20 seconds
   apart. They use generated inputs, not recordings or evidence of real-world sensitivity/specificity.
 - A versioned service worker caches the shell and saved answers. An explicit button downloads pinned
   MediaPipe/model assets. API responses and user content are excluded from its cache. System fonts
@@ -68,7 +76,7 @@ Local browser QA also confirmed a synthetic fall alert, an extractive OSDR respo
 reload with the local server stopped, and a labelled saved OSDR answer. The model-download cache
 reported complete; this did not exercise camera inference while disconnected.
 
-Do not turn unit tests or synthetic replay into claims about fall detection on people. No recordings,
+Do not turn unit tests or synthetic replay into claims about detecting unresponsive people. No recordings,
 phone airplane-mode run, backup demo video, or independent source signoff were produced by this pass.
 
 ## Run and regenerate
@@ -123,7 +131,7 @@ database.
 ## Rules to retain
 
 Never invent sources or clinical conclusions. Preserve Replay/Simulated/Demo labels. Detections are
-"Possible fall"; no diagnosis or injury claims. Journal text stays local. Keys stay on the server.
+"Possible unresponsive"; no diagnosis or injury claims. Journal text stays local. Keys stay on the server.
 Core and shared wire contracts remain frozen. The operational status here supersedes stale
 implementation-status claims in the historical plan, not its requirements.
 
@@ -142,7 +150,7 @@ the server runtime. Original brief copies, Swift Core, and the Xcode project hav
 | --- | --- |
 | `ios/CrewSafety/Core/` | Shared models, stores, protocols, design system. `Theme.swift` holds the adaptive palette sampled from the NASA Space Apps Houston 2026 event page; `AccentColor` mirrors its blue. Change with care; everything depends on it. |
 | `ios/CrewSafety/App/` | App entry, tab view, settings, `ServiceFactory.swift` (the one place services are chosen) |
-| `ios/CrewSafety/Features/Camera/` | Capture, Vision pose, `HeuristicFallDetector`, replay, monitor screen |
+| `ios/CrewSafety/Features/Camera/` | Capture, Vision pose, `InactivityDetector`, replay, monitor screen |
 | `ios/CrewSafety/Features/Alerts/` | Banner, timeline, detail |
 | `ios/CrewSafety/Features/Telemetry/` | Simulated provider and heart-rate/activity chart card |
 | `ios/CrewSafety/Features/MuseChat/` | Chat screen, `RemoteMuseService`, `DemoMuseService` |

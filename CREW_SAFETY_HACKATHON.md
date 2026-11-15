@@ -4,6 +4,13 @@
 > **Primary deliverable:** Native iPhone app in **Swift + SwiftUI**  
 > **Status:** Project specification and build checklist; not an assertion that features have been implemented
 
+> **Direction change (2026-11-14): fall detection is scrapped.** The product now targets crew aboard a
+> space station, where nobody falls. The camera feature is a *possible-unresponsive* check: it alerts
+> when a tracked crew member shows no limb movement for 15 seconds (drifting and tumbling are ignored),
+> then runs the same "Are you OK?" check-in. Wherever this document says fall, possible fall, low posture
+> or hip drop, read the no-movement check described in `README.md` → *Setting and detection*. The
+> event type is `possibleUnresponsive` (was `possibleFall`).
+
 ## 1. Mission
 
 Build an iOS prototype that helps a simulated space crew monitor potential safety incidents and access evidence-grounded mental and physical wellness information. Combine camera-based pose analysis, a crew status dashboard, a wellness journal, and a research-grounded assistant (“MUSE”).

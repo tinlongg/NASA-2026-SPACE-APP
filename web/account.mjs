@@ -1,0 +1,274 @@
+// Accounts and the per-user journal vector index. Self-contained (no imports) because
+// scripts/build.mjs concatenates this file into the deployed Worker.
+//
+// Auth: PBKDF2-SHA256 password hashes, opaque session tokens stored only as SHA-256
+// digests, HttpOnly SameSite=Strict cookie, same-origin check on every write.
+// Vector index: each synced journal entry is embedded into a 512-dimension vector and
+// stored in D1 next to its text; search is exact cosine similarity over one user's rows.
+
+const ACCT_COOKIE = 'cs_session';
+const ACCT_SESSION_MS = 7 * 86400000;
+const ACCT_ITERATIONS = 100000; // Workers' WebCrypto rejects PBKDF2 above 100,000 iterations.
+const ACCT_MAX_USERS = 5000;
+const ACCT_MAX_ENTRIES = 500;
+const ACCT_MAX_ENTRY = 10000;
+
+const acctJSON = (value, status = 200, headers = {}) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers } });
+const acctError = (status, message) => Object.assign(new Error(message), { status });
+const acctHex = bytes => [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
+const acctUnhex = text => new Uint8Array(text.match(/../g).map(pair => parseInt(pair, 16)));
+const acctDigest = async text => acctHex(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)));
+const acctDB = env => { if (!env.DB) throw acctError(503, 'Account storage is unavailable on this server.'); return env.DB.withSession ? env.DB.withSession('first-primary') : env.DB; };
+
+async function acctPasswordHash(password, saltHex) {
+  const key = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']);
+  return acctHex(await crypto.subtle.deriveBits({ name: 'PBKDF2', hash: 'SHA-256', salt: acctUnhex(saltHex), iterations: ACCT_ITERATIONS }, key, 256));
+}
+function acctSameText(a, b) {
+  if (a.length !== b.length) return false;
+  let difference = 0;
+  for (let index = 0; index < a.length; index++) difference |= a.charCodeAt(index) ^ b.charCodeAt(index);
+  return difference === 0;
+}
+async function acctReadJSON(request, limit) {
+  if (!(request.headers.get('Content-Type') || '').startsWith('application/json')) throw acctError(415, 'Send JSON.');
+  if (!request.body) throw acctError(400, 'Send JSON.');
+  const reader = request.body.getReader(), chunks = []; let size = 0;
+  while (true) {
+    const { done, value } = await reader.read(); if (done) break;
+    size += value.byteLength;
+    if (size > limit) { await reader.cancel(); throw acctError(413, 'Request is too large.'); }
+    chunks.push(value);
+  }
+  const bytes = new Uint8Array(size); let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  let parsed;
+  try { parsed = JSON.parse(new TextDecoder().decode(bytes)); } catch { throw acctError(400, 'Invalid JSON.'); }
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw acctError(400, 'Send a JSON object.');
+  return parsed;
+}
+function acctOnlyKeys(object, keys) { return Object.keys(object).every(key => keys.includes(key)); }
+function acctCookie(request, value, maxAge) {
+  const secure = new URL(request.url).protocol === 'https:' ? '; Secure' : '';
+  return `${ACCT_COOKIE}=${value}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}${secure}`;
+}
+function acctToken(request) {
+  return (request.headers.get('Cookie') || '').match(new RegExp(`(?:^|;\\s*)${ACCT_COOKIE}=([a-f0-9]{64})(?:;|$)`))?.[1] || null;
+}
+
+/** The signed-in user for this request, or null. Never throws for a missing database. */
+export async function accountUser(request, env) {
+  const token = acctToken(request);
+  if (!token || !env.DB) return null;
+  const row = await acctDB(env).prepare('SELECT users.id AS id, users.username AS username FROM auth_sessions JOIN users ON users.id = auth_sessions.user_id WHERE auth_sessions.token = ? AND auth_sessions.expires > ?').bind(await acctDigest(token), Date.now()).first();
+  return row ? { id: row.id, username: row.username } : null;
+}
+
+// ---------------------------------------------------------------------------
+// Embeddings. A deterministic hashed bag of features: stemmed words, a small
+// wellness concept map (so "exhausted" lands near "tired"), word pairs and character
+// trigrams, signed-hashed into VEC_DIM dimensions and L2-normalised. It runs inside the
+// Worker with no model download or third-party call, so journal text never leaves
+// the server just to be indexed. It matches wording and listed concepts; it is not
+// a neural semantic model. Swap embedText and bump VEC_MODEL to change that: rows
+// carry the model name and are re-embedded lazily when it differs.
+// ---------------------------------------------------------------------------
+export const VEC_DIM = 512;
+export const VEC_MODEL = 'hashed-lexical-v1';
+const VEC_STOP = new Set('a an and are as at be been but by did do does for from had has have he her his i if in into is it its me my of on or our she so than that the their them then there these they this to was we were what when which who will with you your am im just really very today got get also about been being out up down over not no'.split(' '));
+const VEC_CONCEPTS = {
+  sleep: 'sleep slept sleeping asleep tired exhausted fatigue fatigued rest rested nap insomnia awake drowsy sleepy bed woke',
+  workload: 'work working task tasks schedule deadline deadlines busy shift overtime workload meeting meetings backlog',
+  exercise: 'exercise exercised workout run running ran training gym treadmill lifting cardio stretch stretching bike',
+  isolation: 'alone lonely loneliness isolated isolation homesick miss missing apart distant',
+  family: 'family home partner wife husband kids children mom dad mother father friend friends parents call called',
+  food: 'food meal meals eat ate eating dinner lunch breakfast hungry snack appetite coffee',
+  crew: 'crew crewmate crewmates team teammate together commander colleague colleagues argument conflict',
+  stress: 'stress stressed stressful pressure overwhelmed worried worry anxious anxiety nervous tense panic',
+  body: 'pain ache aches headache sore nausea nauseous dizzy sick back neck stiff cramp',
+  mood_low: 'sad down unhappy upset depressed miserable crying cried frustrated angry annoyed irritated bummed',
+  mood_high: 'happy glad great good excited proud grateful calm relaxed joy joyful fun laughed content',
+};
+const VEC_CONCEPT_SLOT = new Map(Object.keys(VEC_CONCEPTS).map((concept, slot) => [concept, slot]));
+const VEC_CONCEPT_OF = new Map(Object.entries(VEC_CONCEPTS).flatMap(([concept, words]) => words.split(' ').map(word => [word, concept])));
+function vecStem(word) {
+  if (word.length > 5 && word.endsWith('ing')) return word.slice(0, -3);
+  if (word.length > 4 && word.endsWith('ed')) return word.slice(0, -2);
+  if (word.length > 4 && word.endsWith('ly')) return word.slice(0, -2);
+  if (word.length > 4 && word.endsWith('es')) return word.slice(0, -2);
+  if (word.length > 3 && word.endsWith('s') && !word.endsWith('ss')) return word.slice(0, -1);
+  return word;
+}
+function vecHash(text) { // FNV-1a, 32-bit
+  let hash = 0x811c9dc5;
+  for (let index = 0; index < text.length; index++) { hash ^= text.charCodeAt(index); hash = Math.imul(hash, 0x01000193); }
+  return hash >>> 0;
+}
+export function embedText(text) {
+  const words = (String(text).slice(0, ACCT_MAX_ENTRY).toLowerCase().replaceAll('’', "'").match(/[\p{L}\p{N}]+(?:'[\p{L}]+)?/gu) || []).map(word => word.replaceAll("'", ''));
+  const WEIGHT = { w: 1, c: 1.5, b: 0.5, t: 0.2 }; // word, concept, word pair, character trigram
+  const counts = new Map();
+  const add = feature => counts.set(feature, (counts.get(feature) || 0) + 1);
+  let previous = null;
+  for (const word of words) {
+    if (VEC_STOP.has(word) || word.length < 2) { previous = null; continue; }
+    const stem = vecStem(word);
+    add(`w:${stem}`);
+    const concept = VEC_CONCEPT_OF.get(word) || VEC_CONCEPT_OF.get(stem);
+    if (concept) add(`c:${concept}`);
+    if (previous) add(`b:${previous}_${stem}`);
+    if (word.length >= 5) for (let index = 0; index <= word.length - 3; index++) add(`t:${word.slice(index, index + 3)}`);
+    previous = stem;
+  }
+  const vector = new Float32Array(VEC_DIM);
+  for (const [feature, count] of counts) { // Signed feature hashing with sublinear term frequency.
+    const value = (1 + Math.log(count)) * WEIGHT[feature[0]];
+    // Concepts own the first dimensions outright; everything else is hashed into the rest.
+    if (feature[0] === 'c') { vector[VEC_CONCEPT_SLOT.get(feature.slice(2))] += value; continue; }
+    const hash = vecHash(feature), reserved = VEC_CONCEPT_SLOT.size;
+    vector[reserved + hash % (VEC_DIM - reserved)] += ((hash >>> 16) & 1 ? 1 : -1) * value;
+  }
+  let norm = 0; for (const value of vector) norm += value * value;
+  norm = Math.sqrt(norm);
+  if (norm) for (let index = 0; index < VEC_DIM; index++) vector[index] /= norm;
+  return vector;
+}
+/** Vectors are stored as base64 of one signed byte per dimension: portable across D1 and local SQLite. */
+export function encodeVector(vector) {
+  let binary = '';
+  for (const value of vector) binary += String.fromCharCode(Math.max(-127, Math.min(127, Math.round(value * 127))) & 255);
+  return btoa(binary);
+}
+export function decodeVector(text) {
+  const binary = atob(text), vector = new Int8Array(binary.length);
+  for (let index = 0; index < binary.length; index++) vector[index] = binary.charCodeAt(index) << 24 >> 24;
+  return vector;
+}
+export function cosine(a, b) {
+  if (a.length !== b.length) return 0;
+  let dot = 0, aa = 0, bb = 0;
+  for (let index = 0; index < a.length; index++) { dot += a[index] * b[index]; aa += a[index] * a[index]; bb += b[index] * b[index]; }
+  return aa && bb ? dot / Math.sqrt(aa * bb) : 0;
+}
+
+/**
+ * Nearest journal entries for one user. Exact scan: a user holds at most 500 vectors of
+ * 512 bytes, so an approximate index would add complexity without saving time.
+ */
+export async function journalRecall(env, userId, text, { limit = 3, minimum = 0.2, excludeBody = null } = {}) {
+  const db = acctDB(env), query = embedText(text);
+  const { results } = await db.prepare('SELECT id, created, body, embedding, model FROM journal_entries WHERE user_id = ? ORDER BY created DESC LIMIT ?').bind(userId, ACCT_MAX_ENTRIES).all();
+  const scored = [];
+  for (const row of results) {
+    if (excludeBody != null && row.body.trim() === excludeBody.trim()) continue;
+    let embedding = row.embedding;
+    if (row.model !== VEC_MODEL) { // Re-embed rows written by an older embedder.
+      embedding = encodeVector(embedText(row.body));
+      await db.prepare('UPDATE journal_entries SET embedding = ?, model = ? WHERE id = ?').bind(embedding, VEC_MODEL, row.id).run();
+    }
+    const score = cosine(query, decodeVector(embedding));
+    if (score >= minimum) scored.push({ id: row.id, date: new Date(row.created).toISOString(), body: row.body, score: Number(score.toFixed(3)) });
+  }
+  return scored.sort((a, b) => b.score - a.score).slice(0, limit);
+}
+
+export function createAccounts() {
+  const attempts = new Map(); let windowStart = 0;
+  const allowAttempt = request => { // Best-effort, per isolate: slows password guessing.
+    const now = Date.now();
+    if (now - windowStart >= 60000) { windowStart = now; attempts.clear(); }
+    const visitor = request.headers.get('CF-Connecting-IP') || 'shared';
+    const count = attempts.get(visitor) || 0;
+    if (count >= 10) return false;
+    attempts.set(visitor, count + 1); return true;
+  };
+  async function startSession(request, db, user, status) {
+    const token = acctHex(crypto.getRandomValues(new Uint8Array(32))), now = Date.now();
+    await db.batch([
+      db.prepare('DELETE FROM auth_sessions WHERE expires < ?').bind(now),
+      db.prepare('INSERT INTO auth_sessions (token, user_id, expires) VALUES (?, ?, ?)').bind(await acctDigest(token), user.id, now + ACCT_SESSION_MS),
+    ]);
+    return acctJSON({ user: { username: user.username } }, status, { 'Set-Cookie': acctCookie(request, token, ACCT_SESSION_MS / 1000) });
+  }
+  function credentials(body) {
+    if (!acctOnlyKeys(body, ['username', 'password']) || typeof body.username !== 'string' || typeof body.password !== 'string') throw acctError(400, 'Send a username and password.');
+    const username = body.username.trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9_.-]{2,31}$/.test(username)) throw acctError(400, 'Usernames are 3–32 characters: letters, numbers, dot, dash or underscore.');
+    if (body.password.length < 8 || body.password.length > 200) throw acctError(400, 'Passwords are 8–200 characters.');
+    return { username, password: body.password };
+  }
+
+  /** Handles /api/auth/* and the journal store routes; returns null for anything else. */
+  return async function handleAccount(request, env) {
+    const url = new URL(request.url), path = url.pathname, method = request.method;
+    const entryMatch = path.match(/^\/api\/journal\/entries\/([0-9a-f-]{36})$/);
+    if (!path.startsWith('/api/auth/') && path !== '/api/journal/entries' && path !== '/api/journal/search' && !entryMatch) return null;
+    try {
+      if (method !== 'GET' && request.headers.get('Origin') !== url.origin) throw acctError(403, 'Use accounts on this website.');
+      if (path === '/api/auth/me' && method === 'GET') return acctJSON({ available: Boolean(env.DB), user: await accountUser(request, env).then(user => user && { username: user.username }) });
+      const db = acctDB(env);
+
+      if (path === '/api/auth/register' && method === 'POST') {
+        const { username, password } = credentials(await acctReadJSON(request, 2048));
+        if (!allowAttempt(request)) throw acctError(429, 'Too many attempts. Wait a minute and try again.');
+        const salt = acctHex(crypto.getRandomValues(new Uint8Array(16))), user = { id: crypto.randomUUID(), username };
+        let created;
+        try { created = await db.prepare('INSERT INTO users (id, username, salt, hash, created) SELECT ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM users) < ?').bind(user.id, username, salt, await acctPasswordHash(password, salt), Date.now(), ACCT_MAX_USERS).run(); }
+        catch { throw acctError(409, 'That username is taken.'); }
+        if (!created.meta.changes) throw acctError(429, 'Account capacity reached for this prototype.');
+        return startSession(request, db, user, 201);
+      }
+      if (path === '/api/auth/login' && method === 'POST') {
+        const { username, password } = credentials(await acctReadJSON(request, 2048));
+        if (!allowAttempt(request)) throw acctError(429, 'Too many attempts. Wait a minute and try again.');
+        const row = await db.prepare('SELECT id, username, salt, hash FROM users WHERE username = ?').bind(username).first();
+        // Hash even for unknown names so timing does not reveal which usernames exist.
+        const hash = await acctPasswordHash(password, row?.salt || '00000000000000000000000000000000');
+        if (!row || !acctSameText(hash, row.hash)) throw acctError(401, 'Incorrect username or password.');
+        return startSession(request, db, row, 200);
+      }
+      if (path === '/api/auth/logout' && method === 'POST') {
+        const token = acctToken(request);
+        if (token) await db.prepare('DELETE FROM auth_sessions WHERE token = ?').bind(await acctDigest(token)).run();
+        return acctJSON({ user: null }, 200, { 'Set-Cookie': acctCookie(request, '', 0) });
+      }
+      if (path.startsWith('/api/auth/')) throw acctError(405, 'Unsupported account operation.');
+
+      const user = await accountUser(request, env);
+      if (!user) throw acctError(401, 'Sign in to use your account journal.');
+      if (path === '/api/journal/entries' && method === 'GET') {
+        const { results } = await db.prepare('SELECT id, created, body FROM journal_entries WHERE user_id = ? ORDER BY created DESC LIMIT ?').bind(user.id, ACCT_MAX_ENTRIES).all();
+        return acctJSON({ entries: results.map(row => ({ id: row.id, date: new Date(row.created).toISOString(), body: row.body })), index: { model: VEC_MODEL, dimensions: VEC_DIM, limit: ACCT_MAX_ENTRIES } });
+      }
+      if (path === '/api/journal/entries' && method === 'POST') {
+        const body = await acctReadJSON(request, 49152);
+        if (!acctOnlyKeys(body, ['body', 'date']) || typeof body.body !== 'string' || !body.body.trim() || body.body.length > ACCT_MAX_ENTRY) throw acctError(400, 'Send one entry of up to 10,000 characters.');
+        let created = Date.now();
+        if (body.date !== undefined) { // Lets a browser upload entries it saved earlier, with their dates.
+          created = typeof body.date === 'string' && body.date.length <= 40 ? Date.parse(body.date) : NaN;
+          if (!Number.isFinite(created) || created > Date.now() + 60000 || created < 0) throw acctError(400, 'Invalid entry date.');
+        }
+        const entry = { id: crypto.randomUUID(), date: new Date(created).toISOString(), body: body.body.trim() };
+        const saved = await db.prepare('INSERT INTO journal_entries (id, user_id, created, body, embedding, model) SELECT ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM journal_entries WHERE user_id = ?) < ?').bind(entry.id, user.id, created, entry.body, encodeVector(embedText(entry.body)), VEC_MODEL, user.id, ACCT_MAX_ENTRIES).run();
+        if (!saved.meta.changes) throw acctError(409, `Your account journal is full (${ACCT_MAX_ENTRIES} entries). Delete some first.`);
+        return acctJSON({ entry }, 201);
+      }
+      if (path === '/api/journal/entries' && method === 'DELETE') {
+        await db.prepare('DELETE FROM journal_entries WHERE user_id = ?').bind(user.id).run();
+        return acctJSON({ deleted: true });
+      }
+      if (entryMatch && method === 'DELETE') {
+        const removed = await db.prepare('DELETE FROM journal_entries WHERE id = ? AND user_id = ?').bind(entryMatch[1].toLowerCase(), user.id).run();
+        if (!removed.meta.changes) throw acctError(404, 'Entry not found.');
+        return acctJSON({ deleted: true });
+      }
+      if (path === '/api/journal/search' && method === 'POST') {
+        const body = await acctReadJSON(request, 4096);
+        if (!acctOnlyKeys(body, ['query']) || typeof body.query !== 'string' || !body.query.trim() || body.query.length > 500) throw acctError(400, 'Send a search of up to 500 characters.');
+        const matches = await journalRecall(env, user.id, body.query, { limit: 5, minimum: 0.15 });
+        return acctJSON({ matches, index: { model: VEC_MODEL, dimensions: VEC_DIM } });
+      }
+      throw acctError(405, 'Unsupported journal operation.');
+    } catch (error) { return acctJSON({ error: error.status ? error.message : 'Accounts are temporarily unavailable.' }, error.status || 503); }
+  };
+}
