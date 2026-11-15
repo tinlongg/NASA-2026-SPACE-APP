@@ -32,7 +32,7 @@ targets:
         IPHONEOS_DEPLOYMENT_TARGET: "17.0"
         INFOPLIST_KEY_CFBundleDisplayName: CrewSafety
         INFOPLIST_KEY_NSCameraUsageDescription: "Used on-device to check whether a crew member is moving. Video is not stored or sent."
-        INFOPLIST_KEY_NSHealthShareUsageDescription: "Reads heart rate from your Apple Watch to show it next to camera alerts. It never decides an alert."
+        INFOPLIST_KEY_NSHealthShareUsageDescription: "Reads heart rate, heart rate variability, resting heart rate, breathing rate, blood oxygen and ECG recordings from your Apple Watch, to show them next to camera alerts and compare them with your own usual range. They stay on this iPhone and never decide an alert."
         INFOPLIST_KEY_NSHealthUpdateUsageDescription: "Starts a monitoring session on your Apple Watch so heart rate arrives every few seconds. The session is discarded, not saved as a workout."
         INFOPLIST_KEY_NSLocalNetworkUsageDescription: "Connect to your computer's CrewSafety dashboard to share crew status and safety alerts."
         INFOPLIST_KEY_NSMicrophoneUsageDescription: "Used on-device to hear whether you're OK after no movement is detected. Audio is not stored or sent."
