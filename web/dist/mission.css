@@ -61,3 +61,44 @@ body:has(.mission-game-dialog[open]){overflow:hidden}
 
 .mission-pet.pip-returning{z-index:4}.mission-hero:has(.pip-returning){overflow:visible}
 .mission-value-edit{display:inline-block;min-width:40px;min-height:32px;margin:0;padding:2px 4px;border:0;border-bottom:1px dashed currentColor;border-radius:4px;background:transparent;color:inherit;font:inherit;line-height:inherit;cursor:pointer}.mission-value-edit:hover{background:#c8b5ec22}.mission-value-edit:focus-visible{outline:2px solid #c8b5ec;outline-offset:3px}
+/* Signal and route practice share a flexible board in either theme. */
+:root{--flight-panel:#18263b;--flight-border:#52677e;--flight-tile:#283d58;--flight-ink:#e8eff8;--flight-muted:#adc0d2}
+:root[data-theme=light]{--flight-panel:#eaf0f6;--flight-border:#a7b9cd;--flight-tile:#fff;--flight-ink:#263b50;--flight-muted:#536b80}
+.signal-grid,.navigation-grid{flex:1;min-height:0;display:grid;gap:10px;padding:14px;border:2px solid var(--flight-border);border-radius:20px;background:var(--flight-panel)}
+.signal-grid{grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(2,minmax(0,1fr))}
+.signal-grid .signal-tile{min-width:0;min-height:0;border:2px solid var(--flight-border);border-radius:18px;background:var(--flight-tile);color:var(--flight-ink);font-size:clamp(24px,6vh,44px);font-weight:600;transition:background .12s,border-color .12s}
+.signal-grid .signal-tile:disabled{opacity:1;cursor:default}.signal-grid .signal-0{border-color:#a88ac4}.signal-grid .signal-1{border-color:#69a99c}.signal-grid .signal-2{border-color:#c8a25e}.signal-grid .signal-3{border-color:#829fc9}.signal-grid .signal-lit{background:#e6c981;color:#29364b;border-color:#fff2bd;box-shadow:inset 0 0 0 4px #fff4cc}
+.flight-actions{display:flex;justify-content:center;gap:8px;flex:none}.mission-game-dialog .flight-actions button{min-height:40px;padding:7px 12px;font-size:12px}
+.navigation-grid{grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(5,minmax(0,1fr));gap:6px}
+.navigation-grid .navigation-tile{min-width:0;min-height:0;border:1px solid var(--flight-border);border-radius:10px;background:var(--flight-tile);color:var(--flight-muted);font-size:clamp(16px,3.5vh,30px);padding:0}
+.navigation-grid .navigation-tile:disabled{opacity:.72}.navigation-grid .navigator-neighbor{border:2px solid #8fbdb1;color:var(--flight-ink)}.navigation-grid .navigator-current{background:#ada0c9;color:#222c43;opacity:1}.navigation-grid .navigator-goal{background:#cfbb7f;color:#3b3625;opacity:1}.navigation-grid .navigator-hazard{color:#da9b85}.navigation-grid .navigation-tile:focus-visible,.signal-grid .signal-tile:focus-visible{outline:3px solid #bba2dd;outline-offset:1px}
+@media(max-height:500px){.signal-grid,.navigation-grid{padding:7px;gap:4px}.mission-game-dialog .flight-actions button{min-height:32px;padding:4px 8px}}
+@media(prefers-reduced-motion:reduce){.signal-grid .signal-tile{transition:none}}
+/* Carry the selected light theme into the illustrated panels and detached dialogs. */
+[data-theme=light] .mission-pet{background:radial-gradient(ellipse at 50% 45%,#f7f3fb,#dce9ee 65%,#d5e2e9)}
+[data-theme=light] .bird-speech{background:#ffffffcf;color:#3c5264!important;border:1px solid #c5d4dc}
+[data-theme=light] .pet-hint{color:#5c7080}
+[data-theme=light] .space-garden{background:linear-gradient(145deg,#edf5e9,#dae8d9);border-color:#b5cbb5}
+[data-theme=light] .garden-pot{background:linear-gradient(#ffffffb3,#ffffff70);border-color:#c4d5c0}
+[data-theme=light] .garden-pot strong{color:#304d39}[data-theme=light] .garden-pot small{color:#576d58}
+[data-theme=light] .mission-tabs a{color:#536078}[data-theme=light] .mission-tabs a.selected{background:#dfd5ed;color:#443358}
+[data-theme=light] .mission-task .game-tags{color:#72508a!important}
+[data-theme=light] .mission-ranking caption{color:#5b6b7b}
+[data-theme=light] .bird-speech,[data-theme=light] .mission-topline{letter-spacing:normal}
+[data-theme=light] .route-track{border-color:#9eacc0}[data-theme=light] .route-trail{background:#9b82b6}
+[data-theme=light] .game-preview{background:radial-gradient(ellipse at bottom,#d6e5ed,#eef3fa)}
+[data-theme=light] .orbit-window,[data-theme=light] .salvage-window{border-color:#a4b8c8;background-color:#e3edf5;background-image:radial-gradient(circle at 20% 23%,#718fa7 1px,transparent 2px),radial-gradient(circle at 70% 60%,#91a7ba 1px,transparent 2px),radial-gradient(ellipse at bottom,#bfd4e3,transparent 65%);box-shadow:inset 0 0 35px #b7cfdf55,0 0 0 2px #d6e2e9}
+[data-theme=light] .mission-game-dialog .planet-card{background:radial-gradient(ellipse at top,#fff,#e0e8f5);color:#30465e;border-color:#b2c3d9}
+[data-theme=light] .mission-game-dialog .planet-card:disabled{background:#e0efdf;border-color:#9ab998}
+[data-theme=light] .card-constellation{color:#786b93}
+[data-theme=light] .salvage-window .sample-object:hover{background:#759bc42b;border-color:#7096b4}
+[data-theme=light] .salvage-window .sample-object.collected{background:#79b28c44;border-color:#67977c}
+[data-theme=light] .sample-object.collected:after{color:#245a39}
+[data-theme=light] .dock-button{background:#f5e8df!important;border-color:#c7a48c!important;color:#614c3d!important}
+[data-theme=light] .dock-button.green{background:#d5eddd!important;border-color:#78a68b!important;color:#2b5941!important}
+[data-theme=light] .dialog-corner-close{background:#edf0f6;color:#35455a;border-color:#aab8c9;box-shadow:0 2px 8px #53678220}
+[data-theme=light] .task-celebration-message{background:#edf7eaf5;border-color:#9fbe95;color:#30583a}
+[data-theme=light] .navigator-hazard{color:#9b5947}
+[data-theme=light] button:hover:not(:disabled):not(.primary):not(.mission-primary){background:#e1e7ef}
+[data-theme=light] .signal-grid .signal-tile:hover:not(:disabled),[data-theme=light] .navigation-grid .navigation-tile:hover:not(:disabled){background:#dce9f1}
+.shop-preview{height:145px;display:flex;align-items:center;justify-content:center;border-radius:12px;background:var(--flight-panel)}.shop-preview svg{width:100%;max-height:145px}.shop-preview .bird-body{animation:none}

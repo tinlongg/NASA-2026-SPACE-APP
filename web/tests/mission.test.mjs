@@ -7,6 +7,13 @@ const time=Date.parse('2026-11-15T12:00:00Z');
 const action=(type,rest={})=>({id:crypto.randomUUID(),type,...rest});
 const task=(s,name,now=time)=>applyMissionAction(s,action('task',{task:name,participated:true}),now);
 const flight=(s,score,now=time)=>{const start=action('start',{game:'dock'});s=applyMissionAction(s,start,now);return applyMissionAction(s,action('finish',{run:start.id,score}),now+6000);};
+test('new games use the same fuel cost, participation rewards, and recent averages',()=>{
+ for(const game of ['sequence','navigator']){
+  let state=task(newMission(),'health');const start=action('start',{game});state=applyMissionAction(state,start,time);assert.equal(state.fuel,50);
+  state=applyMissionAction(state,action('finish',{run:start.id,score:75,metrics:{attempts:8,accuracy:90,errors:1}}),time+6000);
+  assert.equal(state.coins,15);assert.equal(state.rankPoints,20);assert.equal(state.history[0].game,game);assert.equal(missionStats(state,game).average,75);
+ }
+});
 
 test('daily participation priority, duplicate check-ins, garden and streak boundaries',()=>{
  let s=newMission();s=task(s,'health');assert.equal(s.fuel,60);
