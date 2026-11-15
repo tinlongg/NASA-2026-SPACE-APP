@@ -1,0 +1,770 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 54;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		04E216297953F9C5CC3C7D0B /* checkin-prompt.mp3 in Resources */ = {isa = PBXBuildFile; fileRef = 37ED3D952964237C27B4BFDA /* checkin-prompt.mp3 */; };
+		116CC97CC0337EDD143CFB43 /* DashboardViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10F8A09446027B6A37F7970D /* DashboardViewModel.swift */; };
+		121407B799FE792E08CD3A0A /* CrewSafetyApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A8EDC9B72266434B419D623E /* CrewSafetyApp.swift */; };
+		124C1D3AB0F081150C1CCB3D /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B9117AB7A035F9162700F583 /* SettingsSheet.swift */; };
+		130C5D69E678D1B846452B03 /* CheckInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2DC07B11A5DA74A49EF4AA61 /* CheckInView.swift */; };
+		15D898A6D555BF6974894D20 /* TelemetryCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 640811DD12799C511FA458C4 /* TelemetryCardView.swift */; };
+		334A8A631629C2EECB5B7C53 /* InactivityDetector.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4504B336ABC022FCBC07F717 /* InactivityDetector.swift */; };
+		3573AF5578F7A977DECF3C7E /* PoseTypes.swift in Sources */ = {isa = PBXBuildFile; fileRef = DCF9DCA564E86059B418D14B /* PoseTypes.swift */; };
+		3879C6946A418807F9E21981 /* DashboardSync.swift in Sources */ = {isa = PBXBuildFile; fileRef = E95A21C1D57874C97620BA0D /* DashboardSync.swift */; };
+		3CA2C433B226FE4F56D37AE4 /* AlertsTelemetryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = AE04E50ED349F2D931BD87A3 /* AlertsTelemetryTests.swift */; };
+		427571048F244A1A59154B01 /* CrewCheckIn.swift in Sources */ = {isa = PBXBuildFile; fileRef = B436BDE090A8FD333095D4AF /* CrewCheckIn.swift */; };
+		42EE6E079E7F63AA1DAB2117 /* AlertsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B5D4E745DC386B5E036FD0C /* AlertsView.swift */; };
+		46F34927D30B94CD189A01A3 /* CoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C56D84F65077CB5D8DA910F6 /* CoreTests.swift */; };
+		480A3D569BD28BC8A6C4256F /* InactivityDetectorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FA6EF60F35F29F7A7DB8184 /* InactivityDetectorTests.swift */; };
+		49D0EA5CB40FE46FA4AC8532 /* ServiceFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = 145B0B1B4682698E0AA5DEC7 /* ServiceFactory.swift */; };
+		4E32F44CE808EAA1ED2D8F73 /* PlaceholderServices.swift in Sources */ = {isa = PBXBuildFile; fileRef = 72F5F2E9C2296E449D9949B3 /* PlaceholderServices.swift */; };
+		5557465739799FFB51697A8D /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 5F25596915C099A7381225CD /* Assets.xcassets */; };
+		5855C598980C543539E02E44 /* CheckInVoice.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8D7B7B6C8A585DC4B8741620 /* CheckInVoice.swift */; };
+		5FCE6E265DB58A633C0D847C /* OnDeviceJournalAnalyzer.swift in Sources */ = {isa = PBXBuildFile; fileRef = C342AA15D4FCB30B90EE5CF5 /* OnDeviceJournalAnalyzer.swift */; };
+		716A3ACF17B75FEDC82A9BB0 /* JournalCalendarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C63A7E93D7F9E97F968E63CF /* JournalCalendarTests.swift */; };
+		733A8390B3788D0437F470DC /* WristMotionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5E8292426B146821FB78116B /* WristMotionTests.swift */; };
+		74F48BF4FAFB00358151A261 /* WatchLink.swift in Sources */ = {isa = PBXBuildFile; fileRef = F54956FE15A555A3060C3058 /* WatchLink.swift */; };
+		7E65F7E84E61A1D399F375D5 /* PoseFixture.swift in Sources */ = {isa = PBXBuildFile; fileRef = B8A5DBA9E50AB61905F03C9F /* PoseFixture.swift */; };
+		7EBD6DB7FC1352BD2D6DDC4A /* CameraMonitorViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F98FD30D104C6254D762933C /* CameraMonitorViewModel.swift */; };
+		81ACB19A6A01F379D1B2095A /* PoseEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECB9D79D51CA793BB2BD032F /* PoseEstimator.swift */; };
+		847CAC036BE64EE5F441CEFE /* CameraService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C9E4A4C2346EC3B92BEB994 /* CameraService.swift */; };
+		861080C4EFECEBDE81DA7A9D /* SampleData.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA85150382711DEEB6CA8700 /* SampleData.swift */; };
+		86F2D87186A2C0E2B17BE32E /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9E8CDE24160ADB5F7DF4CBF3 /* Theme.swift */; };
+		8A2CB5F1455626968620F1CA /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9B7DB48E7A92F2EE409797AA /* PrivacyInfo.xcprivacy */; };
+		8CA42EB8CA0930265EF27FCD /* ServiceProtocols.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB0318B6910BB3E04EC56B57 /* ServiceProtocols.swift */; };
+		92A2B56B57F5F79D745A4DF2 /* WebCameraClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B68D6CC9C9313FD328120BDB /* WebCameraClient.swift */; };
+		9F9CBDADA60C26E6F7D56BE9 /* AlertNotifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = FDCDF37B32DBBCF1E93E46E7 /* AlertNotifier.swift */; };
+		A0F0046031E0A4533776CD9C /* WellnessJournalView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AABC14B57DD960EBDD9B88B8 /* WellnessJournalView.swift */; };
+		A7D675968DA82369002F04D5 /* AppAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE9C28461C644FC52E7ABE10 /* AppAccount.swift */; };
+		B31B45507FC35C0CF3C703FA /* AppConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 84D105A28E21F203098A8EBA /* AppConfig.swift */; };
+		B5A42E987E3404D1D57D1243 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09822351941C2BCCFEA6443D /* DashboardView.swift */; };
+		B78C555B7A8AA01548FD9955 /* HealthKitTelemetryProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C45DA12B877E03FB5A8B4E4 /* HealthKitTelemetryProvider.swift */; };
+		BA498A792C4171748974C377 /* Stores.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8296539067E1E99E53E52B5C /* Stores.swift */; };
+		CC65E477FF4CC9DAB851B2A7 /* RootTabView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC12491913D193DDDA2E491B /* RootTabView.swift */; };
+		CF2A7A6F77CCC09CFCBD9CAC /* CameraMonitorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB260BB4880E1DF7C81DB232 /* CameraMonitorView.swift */; };
+		D0B21D73712551AE0238D3EA /* SimulatedTelemetryProvider.swift in Sources */ = {isa = PBXBuildFile; fileRef = 351E58903ED5103832392F03 /* SimulatedTelemetryProvider.swift */; };
+		D1ABBBD633999E8FDD7E18B0 /* Badges.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B0C60C13F397852BF3376AC /* Badges.swift */; };
+		D20C066EF52556D7083C115D /* WristMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A6BC9F1FBB01C8642BE5D19 /* WristMotion.swift */; };
+		D746DA2B0F77B2F6BE9CBFFB /* JournalStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3F670733E10B84F357B22FA0 /* JournalStore.swift */; };
+		D7D219A023D5DA54FF7EA212 /* JournalCalendarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EC10D93ABB2A7F443B0234D3 /* JournalCalendarView.swift */; };
+		D9F797FE3A11E6C9005049D1 /* CrewCheckInTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1535FB091CA86337E868342D /* CrewCheckInTests.swift */; };
+		DA5E8EF2329B81726D21B97E /* MissionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4137F88A42E1807A1572FF6A /* MissionView.swift */; };
+		E23C9D3B38C23D77C6D0C4B1 /* AlertBannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FD1204A432F3C5719ACA8C5 /* AlertBannerView.swift */; };
+		E4ED0B56DCD88BB8A55A3648 /* JournalTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A95DA7E54FFF27991AC568ED /* JournalTests.swift */; };
+		E9FC98E849936605A257DEF5 /* CameraPreviewView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F91D09FE8A4BE15AF7553313 /* CameraPreviewView.swift */; };
+		F73DE57E37782045B1D4C462 /* DetectorReadoutCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 17BCF3E267B9B8E2651406B1 /* DetectorReadoutCard.swift */; };
+		F7773A45E0E9F63CFC38F776 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = D5614DBE5F4F00FCA6B79713 /* Models.swift */; };
+		FA15AAD4B5B61B1A8769DAA5 /* phrases.json in Resources */ = {isa = PBXBuildFile; fileRef = A5C8E1B922DF29E0475D5520 /* phrases.json */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		C4C1C706609466B4CC241F41 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 50854292182E1950CF4FEF40 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 34164126EC354128AD0CE39C;
+			remoteInfo = CrewSafety;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		09822351941C2BCCFEA6443D /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
+		10F8A09446027B6A37F7970D /* DashboardViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardViewModel.swift; sourceTree = "<group>"; };
+		145B0B1B4682698E0AA5DEC7 /* ServiceFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceFactory.swift; sourceTree = "<group>"; };
+		1535FB091CA86337E868342D /* CrewCheckInTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewCheckInTests.swift; sourceTree = "<group>"; };
+		17BCF3E267B9B8E2651406B1 /* DetectorReadoutCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectorReadoutCard.swift; sourceTree = "<group>"; };
+		1A6BC9F1FBB01C8642BE5D19 /* WristMotion.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WristMotion.swift; sourceTree = "<group>"; };
+		265C0941A5C969830D698BFF /* CrewSafety.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CrewSafety.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		2DC07B11A5DA74A49EF4AA61 /* CheckInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInView.swift; sourceTree = "<group>"; };
+		351E58903ED5103832392F03 /* SimulatedTelemetryProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SimulatedTelemetryProvider.swift; sourceTree = "<group>"; };
+		37ED3D952964237C27B4BFDA /* checkin-prompt.mp3 */ = {isa = PBXFileReference; lastKnownFileType = audio.mp3; path = "checkin-prompt.mp3"; sourceTree = "<group>"; };
+		3F670733E10B84F357B22FA0 /* JournalStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalStore.swift; sourceTree = "<group>"; };
+		4137F88A42E1807A1572FF6A /* MissionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MissionView.swift; sourceTree = "<group>"; };
+		4504B336ABC022FCBC07F717 /* InactivityDetector.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InactivityDetector.swift; sourceTree = "<group>"; };
+		4B0C60C13F397852BF3376AC /* Badges.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Badges.swift; sourceTree = "<group>"; };
+		4B5D4E745DC386B5E036FD0C /* AlertsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsView.swift; sourceTree = "<group>"; };
+		5C9E4A4C2346EC3B92BEB994 /* CameraService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraService.swift; sourceTree = "<group>"; };
+		5E8292426B146821FB78116B /* WristMotionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WristMotionTests.swift; sourceTree = "<group>"; };
+		5F25596915C099A7381225CD /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		5FD1204A432F3C5719ACA8C5 /* AlertBannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertBannerView.swift; sourceTree = "<group>"; };
+		640811DD12799C511FA458C4 /* TelemetryCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TelemetryCardView.swift; sourceTree = "<group>"; };
+		72F5F2E9C2296E449D9949B3 /* PlaceholderServices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PlaceholderServices.swift; sourceTree = "<group>"; };
+		8296539067E1E99E53E52B5C /* Stores.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Stores.swift; sourceTree = "<group>"; };
+		84D105A28E21F203098A8EBA /* AppConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppConfig.swift; sourceTree = "<group>"; };
+		8C45DA12B877E03FB5A8B4E4 /* HealthKitTelemetryProvider.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitTelemetryProvider.swift; sourceTree = "<group>"; };
+		8D7B7B6C8A585DC4B8741620 /* CheckInVoice.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CheckInVoice.swift; sourceTree = "<group>"; };
+		9B7DB48E7A92F2EE409797AA /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
+		9E8CDE24160ADB5F7DF4CBF3 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		9FA6EF60F35F29F7A7DB8184 /* InactivityDetectorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InactivityDetectorTests.swift; sourceTree = "<group>"; };
+		A5C8E1B922DF29E0475D5520 /* phrases.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; path = phrases.json; sourceTree = "<group>"; };
+		A8EDC9B72266434B419D623E /* CrewSafetyApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewSafetyApp.swift; sourceTree = "<group>"; };
+		A95DA7E54FFF27991AC568ED /* JournalTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalTests.swift; sourceTree = "<group>"; };
+		AA85150382711DEEB6CA8700 /* SampleData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleData.swift; sourceTree = "<group>"; };
+		AABC14B57DD960EBDD9B88B8 /* WellnessJournalView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WellnessJournalView.swift; sourceTree = "<group>"; };
+		AB0318B6910BB3E04EC56B57 /* ServiceProtocols.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ServiceProtocols.swift; sourceTree = "<group>"; };
+		AC12491913D193DDDA2E491B /* RootTabView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootTabView.swift; sourceTree = "<group>"; };
+		AE04E50ED349F2D931BD87A3 /* AlertsTelemetryTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertsTelemetryTests.swift; sourceTree = "<group>"; };
+		B436BDE090A8FD333095D4AF /* CrewCheckIn.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CrewCheckIn.swift; sourceTree = "<group>"; };
+		B68D6CC9C9313FD328120BDB /* WebCameraClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WebCameraClient.swift; sourceTree = "<group>"; };
+		B8A5DBA9E50AB61905F03C9F /* PoseFixture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseFixture.swift; sourceTree = "<group>"; };
+		B9117AB7A035F9162700F583 /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
+		C342AA15D4FCB30B90EE5CF5 /* OnDeviceJournalAnalyzer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OnDeviceJournalAnalyzer.swift; sourceTree = "<group>"; };
+		C56D84F65077CB5D8DA910F6 /* CoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoreTests.swift; sourceTree = "<group>"; };
+		C63A7E93D7F9E97F968E63CF /* JournalCalendarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalCalendarTests.swift; sourceTree = "<group>"; };
+		CE9C28461C644FC52E7ABE10 /* AppAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppAccount.swift; sourceTree = "<group>"; };
+		D5614DBE5F4F00FCA6B79713 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		DCF9DCA564E86059B418D14B /* PoseTypes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseTypes.swift; sourceTree = "<group>"; };
+		E3EDF6F6074082F6C83AF976 /* CrewSafetyTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CrewSafetyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		E95A21C1D57874C97620BA0D /* DashboardSync.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardSync.swift; sourceTree = "<group>"; };
+		EB260BB4880E1DF7C81DB232 /* CameraMonitorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraMonitorView.swift; sourceTree = "<group>"; };
+		EC10D93ABB2A7F443B0234D3 /* JournalCalendarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JournalCalendarView.swift; sourceTree = "<group>"; };
+		ECB9D79D51CA793BB2BD032F /* PoseEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PoseEstimator.swift; sourceTree = "<group>"; };
+		F54956FE15A555A3060C3058 /* WatchLink.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WatchLink.swift; sourceTree = "<group>"; };
+		F91D09FE8A4BE15AF7553313 /* CameraPreviewView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraPreviewView.swift; sourceTree = "<group>"; };
+		F98FD30D104C6254D762933C /* CameraMonitorViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraMonitorViewModel.swift; sourceTree = "<group>"; };
+		FDCDF37B32DBBCF1E93E46E7 /* AlertNotifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlertNotifier.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		001E5EDF0DC663D93D89705E /* Alerts */ = {
+			isa = PBXGroup;
+			children = (
+				5FD1204A432F3C5719ACA8C5 /* AlertBannerView.swift */,
+				4B5D4E745DC386B5E036FD0C /* AlertsView.swift */,
+			);
+			path = Alerts;
+			sourceTree = "<group>";
+		};
+		024971456BA615C18F60A360 /* Stores */ = {
+			isa = PBXGroup;
+			children = (
+				CE9C28461C644FC52E7ABE10 /* AppAccount.swift */,
+				E95A21C1D57874C97620BA0D /* DashboardSync.swift */,
+				8296539067E1E99E53E52B5C /* Stores.swift */,
+			);
+			path = Stores;
+			sourceTree = "<group>";
+		};
+		0A395F518A10A6FEAD075CBA /* Core */ = {
+			isa = PBXGroup;
+			children = (
+				B86C91777EA27348ABBC0401 /* DesignSystem */,
+				7ADFC08C54AA81016CC2613C /* Mocks */,
+				A69EFD1A81AFA9094D3266CD /* Models */,
+				91EE1FB2CA515CA75C34902D /* Services */,
+				024971456BA615C18F60A360 /* Stores */,
+			);
+			path = Core;
+			sourceTree = "<group>";
+		};
+		0A8E394E52843A43CBC4304C /* Camera */ = {
+			isa = PBXGroup;
+			children = (
+				EB260BB4880E1DF7C81DB232 /* CameraMonitorView.swift */,
+				F98FD30D104C6254D762933C /* CameraMonitorViewModel.swift */,
+				F91D09FE8A4BE15AF7553313 /* CameraPreviewView.swift */,
+				5C9E4A4C2346EC3B92BEB994 /* CameraService.swift */,
+				2DC07B11A5DA74A49EF4AA61 /* CheckInView.swift */,
+				8D7B7B6C8A585DC4B8741620 /* CheckInVoice.swift */,
+				B436BDE090A8FD333095D4AF /* CrewCheckIn.swift */,
+				17BCF3E267B9B8E2651406B1 /* DetectorReadoutCard.swift */,
+				4504B336ABC022FCBC07F717 /* InactivityDetector.swift */,
+				ECB9D79D51CA793BB2BD032F /* PoseEstimator.swift */,
+				B8A5DBA9E50AB61905F03C9F /* PoseFixture.swift */,
+				B68D6CC9C9313FD328120BDB /* WebCameraClient.swift */,
+			);
+			path = Camera;
+			sourceTree = "<group>";
+		};
+		119FD862FC9C1E638D7008D0 /* Dashboard */ = {
+			isa = PBXGroup;
+			children = (
+				09822351941C2BCCFEA6443D /* DashboardView.swift */,
+				10F8A09446027B6A37F7970D /* DashboardViewModel.swift */,
+			);
+			path = Dashboard;
+			sourceTree = "<group>";
+		};
+		130A00E1A800A254C5960891 /* CrewSafety */ = {
+			isa = PBXGroup;
+			children = (
+				9B7DB48E7A92F2EE409797AA /* PrivacyInfo.xcprivacy */,
+				8BA6D1BB05359C0DEA5DA0C3 /* App */,
+				0A395F518A10A6FEAD075CBA /* Core */,
+				CFFD441710A9CE9971C13AF9 /* Features */,
+				6B6C7C7494B96548FA63F6EC /* Resources */,
+			);
+			path = CrewSafety;
+			sourceTree = "<group>";
+		};
+		3C1DF62BBB576D9F38625881 /* Mission */ = {
+			isa = PBXGroup;
+			children = (
+				4137F88A42E1807A1572FF6A /* MissionView.swift */,
+			);
+			path = Mission;
+			sourceTree = "<group>";
+		};
+		3DCB83393288BAD4AB13EDB4 /* Voice */ = {
+			isa = PBXGroup;
+			children = (
+				37ED3D952964237C27B4BFDA /* checkin-prompt.mp3 */,
+				A5C8E1B922DF29E0475D5520 /* phrases.json */,
+			);
+			path = Voice;
+			sourceTree = "<group>";
+		};
+		45B4FB2963BCF439884F1659 /* Journal */ = {
+			isa = PBXGroup;
+			children = (
+				EC10D93ABB2A7F443B0234D3 /* JournalCalendarView.swift */,
+				3F670733E10B84F357B22FA0 /* JournalStore.swift */,
+				C342AA15D4FCB30B90EE5CF5 /* OnDeviceJournalAnalyzer.swift */,
+				AABC14B57DD960EBDD9B88B8 /* WellnessJournalView.swift */,
+			);
+			path = Journal;
+			sourceTree = "<group>";
+		};
+		57026F29ABEA1B4576E5D0B2 = {
+			isa = PBXGroup;
+			children = (
+				130A00E1A800A254C5960891 /* CrewSafety */,
+				C9B462392B34E3792D587DCB /* CrewSafetyShared */,
+				B1365F494DB3442C077F696A /* CrewSafetyTests */,
+				C4178BCD8CA90B8D30C40B2A /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		6B6C7C7494B96548FA63F6EC /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				5F25596915C099A7381225CD /* Assets.xcassets */,
+				3DCB83393288BAD4AB13EDB4 /* Voice */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		7ADFC08C54AA81016CC2613C /* Mocks */ = {
+			isa = PBXGroup;
+			children = (
+				72F5F2E9C2296E449D9949B3 /* PlaceholderServices.swift */,
+				AA85150382711DEEB6CA8700 /* SampleData.swift */,
+			);
+			path = Mocks;
+			sourceTree = "<group>";
+		};
+		8BA6D1BB05359C0DEA5DA0C3 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				84D105A28E21F203098A8EBA /* AppConfig.swift */,
+				A8EDC9B72266434B419D623E /* CrewSafetyApp.swift */,
+				AC12491913D193DDDA2E491B /* RootTabView.swift */,
+				145B0B1B4682698E0AA5DEC7 /* ServiceFactory.swift */,
+				B9117AB7A035F9162700F583 /* SettingsSheet.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		91EE1FB2CA515CA75C34902D /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				FDCDF37B32DBBCF1E93E46E7 /* AlertNotifier.swift */,
+				AB0318B6910BB3E04EC56B57 /* ServiceProtocols.swift */,
+				F54956FE15A555A3060C3058 /* WatchLink.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		A46659C0A2065EB67B890383 /* Telemetry */ = {
+			isa = PBXGroup;
+			children = (
+				8C45DA12B877E03FB5A8B4E4 /* HealthKitTelemetryProvider.swift */,
+				351E58903ED5103832392F03 /* SimulatedTelemetryProvider.swift */,
+				640811DD12799C511FA458C4 /* TelemetryCardView.swift */,
+			);
+			path = Telemetry;
+			sourceTree = "<group>";
+		};
+		A69EFD1A81AFA9094D3266CD /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				D5614DBE5F4F00FCA6B79713 /* Models.swift */,
+				DCF9DCA564E86059B418D14B /* PoseTypes.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		B1365F494DB3442C077F696A /* CrewSafetyTests */ = {
+			isa = PBXGroup;
+			children = (
+				AE04E50ED349F2D931BD87A3 /* AlertsTelemetryTests.swift */,
+				C56D84F65077CB5D8DA910F6 /* CoreTests.swift */,
+				1535FB091CA86337E868342D /* CrewCheckInTests.swift */,
+				9FA6EF60F35F29F7A7DB8184 /* InactivityDetectorTests.swift */,
+				C63A7E93D7F9E97F968E63CF /* JournalCalendarTests.swift */,
+				A95DA7E54FFF27991AC568ED /* JournalTests.swift */,
+				5E8292426B146821FB78116B /* WristMotionTests.swift */,
+			);
+			path = CrewSafetyTests;
+			sourceTree = "<group>";
+		};
+		B86C91777EA27348ABBC0401 /* DesignSystem */ = {
+			isa = PBXGroup;
+			children = (
+				4B0C60C13F397852BF3376AC /* Badges.swift */,
+				9E8CDE24160ADB5F7DF4CBF3 /* Theme.swift */,
+			);
+			path = DesignSystem;
+			sourceTree = "<group>";
+		};
+		C4178BCD8CA90B8D30C40B2A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				265C0941A5C969830D698BFF /* CrewSafety.app */,
+				E3EDF6F6074082F6C83AF976 /* CrewSafetyTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		C9B462392B34E3792D587DCB /* CrewSafetyShared */ = {
+			isa = PBXGroup;
+			children = (
+				1A6BC9F1FBB01C8642BE5D19 /* WristMotion.swift */,
+			);
+			path = CrewSafetyShared;
+			sourceTree = "<group>";
+		};
+		CFFD441710A9CE9971C13AF9 /* Features */ = {
+			isa = PBXGroup;
+			children = (
+				001E5EDF0DC663D93D89705E /* Alerts */,
+				0A8E394E52843A43CBC4304C /* Camera */,
+				119FD862FC9C1E638D7008D0 /* Dashboard */,
+				45B4FB2963BCF439884F1659 /* Journal */,
+				3C1DF62BBB576D9F38625881 /* Mission */,
+				A46659C0A2065EB67B890383 /* Telemetry */,
+			);
+			path = Features;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		34164126EC354128AD0CE39C /* CrewSafety */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F16D7A8407AF5A065E24DB32 /* Build configuration list for PBXNativeTarget "CrewSafety" */;
+			buildPhases = (
+				9C7F6AC34569582EB2EF6A4B /* Sources */,
+				CCA6BC3521641EF18278B778 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CrewSafety;
+			packageProductDependencies = (
+			);
+			productName = CrewSafety;
+			productReference = 265C0941A5C969830D698BFF /* CrewSafety.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E50DB77774FDE3B54353F253 /* CrewSafetyTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = B796CDDE363793902310071D /* Build configuration list for PBXNativeTarget "CrewSafetyTests" */;
+			buildPhases = (
+				F0B4251C3BC9694BA4F28D6C /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				F225977EDCE9A987C3AF5E84 /* PBXTargetDependency */,
+			);
+			name = CrewSafetyTests;
+			packageProductDependencies = (
+			);
+			productName = CrewSafetyTests;
+			productReference = E3EDF6F6074082F6C83AF976 /* CrewSafetyTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		50854292182E1950CF4FEF40 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					34164126EC354128AD0CE39C = {
+						DevelopmentTeam = "";
+					};
+					E50DB77774FDE3B54353F253 = {
+						DevelopmentTeam = "";
+					};
+				};
+			};
+			buildConfigurationList = 09CA38FB75835DF9A099F973 /* Build configuration list for PBXProject "CrewSafetyIOSOnly" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 57026F29ABEA1B4576E5D0B2;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 54;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				34164126EC354128AD0CE39C /* CrewSafety */,
+				E50DB77774FDE3B54353F253 /* CrewSafetyTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		CCA6BC3521641EF18278B778 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				5557465739799FFB51697A8D /* Assets.xcassets in Resources */,
+				8A2CB5F1455626968620F1CA /* PrivacyInfo.xcprivacy in Resources */,
+				04E216297953F9C5CC3C7D0B /* checkin-prompt.mp3 in Resources */,
+				FA15AAD4B5B61B1A8769DAA5 /* phrases.json in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		9C7F6AC34569582EB2EF6A4B /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E23C9D3B38C23D77C6D0C4B1 /* AlertBannerView.swift in Sources */,
+				9F9CBDADA60C26E6F7D56BE9 /* AlertNotifier.swift in Sources */,
+				42EE6E079E7F63AA1DAB2117 /* AlertsView.swift in Sources */,
+				A7D675968DA82369002F04D5 /* AppAccount.swift in Sources */,
+				B31B45507FC35C0CF3C703FA /* AppConfig.swift in Sources */,
+				D1ABBBD633999E8FDD7E18B0 /* Badges.swift in Sources */,
+				CF2A7A6F77CCC09CFCBD9CAC /* CameraMonitorView.swift in Sources */,
+				7EBD6DB7FC1352BD2D6DDC4A /* CameraMonitorViewModel.swift in Sources */,
+				E9FC98E849936605A257DEF5 /* CameraPreviewView.swift in Sources */,
+				847CAC036BE64EE5F441CEFE /* CameraService.swift in Sources */,
+				130C5D69E678D1B846452B03 /* CheckInView.swift in Sources */,
+				5855C598980C543539E02E44 /* CheckInVoice.swift in Sources */,
+				427571048F244A1A59154B01 /* CrewCheckIn.swift in Sources */,
+				121407B799FE792E08CD3A0A /* CrewSafetyApp.swift in Sources */,
+				3879C6946A418807F9E21981 /* DashboardSync.swift in Sources */,
+				B5A42E987E3404D1D57D1243 /* DashboardView.swift in Sources */,
+				116CC97CC0337EDD143CFB43 /* DashboardViewModel.swift in Sources */,
+				F73DE57E37782045B1D4C462 /* DetectorReadoutCard.swift in Sources */,
+				B78C555B7A8AA01548FD9955 /* HealthKitTelemetryProvider.swift in Sources */,
+				334A8A631629C2EECB5B7C53 /* InactivityDetector.swift in Sources */,
+				D7D219A023D5DA54FF7EA212 /* JournalCalendarView.swift in Sources */,
+				D746DA2B0F77B2F6BE9CBFFB /* JournalStore.swift in Sources */,
+				DA5E8EF2329B81726D21B97E /* MissionView.swift in Sources */,
+				F7773A45E0E9F63CFC38F776 /* Models.swift in Sources */,
+				5FCE6E265DB58A633C0D847C /* OnDeviceJournalAnalyzer.swift in Sources */,
+				4E32F44CE808EAA1ED2D8F73 /* PlaceholderServices.swift in Sources */,
+				81ACB19A6A01F379D1B2095A /* PoseEstimator.swift in Sources */,
+				7E65F7E84E61A1D399F375D5 /* PoseFixture.swift in Sources */,
+				3573AF5578F7A977DECF3C7E /* PoseTypes.swift in Sources */,
+				CC65E477FF4CC9DAB851B2A7 /* RootTabView.swift in Sources */,
+				861080C4EFECEBDE81DA7A9D /* SampleData.swift in Sources */,
+				49D0EA5CB40FE46FA4AC8532 /* ServiceFactory.swift in Sources */,
+				8CA42EB8CA0930265EF27FCD /* ServiceProtocols.swift in Sources */,
+				124C1D3AB0F081150C1CCB3D /* SettingsSheet.swift in Sources */,
+				D0B21D73712551AE0238D3EA /* SimulatedTelemetryProvider.swift in Sources */,
+				BA498A792C4171748974C377 /* Stores.swift in Sources */,
+				15D898A6D555BF6974894D20 /* TelemetryCardView.swift in Sources */,
+				86F2D87186A2C0E2B17BE32E /* Theme.swift in Sources */,
+				74F48BF4FAFB00358151A261 /* WatchLink.swift in Sources */,
+				92A2B56B57F5F79D745A4DF2 /* WebCameraClient.swift in Sources */,
+				A0F0046031E0A4533776CD9C /* WellnessJournalView.swift in Sources */,
+				D20C066EF52556D7083C115D /* WristMotion.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F0B4251C3BC9694BA4F28D6C /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3CA2C433B226FE4F56D37AE4 /* AlertsTelemetryTests.swift in Sources */,
+				46F34927D30B94CD189A01A3 /* CoreTests.swift in Sources */,
+				D9F797FE3A11E6C9005049D1 /* CrewCheckInTests.swift in Sources */,
+				480A3D569BD28BC8A6C4256F /* InactivityDetectorTests.swift in Sources */,
+				716A3ACF17B75FEDC82A9BB0 /* JournalCalendarTests.swift in Sources */,
+				E4ED0B56DCD88BB8A55A3648 /* JournalTests.swift in Sources */,
+				733A8390B3788D0437F470DC /* WristMotionTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		F225977EDCE9A987C3AF5E84 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 34164126EC354128AD0CE39C /* CrewSafety */;
+			targetProxy = C4C1C706609466B4CC241F41 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0337CE07EC7005DD4AABE90F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.crewsafety.hackathon.CrewSafetyTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CrewSafety.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CrewSafety";
+			};
+			name = Release;
+		};
+		06A56FF0624CD14BA6DDEEF9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.crewsafety.hackathon.CrewSafetyTests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = 1;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/CrewSafety.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/CrewSafety";
+			};
+			name = Debug;
+		};
+		10F87A0DEA5C906F45FF7FC7 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = "";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		1C1B82BBA8DA382532CDFD1B /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = CrewSafety.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "CrewSafety-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = CrewSafety;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Used on-device to check whether a crew member is moving. Video is not stored or sent.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads heart rate from your Apple Watch to show it next to camera alerts. It never decides an alert.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Starts a monitoring session on your Apple Watch so heart rate arrives every few seconds. The session is discarded, not saved as a workout.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your computer's CrewSafety dashboard to share crew status and safety alerts.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used on-device to hear whether you're OK after no movement is detected. Audio is not stored or sent.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Used on-device to recognise \"I'm okay\" or \"help\" after no movement is detected. Audio is not stored or sent.";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.crewsafety.hackathon.CrewSafety;
+				PRODUCT_NAME = CrewSafety;
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Debug;
+		};
+		4D66F26309CAFADA4C339169 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = CrewSafety.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "CrewSafety-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = CrewSafety;
+				INFOPLIST_KEY_NSCameraUsageDescription = "Used on-device to check whether a crew member is moving. Video is not stored or sent.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads heart rate from your Apple Watch to show it next to camera alerts. It never decides an alert.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Starts a monitoring session on your Apple Watch so heart rate arrives every few seconds. The session is discarded, not saved as a workout.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your computer's CrewSafety dashboard to share crew status and safety alerts.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used on-device to hear whether you're OK after no movement is detected. Audio is not stored or sent.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Used on-device to recognise \"I'm okay\" or \"help\" after no movement is detected. Audio is not stored or sent.";
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = org.crewsafety.hackathon.CrewSafety;
+				PRODUCT_NAME = CrewSafety;
+				SDKROOT = iphoneos;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				TARGETED_DEVICE_FAMILY = 1;
+			};
+			name = Release;
+		};
+		E843A76D88A79D4A0A635B0D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = "";
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		09CA38FB75835DF9A099F973 /* Build configuration list for PBXProject "CrewSafetyIOSOnly" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				E843A76D88A79D4A0A635B0D /* Debug */,
+				10F87A0DEA5C906F45FF7FC7 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		B796CDDE363793902310071D /* Build configuration list for PBXNativeTarget "CrewSafetyTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				06A56FF0624CD14BA6DDEEF9 /* Debug */,
+				0337CE07EC7005DD4AABE90F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		F16D7A8407AF5A065E24DB32 /* Build configuration list for PBXNativeTarget "CrewSafety" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				1C1B82BBA8DA382532CDFD1B /* Debug */,
+				4D66F26309CAFADA4C339169 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 50854292182E1950CF4FEF40 /* Project object */;
+}

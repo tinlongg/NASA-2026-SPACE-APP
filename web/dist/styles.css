@@ -301,6 +301,53 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .checkin-card .count { font: 500 32px var(--mono); }
 .checkin-card .answers { display: flex; gap: 8px; flex-wrap: wrap; }
 .checkin-card .answers .help { border-color: var(--danger); color: var(--danger); }
+.views .closeup-panel { margin: 0; }
+.views .closeup-body { grid-template-columns: 1fr; }
+.views .closeup-read { display: flex; gap: 24px; }
+.closeup-panel .popout { padding: 4px 10px; font-size: 12px; }
+@media (max-width: 980px) { .views { grid-template-columns: 1fr; } }
+.stations-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 980px) { .stations-grid { grid-template-columns: 1fr; } }
+#station-plan { width: 100%; height: auto; padding: 12px; }
+.plan-link { stroke: var(--line-strong); stroke-width: 2; stroke-dasharray: 4 4; }
+.plan-room rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; cursor: pointer; }
+.plan-room text { fill: var(--text); font: 500 11px system-ui, sans-serif; pointer-events: none; }
+.plan-room .plan-sub { fill: var(--text-2); font-weight: 400; font-size: 10px; }
+.plan-room.empty rect { stroke-dasharray: 4 3; opacity: .6; }
+.plan-room.moving rect { stroke: var(--accent); } .plan-room.still rect { stroke: var(--warn); } .plan-room.checking rect { stroke: var(--warn); fill: var(--raised); } .plan-room.alert rect { stroke: var(--danger); fill: rgba(223,106,94,.12); }
+.station-form, .station-code, .station-list { padding: 0 20px; }
+.station-form { padding-top: 12px; } .station-form button { margin: 12px 0; }
+.station-code { padding: 12px 20px; } .station-code .code { font: 600 32px var(--mono); letter-spacing: .2em; margin: 6px 0; }
+.station-list { display: grid; gap: 12px; padding-bottom: 16px; }
+.station-card { border: 1px solid var(--line); border-radius: var(--r-card); padding: 12px 14px; background: var(--surface); }
+.station-card.alert { border-color: var(--danger); } .station-card.still, .station-card.checking { border-color: var(--warn); } .station-card.offline { opacity: .6; } .station-card.selected { background: var(--raised); }
+.station-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.station-card video { width: 100%; border-radius: var(--r-control); margin: 8px 0; background: var(--field); }
+.station-card p { margin: 4px 0; font-size: 13px; }
+.station-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; } .station-actions button { padding: 4px 12px; font-size: 13px; }
+.station-note { padding: 0 20px 16px; }
+.circle-body { padding: 4px 20px 16px; display: grid; gap: 4px; }
+.circle-block { padding: 12px 0; border-bottom: 1px solid var(--line); } .circle-block:last-child { border: 0; }
+.circle-block h3 { margin-bottom: 4px; } .circle-block p { margin: 4px 0; font-size: 13px; }
+.circle-block form { display: flex; gap: 8px; margin-top: 8px; } .circle-block form input { flex: 1; }
+.circle-members { list-style: none; margin: 8px 0; padding: 0; } .circle-members li { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.circle-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.circle-code { padding: 8px 20px; } .circle-code .code { font: 600 32px var(--mono); letter-spacing: .2em; }
+.code-input { text-transform: uppercase; letter-spacing: .15em; }
+.iss-view { position: relative; display: block; width: 100%; height: auto; aspect-ratio: 1 / 0.62; cursor: grab; touch-action: none; background: radial-gradient(ellipse at 50% 40%, #1a1d22, #101113); }
+.iss-modules { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px 16px; }
+.module-button { padding: 4px 10px; font-size: 12px; }
+.module-button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.module-button.private { opacity: .55; }
+.station-room-note { margin: 8px 0 0; font-size: 13px; }
+
+.dialog-corner-bar{position:sticky;top:0;z-index:5;display:flex;justify-content:flex-end;pointer-events:none;margin:-10px -10px 4px 0}.dialog-corner-close{pointer-events:auto;width:40px;height:40px;min-height:40px!important;border-radius:50%;padding:0;font-size:25px;line-height:1;background:#353540;color:#fff;border:1px solid #777080;box-shadow:0 2px 8px #0003}.dialog-corner-close:focus-visible{outline:3px solid #e9d6a3;outline-offset:2px}
+
+#theme-toggle{font-size:12px;white-space:nowrap;min-height:36px;padding:7px 12px;border:1px solid var(--line-strong);border-radius:20px;background:var(--raised);color:var(--text)}
+:root[data-theme=light]{color-scheme:light;--bg:#f4f5f7;--surface:#fff;--raised:#eaedf2;--field:#f8f9fc;--line:#17273a1a;--line-strong:#17273a33;--text:#202b3b;--text-2:#4d5c6f;--text-3:#617083;--accent:#23784c;--warn:#926414;--danger:#b33b35}
+[data-theme=light] #mission{--m-ink:#253047;--m-muted:#58667a;--m-line:#cbd3df;--m-accent:#72549a}
+[data-theme=light] .mission-hero{background:#eeeaf6;border-color:#c9c2db}[data-theme=light] .mission-description{color:#50596e}[data-theme=light] .mission-kicker{color:#70518e}[data-theme=light] .mission-task{background:#fff;border-color:#cbd3df}[data-theme=light] .mission-task p,[data-theme=light] .mission-journey,[data-theme=light] .mission-footnote{color:#566178}[data-theme=light] .mission-tabs button{color:#536078}[data-theme=light] .mission-tabs button.selected{background:#dfd5ed;color:#443358}[data-theme=light] .mission-wallet span{color:#866124}[data-theme=light] .mission-journey small{color:#58667a}[data-theme=light] .mission-link{color:#634281}[data-theme=light] .mission-admin{background:#ece7f4;color:#293448;border-color:#b9abc9}[data-theme=light] .mission-message{color:#31624a}
+[data-theme=light] .mission-dialog,[data-theme=light] #account-dialog{background:#f8f9fc;color:#263147;border-color:#b2bed1}[data-theme=light] .mission-dialog input,[data-theme=light] .mission-dialog select,[data-theme=light] .mission-dialog textarea{background:#fff;color:#263147;border-color:#b2bed1}[data-theme=light] .mission-dialog .mission-muted{color:#536078!important}[data-theme=light] .dialog-corner-bar{background:inherit}[data-theme=light] .personal-rank{background:#e8e0f1;color:#352b45}[data-theme=light] .game-score{color:#69448d}[data-theme=light] .mission-reward{color:#2e6d49}[data-theme=light] .mission-ranking td,[data-theme=light] .mission-ranking th{border-color:#cbd3df}
 .views { margin-bottom: 16px; }
 /* Close-up of the face, inset in the camera view */
 .pip { position: absolute; top: 12px; right: 12px; width: clamp(128px, 28%, 280px); border: 1px solid var(--line-strong); border-radius: var(--r-control); overflow: hidden; background: var(--field); box-shadow: 0 6px 20px rgba(0, 0, 0, .45); z-index: 2; }
@@ -354,3 +401,7 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .watch-status { font-size: 13px; color: var(--text-2); margin: 10px 0 0; }
 .watch-status.streaming { color: var(--accent); }
 .thought .wear-button { margin-top: 6px; padding: 4px 10px; font-size: 12px; }
+
+.iss-view-tools{display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}.iss-view-tools button{padding:6px 14px;font-size:12px}.iss-view:active{cursor:grabbing}
+
+a.nav{text-decoration:none;border-radius:var(--r-control)}a.nav:focus-visible{outline:2px solid var(--accent);outline-offset:2px}

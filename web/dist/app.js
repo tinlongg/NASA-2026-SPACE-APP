@@ -1,9 +1,13 @@
+import {PAGE_ROUTES,pageForPath} from './page-routes.js';
+import { initializeMission } from './mission.js';
 import { journalToneElement, museJournalElement, sentimentMetadata } from './journal-sentiment.js';
 import { InactivityDetector, measurePose, STILL_SECONDS } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
 import { VISION_MODULE, VISION_WASM, POSE_MODELS, FACE_MODEL } from './offline-config.js';
 import { visibilityGroups, FramingMonitor, MODEL_CHOICES } from './camera-health.js';
 import { CheckIns, CHECKIN_SECONDS, GRACE_SECONDS, RAISES_ALERT } from './checkin.js';
+import { initStations } from './stations-ui.js';
+import { initCircle } from './circle-ui.js';
 import { onDeviceSupport, installLanguagePack, listenForAnswer, ANSWER_LABEL } from './voice-answer.js';
 import { BlinkDetector, PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthMotion, lipAperture, faceBox, cropRect, describePerson } from './people.js';
 import { startVoiceActivity } from './voice-activity.js';
@@ -11,7 +15,7 @@ import { initializeResearch } from './research.js';
 import { initializeCrewSync, onWearable, requestWatchCheckIn, cancelWatchCheckIn, sendPhoneAlert } from './crew-sync.js';
 import { initAccount, api } from './account.js';
 import { downscaleJpeg, webcamStill, groupByDay, dayKey } from './journal-photo.js';
-import { GROUPS, ITEMS, SOURCE_NOTE, overallState, STATE_LABEL } from './suit-layers.js';
+import { GROUPS, ITEMS, LAYER_ITEMS, SOURCE_NOTE, SUIT_SOURCE_URL, LEGACY_ITEM_NAMES, overallState, STATE_LABEL } from './suit-layers.js';
 
 const researchStyles = document.createElement('link');
 researchStyles.rel = 'stylesheet'; researchStyles.href = './research.css';
@@ -49,16 +53,21 @@ let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, dete
 let coachPending = false;
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
-const titles = { home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded; MUSE sees close-up screenshots only if you allow it'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
-function showTab(tab) {
+const titles = { mission: ['Mission', 'Care for yourself and your astronaut companion'], home: ['Overview', 'Crew check-ins for a space station: unresponsive-crew alerts, paired crew status and a private journal'], circle: ['Circle', 'People who are told when an alert is raised'], stations: ['Stations', 'Phones linked as cameras around a simulated station'], monitor: ['Camera monitor', 'Pose tracking runs in this browser. Video is never recorded; MUSE sees close-up screenshots only if you allow it'], dashboard: ['Crew', 'Paired iPhone status and archived NASA spaceflight measurements'], alerts: ['Safety events', 'Possible-unresponsive detections from this browser session'], journal: ['Journal', 'A private place to reflect on your day'], suit: ['Suit check', 'A manual inspection checklist for each part of the suit'] };
+function showTab(tab,{historyMode='push',path=null}={}) {
   if (!titles[tab]) return;
+  if(tab==='mission'&&path)missionNavigation.showPath(path);
   if (tab !== 'monitor') stopSession();
   document.querySelectorAll('.tab, .nav').forEach(node => node.classList.remove('active'));
   document.querySelector(`.nav[data-tab="${tab}"]`).classList.add('active'); element(tab).classList.add('active');
   element('page-title').textContent = titles[tab][0]; element('page-subtitle').textContent = titles[tab][1];
+  document.querySelectorAll('.nav[data-tab]').forEach(link=>{if(link.dataset.tab===tab)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current');});
+  document.title=titles[tab][0]+' · CrewSafety';
+  path=tab==='mission'?missionNavigation.getPath():PAGE_ROUTES[tab];if(historyMode==='replace')history.replaceState({page:tab},'',path);else if(historyMode==='push'&&location.pathname!==path)history.pushState({page:tab},'',path);
   window.scrollTo(0, 0);
 }
-document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => showTab(button.dataset.tab)));
+document.querySelectorAll('[data-tab]').forEach(link=>link.addEventListener('click',event=>{if(event.ctrlKey||event.metaKey||event.shiftKey||event.altKey||event.button>0)return;event.preventDefault();showTab(link.dataset.tab);}));
+window.addEventListener('popstate',()=>showTab(pageForPath(location.pathname)||'home',{historyMode:'none',path:location.pathname}));
 document.querySelector('[data-action="camera"]').onclick = () => { showTab('monitor'); openSetup(); };
 document.querySelector('[data-action="replay"]').onclick = () => { showTab('monitor'); replay('unresponsive'); };
 
@@ -308,6 +317,7 @@ function raiseEvent(person, detection, snapshot, why = '') {
   if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
   if (element('voice-answer-enabled').checked && mode === 'live' && !why) listenAfterAlert(events[0]); else speakAlert();
   element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${events[0].source}. ${details}`;
+  if (mode === 'live' && account) { lastCirclePost = Date.now(); api('/api/circle/alert', 'POST', { title: 'Alert: live camera', body: `${person.id ? `Person ${person.id}: ` : ''}${why ? (why.includes('help') ? 'asked for help' : 'did not answer the check-in') : 'no movement for a while'}. Go to them now.`, callKind: why ? (why.includes('help') ? 'help' : 'timeout') : 'still', person: person.id ? `Person ${person.id}` : 'A crew member', room: 'the live camera', camera: 'Live monitor' }).catch(() => {}); }
   renderEvents();
 }
 
@@ -708,10 +718,10 @@ element('journal-form').onsubmit = async event => {
   if (account) {
     const submit = event.target.querySelector('button'); submit.disabled = true; journalNote('Saving to your account…');
     try {
-      const saved = await api('/api/journal/entries', 'POST', { body, ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }); if (element('journal-body').value.trim() === body) element('journal-body').value = '';
+      const saved = await api('/api/journal/entries', 'POST', { body, ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }); window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'journal'})); if (element('journal-body').value.trim() === body) element('journal-body').value = '';
       let note = 'Saved to your account and added to the vector index.';
       if (pendingPhoto) {
-        try { await api(`/api/journal/entries/${saved.entry.id}/photo`, 'PUT', { image: pendingPhoto.image, width: pendingPhoto.width, height: pendingPhoto.height }); URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; note += ' Photo attached.'; }
+        try { await api(`/api/journal/entries/${saved.entry.id}/photo`, 'PUT', { image: pendingPhoto.image, width: pendingPhoto.width, height: pendingPhoto.height }); URL.revokeObjectURL(pendingPhoto.url); pendingPhoto = null; note += ' Photo attached.'; window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'photo'})); }
         catch (error) { note += ` The entry was saved but the photo was not: ${journalFailure(error, 'upload failed.')}`; }
       }
       element('journal-sleep').value = ''; selectedDay = null; calMonth = null; journalNote(note); await loadAccountJournal();
@@ -721,7 +731,7 @@ element('journal-form').onsubmit = async event => {
     return;
   }
   const updated = [{ body, date: new Date().toISOString(), ...(sleepHours() === null ? {} : { sleepHours: sleepHours() }) }, ...journals];
-  try { localStorage.setItem('crewsafety-journal', JSON.stringify(updated)); journals = updated; element('journal-body').value = ''; element('journal-sleep').value = ''; journalNote('Saved on this browser only.'); renderJournals(); } catch { journalNote('Browser storage is unavailable or full. Your text has not been cleared.'); }
+  try { localStorage.setItem('crewsafety-journal', JSON.stringify(updated)); journals = updated; element('journal-body').value = ''; element('journal-sleep').value = ''; journalNote('Saved on this browser only.'); renderJournals(); window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'journal'})); } catch { journalNote('Browser storage is unavailable or full. Your text has not been cleared.'); }
 };
 element('clear-journal').onclick = async () => {
   if (account) {
@@ -750,7 +760,19 @@ element('journal-search').onsubmit = async event => {
     }
   } catch (error) { results.textContent = journalFailure(error, 'Search failed.'); }
 };
+let lastCirclePost = 0;
+const circleUi = initCircle({ api, onAlert: alert => {
+  if (Date.now() - lastCirclePost < 8000) return; // this page raised it, and already shows it
+  element('event-banner').hidden = false; element('event-banner').textContent = `${alert.title}. ${alert.body}`; speakAlert();
+  try { if ('Notification' in window && Notification.permission === 'granted' && document.hidden) new Notification(alert.title, { body: alert.body }); } catch {}
+} });
+const stationsUi = initStations({ api, onAlert: (station, alert) => {
+  element('event-banner').hidden = false; element('event-banner').textContent = `Alert from ${station.name} (${station.room}): Person ${alert.personId} ${alert.kind === 'help' ? 'asked for help' : 'did not answer the check-in'}. Go to them now.`; speakAlert();
+} });
 const accountControl = initAccount(user => {
+  window.dispatchEvent(new CustomEvent('crew-account-change', {detail:user}));
+  stationsUi.userChanged(user);
+  circleUi.userChanged(user);
   account = user; accountEntries = []; journalLoad++; selectedDay = null; calMonth = null;
   element('home-account').textContent = user ? `@${user.username}` : 'Guest';
   element('hero-account').textContent = user ? 'Open journal' : 'Sign in';
@@ -858,10 +880,10 @@ const suitStatus = id => (suit[id]?.status) || 'unchecked';
 const persistSuit = () => { try { localStorage.setItem(suitStore, JSON.stringify(suit)); } catch {} };
 function renderSuitState() {
   const state = overallState(ITEMS.map(item => suitStatus(item.id)));
-  const label = element('suit-state'); label.textContent = STATE_LABEL[state]; label.dataset.state = state;
+  const label = element('suit-state'); label.textContent = STATE_LABEL[state]; label.dataset.state = state;const checked=LAYER_ITEMS.filter(item=>suitStatus(item.id)!=='unchecked').length;element('suit-layer-count').textContent=checked+' / '+LAYER_ITEMS.length+' layer groups recorded';
 }
 function renderSuit() {
-  element('suit-source').textContent = SOURCE_NOTE;
+  element('suit-source').textContent = SOURCE_NOTE;const source=document.createElement('a');source.href=SUIT_SOURCE_URL;source.target='_blank';source.rel='noopener';source.textContent=' NASA: how spacesuits work';element('suit-source').append(source);
   const host = element('suit-groups'); host.replaceChildren();
   for (const group of GROUPS) {
     const section = document.createElement('section'); section.className = 'suit-group';
@@ -892,7 +914,7 @@ function renderSuitHistory(checks) {
     const row = document.createElement('article'); row.className = 'entry';
     const time = document.createElement('time'); time.textContent = new Date(check.date).toLocaleString();
     const title = document.createElement('strong'); title.textContent = STATE_LABEL[check.overall] || check.overall;
-    const failed = check.items.filter(item => item.status === 'fail').map(item => ITEMS.find(known => known.id === item.id)?.name || item.id);
+    const failed = check.items.filter(item => item.status === 'fail').map(item => ITEMS.find(known => known.id === item.id)?.name || LEGACY_ITEM_NAMES[item.id] || item.id);
     const detail = document.createElement('p'); detail.textContent = failed.length ? `Failed: ${failed.join(', ')}` : `${check.items.filter(item => item.status === 'pass').length} of ${check.items.length} passed`;
     row.append(title, time, detail); host.append(row);
   }
@@ -909,6 +931,7 @@ element('suit-save').onclick = async () => {
     if (account) await api('/api/suit/checks', 'POST', { items });
     else { suitHistory = [{ id: crypto.randomUUID(), date: now, overall, items }, ...suitHistory].slice(0, 5); try { localStorage.setItem(suitHistoryStore, JSON.stringify(suitHistory)); } catch {} }
   } catch (error) { message.textContent = error.status === 401 ? 'Your session ended. Sign in again to save to your account.' : 'Could not save the inspection.'; return; }
+  if (LAYER_ITEMS.every(item => suitStatus(item.id) !== 'unchecked')) window.dispatchEvent(new CustomEvent('crew-care-completed', {detail:'suit'}));
   // A failed item shows beside camera events, labelled as manually entered.
   for (const item of items.filter(entry => entry.status === 'fail')) {
     const known = ITEMS.find(candidate => candidate.id === item.id);
@@ -1177,3 +1200,14 @@ function endWatchCheckIn(person) {
   if (!person?.watchCheckInId) return;
   cancelWatchCheckIn(person.watchCheckInId); watchCheckIns.delete(person.watchCheckInId); person.watchCheckInId = null;
 }
+
+const missionNavigation=initializeMission({onNavigate:path=>{if(location.pathname!==path)history.pushState({page:'mission'},'',path);}});
+showTab(new URLSearchParams(location.search).get('mission')==='1'?'mission':pageForPath(location.pathname)||'home',{historyMode:'replace',path:location.pathname});
+
+// Preference belongs to this browser and applies across every view.
+const themeToggle=document.getElementById('theme-toggle');
+function setTheme(theme){document.documentElement.dataset.theme=theme;themeToggle.textContent=theme==='light'?'Dark mode':'Light mode';themeToggle.setAttribute('aria-label','Switch to '+(theme==='light'?'dark':'light')+' mode');document.querySelector('meta[name="theme-color"]').content=theme==='light'?'#f4f5f7':'#121314';}
+let savedTheme='dark';try{savedTheme=localStorage.getItem('crewsafety-theme')||'dark';}catch{}setTheme(savedTheme==='light'?'light':'dark');
+themeToggle.onclick=()=>{const next=document.documentElement.dataset.theme==='light'?'dark':'light';setTheme(next);try{localStorage.setItem('crewsafety-theme',next);}catch{}};
+
+window.addEventListener('crew-journal-updated',()=>{if(account)loadAccountJournal();});

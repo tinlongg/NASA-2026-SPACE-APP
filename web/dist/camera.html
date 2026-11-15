@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="theme-color" content="#121314"><title>CrewSafety camera</title>
+<style>
+:root { color-scheme: dark; --bg:#121314; --surface:#18191b; --raised:#1f2023; --line:rgba(236,237,239,.16); --text:#ececef; --text-2:#a6a9ae; --accent:#5ccf8e; --warn:#d6a24e; --danger:#df6a5e; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:16px/1.5 system-ui,-apple-system,sans-serif; padding:16px; max-width:560px; margin-inline:auto; }
+h1 { font-size:20px; font-weight:500; margin:0 0 4px; } p { color:var(--text-2); margin:6px 0; }
+input,select,button { font:inherit; border-radius:8px; border:1px solid var(--line); background:var(--raised); color:var(--text); padding:12px 14px; }
+input { width:100%; text-transform:uppercase; letter-spacing:.2em; text-align:center; font-size:24px; }
+button { cursor:pointer; } button.primary { background:var(--text); color:var(--bg); border-color:var(--text); } button.help { border-color:var(--danger); color:var(--danger); }
+.row { display:flex; gap:8px; flex-wrap:wrap; margin:12px 0; } .row > * { flex:1; }
+.view { position:relative; background:#0e0f10; border-radius:12px; overflow:hidden; aspect-ratio:3/4; margin-top:12px; } video,canvas { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+.status { display:flex; align-items:center; gap:8px; margin-top:12px; } .dot { width:10px; height:10px; border-radius:50%; background:var(--text-2); } .dot.live { background:var(--accent); } .dot.alert { background:var(--danger); } .dot.warn { background:var(--warn); }
+.card { border:1px solid var(--warn); border-radius:12px; background:var(--surface); padding:16px; margin-top:12px; } .count { font:500 40px ui-monospace,monospace; }
+[hidden] { display:none !important; } small { color:var(--text-2); }
+</style></head>
+<body>
+<h1>CrewSafety camera</h1>
+<p id="intro">Turn this phone into a station camera. People are found on this phone; only a small status summary is sent. Live video is shared only when someone opens this camera on the Stations page.</p>
+<section id="pair"><p>Enter the 6-character code from the Stations page.</p><input id="code" maxlength="6" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Join code"><div class="row"><button id="join" class="primary">Join</button></div><p id="pair-message" role="status"></p></section>
+<section id="run" hidden>
+  <div class="status"><span class="dot" id="dot"></span><strong id="name">Camera</strong><span id="state" style="margin-left:auto;color:var(--text-2)">Starting…</span></div>
+  <div class="view"><video id="video" playsinline muted></video><canvas id="overlay"></canvas></div>
+  <div id="checkin" class="card" role="alert" hidden><strong>Are you OK?</strong><div class="count" id="count">30</div><p>Say "I'm okay" or "help", or tap a button. If there is no answer the alert is raised.</p><div class="row"><button id="ok" class="primary">I'm OK</button><button id="help" class="help">I need help</button></div></div>
+  <div class="row"><select id="facing" aria-label="Camera"><option value="environment">Rear camera</option><option value="user">Front camera</option></select><button id="unpair">Unpair</button></div>
+  <p id="message" role="status"><small>Keep this page open and the phone plugged in. Hiding the page stops the camera.</small></p>
+</section>
+<script type="module" src="./camera.js"></script>
+</body></html>

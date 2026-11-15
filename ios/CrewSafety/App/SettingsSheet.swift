@@ -3,12 +3,18 @@ import SwiftUI
 struct SettingsSheet: View {
     @Environment(AppSettings.self) private var settings
     @Environment(DashboardSync.self) private var dashboardSync
+    @Environment(AppAccount.self) private var account
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
         @Bindable var settings = settings
         NavigationStack {
             Form {
+                Section("CrewSafety account") {
+                    Text(account.username.map { "@\($0)" } ?? "Not signed in")
+                    Text(account.isAdmin ? "Administrator across the app and website" : "Sign in through Mission to use your website account throughout the app.")
+                        .font(.footnote)
+                }
                 Section {
                     TextField("https://your-dashboard.example", text: $settings.dashboardBaseURL)
                         .keyboardType(.URL)

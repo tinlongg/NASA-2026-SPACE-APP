@@ -14,14 +14,14 @@ export function initAccount(onChange) {
   const dialog = el('account-dialog'), form = el('account-form'), message = el('account-message');
   let user = null, registering = false, busy = false;
   function render() {
-    el('account-label').textContent = user ? `@${user.username}` : 'Sign in';
+    el('account-label').textContent = user ? `@${user.username}${user.role==='admin'?' · Admin':''}` : 'Sign in';
     el('account-button').title = user ? 'Account' : '';
     el('account-signed-out').hidden = Boolean(user); el('account-signed-in').hidden = !user;
     el('account-title').textContent = user ? 'Your account' : registering ? 'Create account' : 'Sign in';
     el('account-submit').textContent = registering ? 'Create account' : 'Sign in';
     el('account-mode').textContent = registering ? 'I already have an account' : 'Create an account instead';
     el('account-password').autocomplete = registering ? 'new-password' : 'current-password';
-    if (user) el('account-summary').textContent = `Signed in as @${user.username}. Journal entries you save are stored in your account and indexed for search and MUSE memory.`;
+    if (user) el('account-summary').textContent = `Signed in as @${user.username}${user.role==='admin'?' · Administrator across CrewSafety':''}. Journal entries you save are stored in your account and indexed for search and MUSE memory.`;
   }
   function set(next) { user = next; render(); onChange(user); }
   function open(register = false) { registering = register; message.textContent = ''; render(); if (!dialog.open) dialog.showModal(); }

@@ -15,6 +15,14 @@ const ACCT_MAX_ENTRY = 10000;
 const ACCT_MAX_SUIT_CHECKS = 50;
 const ACCT_MAX_PHOTOS = 60, ACCT_PHOTO_BODY = 400000, ACCT_PHOTO_BYTES = 280000;
 
+// Deployment-only bootstrap: salted hash and immutable user ID, never a plaintext password.
+export function missionAdminConfig(env) {
+  try {
+    const config = JSON.parse(env.MISSION_ADMIN_ACCOUNT || 'null');
+    return config && /^[a-f0-9-]{36}$/.test(config.id) && /^[a-z0-9._-]{3,30}$/.test(config.username) && /^[a-f0-9]{32}$/.test(config.salt) && /^[a-f0-9]{64}$/.test(config.hash) ? config : null;
+  } catch { return null; }
+}
+
 const acctJSON = (value, status = 200, headers = {}) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers } });
 const acctError = (status, message) => Object.assign(new Error(message), { status });
 const acctHex = bytes => [...new Uint8Array(bytes)].map(b => b.toString(16).padStart(2, '0')).join('');
@@ -63,7 +71,7 @@ export async function accountUser(request, env) {
   const token = acctToken(request);
   if (!token || !env.DB) return null;
   const row = await acctDB(env).prepare('SELECT users.id AS id, users.username AS username FROM auth_sessions JOIN users ON users.id = auth_sessions.user_id WHERE auth_sessions.token = ? AND auth_sessions.expires > ?').bind(await acctDigest(token), Date.now()).first();
-  return row ? { id: row.id, username: row.username } : null;
+  return row ? { id: row.id, username: row.username, ...(row.id===missionAdminConfig(env)?.id?{role:'admin'}:{}) } : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -200,7 +208,7 @@ export function createAccounts() {
       db.prepare('DELETE FROM auth_sessions WHERE expires < ?').bind(now),
       db.prepare('INSERT INTO auth_sessions (token, user_id, expires) VALUES (?, ?, ?)').bind(await acctDigest(token), user.id, now + ACCT_SESSION_MS),
     ]);
-    return acctJSON({ user: { username: user.username } }, status, { 'Set-Cookie': acctCookie(request, token, ACCT_SESSION_MS / 1000) });
+    return acctJSON({ user: { username: user.username, ...(user.role?{role:user.role}:{}) } }, status, { 'Set-Cookie': acctCookie(request, token, ACCT_SESSION_MS / 1000) });
   }
   function credentials(body) {
     if (!acctOnlyKeys(body, ['username', 'password']) || typeof body.username !== 'string' || typeof body.password !== 'string') throw acctError(400, 'Send a username and password.');
@@ -217,12 +225,13 @@ export function createAccounts() {
     if (!path.startsWith('/api/auth/') && path !== '/api/journal/entries' && path !== '/api/journal/search' && path !== '/api/suit/checks' && !entryMatch && !photoMatch) return null;
     try {
       if (method !== 'GET' && request.headers.get('Origin') !== url.origin) throw acctError(403, 'Use accounts on this website.');
-      if (path === '/api/auth/me' && method === 'GET') return acctJSON({ available: Boolean(env.DB), user: await accountUser(request, env).then(user => user && { username: user.username }) });
+      if (path === '/api/auth/me' && method === 'GET') return acctJSON({ available: Boolean(env.DB), user: await accountUser(request, env).then(user => user && { username: user.username, ...(user.role?{role:user.role}:{}) }) });
       const db = acctDB(env);
 
       if (path === '/api/auth/register' && method === 'POST') {
         const { username, password } = credentials(await acctReadJSON(request, 2048));
         if (!allowAttempt(request)) throw acctError(429, 'Too many attempts. Wait a minute and try again.');
+        if (username === missionAdminConfig(env)?.username) throw acctError(409, 'This account is already provisioned. Use Sign in.');
         const salt = acctHex(crypto.getRandomValues(new Uint8Array(16))), user = { id: crypto.randomUUID(), username };
         let created;
         try { created = await db.prepare('INSERT INTO users (id, username, salt, hash, created) SELECT ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM users) < ?').bind(user.id, username, salt, await acctPasswordHash(password, salt), Date.now(), ACCT_MAX_USERS).run(); }
@@ -233,11 +242,15 @@ export function createAccounts() {
       if (path === '/api/auth/login' && method === 'POST') {
         const { username, password } = credentials(await acctReadJSON(request, 2048));
         if (!allowAttempt(request)) throw acctError(429, 'Too many attempts. Wait a minute and try again.');
+        const provisioned = missionAdminConfig(env);
+        if (provisioned && username === provisioned.username) {
+          await db.prepare('INSERT OR IGNORE INTO users (id, username, salt, hash, created) VALUES (?,?,?,?,?)').bind(provisioned.id, provisioned.username, provisioned.salt, provisioned.hash, Date.now()).run();
+        }
         const row = await db.prepare('SELECT id, username, salt, hash FROM users WHERE username = ?').bind(username).first();
         // Hash even for unknown names so timing does not reveal which usernames exist.
         const hash = await acctPasswordHash(password, row?.salt || '00000000000000000000000000000000');
         if (!row || !acctSameText(hash, row.hash)) throw acctError(401, 'Incorrect username or password.');
-        return startSession(request, db, row, 200);
+        return startSession(request, db, {...row,...(row.id===missionAdminConfig(env)?.id?{role:'admin'}:{})}, 200);
       }
       if (path === '/api/auth/logout' && method === 'POST') {
         const token = acctToken(request);
