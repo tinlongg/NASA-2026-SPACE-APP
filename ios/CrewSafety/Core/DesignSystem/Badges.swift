@@ -1,16 +1,24 @@
 import SwiftUI
 
+/// Small status dot, the one place a status color appears as a shape.
+struct StatusDot: View {
+    let color: Color
+    var body: some View {
+        Circle().fill(color).frame(width: 6, height: 6).accessibilityHidden(true)
+    }
+}
+
 struct StatusBadge: View {
     let status: CrewStatus
     var body: some View {
-        Label(status.displayName, systemImage: status.symbolName)
-            .font(.caption.weight(.semibold))
-            .padding(.horizontal, Theme.Spacing.s)
-            .padding(.vertical, Theme.Spacing.xs)
-            .foregroundStyle(status.color)
-            .background(status.color.opacity(0.15), in: Capsule())
-            .accessibilityElement(children: .ignore)
-            .accessibilityLabel("Status: \(status.displayName)")
+        HStack(spacing: 6) {
+            StatusDot(color: status.color)
+            Text(status.displayName)
+                .font(.caption.weight(.medium))
+                .foregroundStyle(status.color)
+        }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Status: \(status.displayName)")
     }
 }
 
@@ -18,12 +26,12 @@ struct StatusBadge: View {
 struct SimulatedBadge: View {
     var text: String = "Simulated"
     var body: some View {
-        Text(text.uppercased())
-            .font(.caption2.weight(.bold))
-            .padding(.horizontal, 6)
+        Text(text)
+            .font(.caption2.weight(.medium))
+            .padding(.horizontal, Theme.Spacing.s)
             .padding(.vertical, 2)
-            .foregroundStyle(.purple)
-            .background(.purple.opacity(0.15), in: Capsule())
+            .foregroundStyle(.secondary)
+            .overlay(RoundedRectangle(cornerRadius: 6).strokeBorder(Color.secondary.opacity(0.4), lineWidth: 0.5))
             .accessibilityLabel("\(text) data")
     }
 }
