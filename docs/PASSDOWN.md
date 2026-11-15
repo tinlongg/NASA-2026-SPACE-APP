@@ -191,3 +191,11 @@ Plan: `docs/ROADMAP_PLAN.md` (in worktree `crewsafety-roadmap-9c2217`, not yet c
 - **Phase 2 done (web).** Journal photos: migration `0002_journal_photos.sql`, photo routes in `web/account.mjs`, `web/dist/journal-photo.js`, a day-by-day history in the Journal tab, and `web/tests/journal-photo.test.mjs`. Web suite is now 46/46 on Node 22. Checked in the local browser with a synthetic image: upload, thumbnail and day navigation. Not verified: webcam still capture, hosted D1 migration, mobile camera capture.
 - **Not started:** Phase 1 (needs a live camera test with the user), Phase 3 (D1: confirm the Meta model accepts images first), Phase 4 (needs `ELEVENLABS_API_KEY`), Phase 5 (needs a NASA source for the suit layers, D6), Phase 6, Phase 7 (needs sensor hardware).
 - The Raspberry Pi 4 could not be found on the LAN (no mDNS name, no open SSH port) and no green activity LED was reported; likely not booting.
+
+### Phase 3 — MUSE vision (2026-11-15)
+
+- D1 resolved from Meta's media-understanding and models docs: `muse-spark-1.3` accepts images on chat-completions as `{"type":"image_url","image_url":{"url":"data:image/jpeg;base64,..."}}` in a `user` message.
+- Built: `POST /api/journal/photos/compare` (3a) and `POST /api/coach/look` (3b) in `web/worker.mjs`, `journalPhotosForCompare` in `web/account.mjs`, a compare control per photo entry, and the opt-in "second look" in the Monitor tab. The reply is stored on the event as `lookNote`, next to `snapshot`, so the JSON export shows detector metrics and MUSE side by side. Web suite: 51/51 (Node 22).
+- **Not verified against the real provider.** This worktree has no `web/.env`, so no live Meta call was made; tests use a mocked provider. Run one comparison and one live alert with the real key and record the result here.
+- Camera copy changed from "never uploaded" to "stays on this device unless you turn on the second look".
+- The weight idea is not implemented: a photo cannot measure weight. A manual number field on the entry is the suggested route.

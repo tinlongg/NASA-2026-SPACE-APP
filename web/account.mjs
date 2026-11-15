@@ -173,6 +173,16 @@ export async function journalRecall(env, userId, text, { limit = 3, minimum = 0.
   return scored.sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
+/** The entry's photo plus up to two earlier photos (oldest and most recent) for the same user. */
+export async function journalPhotosForCompare(env, userId, entryId) {
+  const db = acctDB(env);
+  const current = await db.prepare('SELECT e.created AS date, p.mime, p.data FROM journal_entries e JOIN journal_photos p ON p.entry_id = e.id WHERE e.id = ? AND e.user_id = ?').bind(entryId.toLowerCase(), userId).first();
+  if (!current) return null;
+  const { results } = await db.prepare('SELECT e.created AS date, p.mime, p.data FROM journal_entries e JOIN journal_photos p ON p.entry_id = e.id WHERE e.user_id = ? AND e.created < ? ORDER BY e.created ASC').bind(userId, current.date).all();
+  const earlier = results.length > 1 ? [results[0], results.at(-1)] : results;
+  return { current, earlier };
+}
+
 export function createAccounts() {
   const attempts = new Map(); let windowStart = 0;
   const allowAttempt = request => { // Best-effort, per isolate: slows password guessing.

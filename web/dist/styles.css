@@ -231,3 +231,6 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .day-nav { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 12px 20px; border-bottom: 1px solid var(--line); }
 .day-nav button { padding: 4px 12px; font-size: 13px; }
 .photo-privacy { padding: 0 20px 16px; }
+.look-toggle { display: flex; gap: 8px; align-items: flex-start; margin: 12px 0 0; font-size: 13px; color: var(--text-2); }
+.compare-box { margin: 8px 0; }
+.compare-result { font-size: 13px; color: var(--text-2); white-space: pre-wrap; }

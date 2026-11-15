@@ -84,7 +84,7 @@ async function startCamera() {
     if (session !== generation) return;
     mode = 'live'; lastVideoTime = -1; lastInference = 0;
     setCameraState('Live camera', true); element('source').textContent = 'Webcam, live';
-    element('camera-message').textContent = 'Monitoring locally. Keep your full body in frame. No video is recorded or uploaded.';
+    element('camera-message').textContent = 'Monitoring locally. Keep your full body in frame. No video is recorded. Frames stay on this device unless you turn on the MUSE second look.';
     stream.getVideoTracks()[0].addEventListener('ended', () => { if (session === generation) stopSession('Camera disconnected. Reconnect it and start again.'); });
     const tick = now => {
       if (session !== generation) return;
@@ -134,7 +134,8 @@ function handleMeasurement(time, measurement) {
   element('detector-state').textContent = !measurement ? 'Waiting for crew member' : detector.alerted ? 'Alert raised · waiting for movement' : stillFor >= STILL_SECONDS / 3 ? `No movement · alert at ${STILL_SECONDS} s` : 'Monitoring';
   if (!detection) return;
   const details = `No body movement for ${Math.round(detection.stillFor)} s while in view (no joint moved more than ${detection.threshold} torso lengths). Check in with the crew member.`;
-  events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', type: 'Possible unresponsive', details, snapshot: structuredClone(latestSnapshot), acknowledged: false });
+  events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', type: 'Possible unresponsive', details, snapshot: structuredClone(latestSnapshot), acknowledged: false, lookNote: null });
+  if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
   element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${events[0].source}. ${details}`;
   renderEvents();
 }
@@ -172,6 +173,23 @@ function replay(kind) {
   animation = requestAnimationFrame(tick);
 }
 
+// Opt-in second look: one downscaled frame from a live alert goes to MUSE. The reply is only a
+// note on the event; the deterministic detector alone decides alerts. Nothing is stored.
+async function secondLook(event) {
+  event.lookNote = { status: 'pending' }; renderEvents();
+  try {
+    if (video.readyState < 2) throw new Error('No camera frame.');
+    const scale = Math.min(1, 512 / Math.max(video.videoWidth, video.videoHeight)), frame = document.createElement('canvas');
+    frame.width = Math.round(video.videoWidth * scale); frame.height = Math.round(video.videoHeight * scale);
+    frame.getContext('2d').drawImage(video, 0, 0, frame.width, frame.height);
+    const jpeg = await new Promise(resolve => frame.toBlob(resolve, 'image/jpeg', 0.6)), bytes = new Uint8Array(await jpeg.arrayBuffer()); let binary = '';
+    for (let index = 0; index < bytes.length; index += 8192) binary += String.fromCharCode(...bytes.subarray(index, index + 8192));
+    const response = await fetch('/api/coach/look', { method: 'POST', headers: { 'Content-Type': 'application/json' }, cache: 'no-store', body: JSON.stringify({ source: 'live', frame: btoa(binary) }), signal: AbortSignal.timeout(35000) });
+    const data = await response.json().catch(() => ({}));
+    event.lookNote = response.ok ? { status: 'done', text: data.note, model: data.model, at: new Date().toISOString() } : { status: 'failed', text: data.error || 'MUSE could not describe the frame.' };
+  } catch { event.lookNote = { status: 'failed', text: 'MUSE could not be reached. The alert is unaffected.' }; }
+  renderEvents();
+}
 function renderEvents() {
   const pending = events.filter(event => !event.acknowledged).length;
   element('alert-count').textContent = pending; element('home-alerts').textContent = pending;
@@ -210,7 +228,9 @@ function renderEvents() {
       element('coach-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
       askCoach('Explain why this possible-unresponsive event triggered and what its limitations are.', event.snapshot);
     };
-    row.append(title,date,details,button,explain); element('events').append(row);
+    row.append(title,date,details);
+    if (event.lookNote) { const note = document.createElement('p'); note.className = 'tag'; note.textContent = event.lookNote.status === 'pending' ? 'MUSE second look: describing the frame…' : `MUSE second look (description only, does not change this alert): ${event.lookNote.text}`; row.append(note); }
+    row.append(button,explain); element('events').append(row);
   }
 }
 
@@ -297,13 +317,31 @@ function renderJournals() {
         try { await api(`/api/journal/entries/${entry.id}/photo`, 'DELETE'); journalNote('Photo removed.'); await loadAccountJournal(); }
         catch (error) { dropPhoto.disabled = false; journalNote(journalFailure(error, 'Could not remove the photo.')); }
       };
-      photoParts = [image, dropPhoto];
+      photoParts = [image, dropPhoto, compareControl(entry)];
     }
     const summary = document.createElement('p'); summary.className = 'tag'; summary.textContent = `${summarize(entry.body)} Summary of your words, not an assessment.`;
-    row.append(head,...(photoParts.length ? [photoParts[0], body, photoParts[1]] : [body]),summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); row.append(museJournalElement(entry.body, { memory: Boolean(account) })); element('journal-entries').append(row);
+    row.append(head,...(photoParts.length ? [photoParts[0], body, photoParts[1], photoParts[2]] : [body]),summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); row.append(museJournalElement(entry.body, { memory: Boolean(account) })); element('journal-entries').append(row);
   }
 }
 element('journal-tone-enabled').onchange = renderJournals;
+function compareControl(entry) {
+  const box = document.createElement('div'); box.className = 'compare-box';
+  const label = document.createElement('label'); label.className = 'toggle';
+  const consent = document.createElement('input'); consent.type = 'checkbox';
+  label.append(consent, ' Send this photo and up to two earlier photos to Meta MUSE to describe visible differences');
+  const button = document.createElement('button'); button.type = 'button'; button.textContent = 'Compare with earlier photos'; button.disabled = true;
+  const result = document.createElement('p'); result.className = 'compare-result'; result.setAttribute('role', 'status');
+  consent.onchange = () => { button.disabled = !consent.checked; };
+  button.onclick = async () => {
+    button.disabled = true; result.textContent = 'Comparing…';
+    try {
+      const data = await api('/api/journal/photos/compare', 'POST', { entryId: entry.id, consent: true });
+      result.textContent = `Photos compared: ${data.compared.join(', ')}. ${data.answer} ${data.notice}`;
+    } catch (error) { result.textContent = journalFailure(error, 'Comparison failed.'); }
+    button.disabled = !consent.checked;
+  };
+  box.append(label, button, result); return box;
+}
 element('day-prev').onclick = () => { dayIndex++; renderJournals(); };
 element('day-next').onclick = () => { dayIndex = Math.max(0, dayIndex - 1); renderJournals(); };
 function renderPhotoField() {
