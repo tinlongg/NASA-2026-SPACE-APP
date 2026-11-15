@@ -15,7 +15,7 @@ const person = (id, status = 'moving', extra = {}) => ({ id, status, stillFor: 0
 
 test('create a station, join with the code once, report, and see it as online', async () => {
   const { request, account } = setup(), cookie = await account('stn-admin');
-  const created = await (await request('/api/stations', { method: 'POST', cookie, body: { name: 'Galley cam', room: 'galley' } })).json();
+  const created = await (await request('/api/stations', { method: 'POST', cookie, body: { name: 'Galley cam', room: 'unity' } })).json();
   assert.match(created.code, /^[A-HJKMNP-Z2-9]{6}$/);
   assert.equal((await request('/api/stations', { cookie })).status, 200);
   assert.equal((await (await request('/api/stations', { cookie })).json()).stations[0].waitingForCode, true);
@@ -34,7 +34,7 @@ test('create a station, join with the code once, report, and see it as online', 
 
 test('only the owner sees or removes a station, and a removed phone is cut off', async () => {
   const { request, account } = setup(), cookie = await account('stn-owner'), other = await account('stn-other');
-  const { station, code } = await (await request('/api/stations', { method: 'POST', cookie, body: { name: 'Lab', room: 'lab' } })).json();
+  const { station, code } = await (await request('/api/stations', { method: 'POST', cookie, body: { name: 'Lab', room: 'destiny' } })).json();
   const { token } = await (await request('/api/stations/join', { method: 'POST', body: { code } })).json();
   assert.equal((await (await request('/api/stations', { cookie: other })).json()).stations.length, 0);
   assert.equal((await request(`/api/stations/${station.id}`, { method: 'DELETE', cookie: other })).status, 404);
@@ -45,8 +45,8 @@ test('only the owner sees or removes a station, and a removed phone is cut off',
 
 test('invalid codes, rooms and reports are rejected', async () => {
   const { request, account } = setup(), cookie = await account('stn-bad');
-  assert.equal((await request('/api/stations', { method: 'POST', cookie, body: { name: 'x', room: 'bathroom' } })).status, 400);
-  assert.equal((await request('/api/stations', { method: 'POST', cookie, body: { name: '', room: 'lab' } })).status, 400);
+  assert.equal((await request('/api/stations', { method: 'POST', cookie, body: { name: 'x', room: 'harmony' } })).status, 400);
+  assert.equal((await request('/api/stations', { method: 'POST', cookie, body: { name: '', room: 'destiny' } })).status, 400);
   assert.equal((await request('/api/stations/join', { method: 'POST', body: { code: 'AB' } })).status, 400);
   assert.equal((await request('/api/stations/join', { method: 'POST', body: { code: 'ZZZZZZ' } })).status, 404);
   assert.equal((await request('/api/stations/report', { method: 'POST', token: 'a'.repeat(64), body: { people: [] } })).status, 401);
@@ -57,18 +57,18 @@ test('invalid codes, rooms and reports are rejected', async () => {
 
 test('a phone reports an alert and the admin sees it; at most 12 cameras', async () => {
   const { request, account } = setup(), cookie = await account('stn-alert');
-  const { code } = await (await request('/api/stations', { method: 'POST', cookie, body: { name: 'Airlock', room: 'airlock' } })).json();
+  const { code } = await (await request('/api/stations', { method: 'POST', cookie, body: { name: 'Airlock', room: 'quest' } })).json();
   const { token } = await (await request('/api/stations/join', { method: 'POST', body: { code } })).json();
   await request('/api/stations/report', { method: 'POST', token, body: { people: [person(2, 'alert', { stillFor: 45 })], alert: { personId: 2, kind: 'timeout' } } });
   const station = (await (await request('/api/stations', { cookie })).json()).stations[0];
   assert.equal(station.lastAlert.kind, 'timeout'); assert.equal(station.lastAlert.personId, 2);
-  for (let index = 1; index < 12; index++) assert.equal((await request('/api/stations', { method: 'POST', cookie, body: { name: `Cam ${index}`, room: 'corridor' } })).status, 201);
-  assert.equal((await request('/api/stations', { method: 'POST', cookie, body: { name: 'One too many', room: 'corridor' } })).status, 409);
+  for (let index = 1; index < 12; index++) assert.equal((await request('/api/stations', { method: 'POST', cookie, body: { name: `Cam ${index}`, room: 'columbus' } })).status, 201);
+  assert.equal((await request('/api/stations', { method: 'POST', cookie, body: { name: 'One too many', room: 'columbus' } })).status, 409);
 });
 
 test('setup messages pass between the admin and the phone, and a phone can be re-paired', async () => {
   const { request, account } = setup(), cookie = await account('stn-signal');
-  const { station, code } = await (await request('/api/stations', { method: 'POST', cookie, body: { name: 'Gym', room: 'gym' } })).json();
+  const { station, code } = await (await request('/api/stations', { method: 'POST', cookie, body: { name: 'Gym', room: 'tranquility' } })).json();
   const { token } = await (await request('/api/stations/join', { method: 'POST', body: { code } })).json();
   assert.equal((await request(`/api/stations/${station.id}/signal`, { method: 'POST', cookie, body: { type: 'view' } })).status, 201);
   const polled = await (await request('/api/stations/report', { method: 'POST', token, body: { people: [] } })).json();

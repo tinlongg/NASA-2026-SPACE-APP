@@ -7,8 +7,8 @@ import { accountUser } from './account.mjs';
 import { notifyCircle } from './circle.mjs';
 
 const STN_MAX_STATIONS = 12, STN_CODE_MS = 15 * 60000, STN_ONLINE_MS = 12000, STN_SIGNAL_MS = 2 * 60000;
-const STN_ROOMS = ['command', 'lab', 'galley', 'gym', 'airlock', 'corridor'];
-const STN_ROOM_NAMES = { command: 'Command module', lab: 'Science lab', galley: 'Galley', gym: 'Exercise', airlock: 'Airlock', corridor: 'Corridor' };
+export const STN_ROOMS = ['zvezda', 'zarya', 'unity', 'destiny', 'columbus', 'kibo', 'tranquility', 'cupola', 'quest']; // the ISS modules where cameras may go (Harmony holds the crew quarters: private)
+const STN_ROOM_NAMES = { zvezda: 'Zvezda', zarya: 'Zarya', unity: 'Unity', destiny: 'Destiny', columbus: 'Columbus', kibo: 'Kibo', tranquility: 'Tranquility', cupola: 'Cupola', quest: 'Quest airlock' };
 const STN_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no look-alike characters
 const STN_STATUS = ['moving', 'still', 'alert', 'checking', 'untracked'];
 const stnJSON = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -104,7 +104,7 @@ export async function handleStations(request, env) {
     if (path === '/api/stations' && method === 'POST') {
       const body = await stnReadJSON(request, 512);
       const name = typeof body.name === 'string' ? body.name.trim().slice(0, 40) : '', room = body.room;
-      if (!name || !STN_ROOMS.includes(room)) throw stnError(400, 'Send a camera name and one of the station rooms.');
+      if (!name || !STN_ROOMS.includes(room)) throw stnError(400, 'Send a camera name and one of the station modules.');
       const code = stnJoinCode(), id = crypto.randomUUID();
       const saved = await db.prepare('INSERT INTO stations (id, owner_id, name, room, join_code, join_expires, created) SELECT ?, ?, ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM stations WHERE owner_id = ?) < ?').bind(id, user.id, name, room, await stnDigest(code), Date.now() + STN_CODE_MS, Date.now(), user.id, STN_MAX_STATIONS).run();
       if (!saved.meta.changes) throw stnError(409, `You can link up to ${STN_MAX_STATIONS} cameras. Remove one first.`);
