@@ -1,6 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { FallDetector, measurePose } from '../dist/detector.js';
+import { REPLAYS, replayMeasurement } from '../dist/fixtures.js';
+
+for (const [kind, fixture] of Object.entries(REPLAYS)) {
+  test(`UI replay: ${fixture.label} produces ${fixture.expected} event(s)`, () => {
+    for (const fps of [10,15,30,60]) {
+      const detector = new FallDetector(); const detections=[];
+      for (let frame=0; frame<=fixture.duration*fps; frame++) {
+        const result=detector.process(frame/fps,replayMeasurement(kind,frame/fps));
+        if (result) detections.push(result);
+      }
+      assert.equal(detections.length,fixture.expected,`${fps} FPS`);
+    }
+  });
+}
 
 test('rapid drop and sustained horizontal posture emits one event', () => {
   const detector = new FallDetector();

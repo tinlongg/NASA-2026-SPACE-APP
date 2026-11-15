@@ -1,4 +1,7 @@
 import { FallDetector, measurePose } from './detector.js';
+import { REPLAYS, replayMeasurement } from './fixtures.js';
+import { VISION_MODULE, VISION_WASM, POSE_MODEL } from './offline-config.js';
+import { initResearch } from './research-ui.js';
 import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
 
@@ -18,9 +21,11 @@ const context = canvas.getContext('2d');
 const detector = new FallDetector();
 let stream, landmarker, animation, generation = 0, mode = 'idle', lastVideoTime = -1, lastInference = 0;
 const events = [];
+let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, detection: null };
+let coachPending = false;
 let journals = [];
 try { const saved = JSON.parse(localStorage.getItem('crewsafety-journal') || '[]'); if (Array.isArray(saved)) journals = saved.filter(entry => typeof entry.body === 'string' && typeof entry.date === 'string'); } catch {}
-const titles = { monitor: ['Camera monitor', 'A clearer view of your crew. Right from your browser.'], dashboard: ['Crew dashboard', 'Simulated crew telemetry and NASA spaceflight research.'], alerts: ['Safety events', 'Review possible-fall detections from this browser session.'], muse: ['MUSE assistant', 'Research support, grounded in verified sources.'], journal: ['Wellness journal', 'A private space to reflect on your day.'] };
+const titles = { monitor: ['Camera monitor', 'A clearer view of your crew. Right from your browser.'], dashboard: ['Crew dashboard', 'Simulated crew telemetry and NASA spaceflight research.'], alerts: ['Safety events', 'Review possible-fall detections from this browser session.'], muse: ['MUSE research', 'Explore NASA research with traceable sources.'], journal: ['Wellness journal', 'A private space to reflect on your day.'] };
 document.querySelectorAll('[data-tab]').forEach(button => button.addEventListener('click', () => {
   const tab = button.dataset.tab;
   if (tab !== 'monitor') stopSession();
@@ -44,6 +49,8 @@ function stopSession(message = 'Session stopped. Camera released.') {
 
 async function startCamera() {
   stopSession('Requesting camera access…');
+  latestSnapshot = { source: 'none', capturedAt: null, measurement: null, detection: null };
+  updateCoachContext();
   const session = generation;
   element('start').disabled = true; element('stop').disabled = false;
   try {
@@ -55,9 +62,9 @@ async function startCamera() {
     element('camera-placeholder').hidden = true;
     element('camera-message').textContent = 'Camera connected. Downloading the pose model for local processing…';
     if (!landmarker) {
-      const { FilesetResolver, PoseLandmarker } = await import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/vision_bundle.mjs');
-      const files = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.21/wasm');
-      const loaded = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task', delegate: 'CPU' }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
+      const { FilesetResolver, PoseLandmarker } = await import(VISION_MODULE);
+      const files = await FilesetResolver.forVisionTasks(VISION_WASM);
+      const loaded = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: POSE_MODEL, delegate: 'CPU' }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 });
       if (session !== generation) { loaded.close(); return; }
       landmarker = loaded;
     }
@@ -102,6 +109,8 @@ function drawPose(pose) {
 
 function handleMeasurement(time, measurement) {
   const detection = detector.process(time, measurement);
+  latestSnapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement, detection };
+  updateCoachContext();
   element('pose-status').textContent = measurement ? 'Person visible' : 'No reliable pose';
   element('tracking').textContent = measurement ? (mode === 'replay' ? 'Synthetic pose · not a recording' : 'Pose tracking active') : 'No reliable pose · show shoulders and hips';
   element('angle').textContent = measurement ? Math.round(measurement.angle) : '—';
@@ -109,13 +118,15 @@ function handleMeasurement(time, measurement) {
   element('detector-state').textContent = detector.hold ? 'Checking low posture' : 'Monitoring';
   if (!detection) return;
   const details = `Hip height dropped ${Math.round(detection.drop * 100)}% of the frame in ${detection.duration.toFixed(1)} s; torso reached ${Math.round(detection.angle)}°; stayed low for ${detection.held.toFixed(1)} s.`;
-  events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', type: 'Possible fall', details, acknowledged: false });
+  events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', type: 'Possible fall', details, snapshot: structuredClone(latestSnapshot), acknowledged: false });
   element('event-banner').hidden = false; element('event-banner').textContent = `Possible fall · ${events[0].source}. ${details} Review Safety events.`;
   renderEvents();
 }
 
 function replay(kind) {
   stopSession('Synthetic replay running. No camera is used.');
+  latestSnapshot = { source: 'none', capturedAt: null, measurement: null, detection: null };
+  updateCoachContext();
   const session = generation; mode = 'replay';
   element('stop').disabled = false; element('camera-placeholder').hidden = true;
   element('source').textContent = 'Synthetic replay'; element('mode-label').textContent = 'REPLAY · GENERATED POSE'; element('camera-dot').classList.add('live');
@@ -124,14 +135,13 @@ function replay(kind) {
   const tick = now => {
     if (session !== generation) return;
     const time = (now - started) / 1000;
-    const progress = kind === 'fall' ? Math.min(1, Math.max(0, (time - 1.5) / 0.5)) : 0;
-    const angle = progress * 85; const hipY = 0.5 - progress * 0.28;
+    const { angle, hipY } = replayMeasurement(kind, time);
     context.clearRect(0, 0, 800, 600);
     context.strokeStyle = '#baf27a'; context.fillStyle = '#baf27a'; context.lineWidth = 5; context.lineCap = 'round';
     context.save(); context.translate(380, (1 - hipY) * 600); context.rotate(angle * Math.PI / 180);
     context.beginPath(); context.moveTo(0,0); context.lineTo(0,-130); context.moveTo(0,-110); context.lineTo(-65,-35); context.moveTo(0,-110); context.lineTo(65,-35); context.moveTo(0,0); context.lineTo(-38,150); context.moveTo(0,0); context.lineTo(38,150); context.stroke(); context.beginPath(); context.arc(0,-160,22,0,Math.PI*2); context.stroke(); context.restore();
     handleMeasurement(time, { angle, hipY }); element('fps').textContent = 'REPLAY';
-    if (time < 6) animation = requestAnimationFrame(tick); else stopSession('Replay complete. Review Safety events for any detections.');
+    if (time < REPLAYS[kind].duration) animation = requestAnimationFrame(tick); else stopSession(`${REPLAYS[kind].label} replay complete. Expected ${REPLAYS[kind].expected} event(s). Review Safety events.`);
   };
   animation = requestAnimationFrame(tick);
 }
@@ -148,7 +158,13 @@ function renderEvents() {
     const details = document.createElement('p'); details.textContent = event.details;
     const button = document.createElement('button'); button.textContent = event.acknowledged ? 'Acknowledged' : 'Acknowledge'; button.disabled = event.acknowledged;
     button.onclick = () => { event.acknowledged = true; renderEvents(); if (events.every(item => item.acknowledged)) element('event-banner').hidden = true; };
-    row.append(title,date,details,button); element('events').append(row);
+    const explain = document.createElement('button'); explain.className = 'coach-event'; explain.textContent = 'Explain with Camera Coach'; explain.disabled = coachPending;
+    explain.onclick = () => {
+      document.querySelector('[data-tab="monitor"]').click();
+      element('coach-panel').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      askCoach('Explain why this possible-fall event triggered and what its limitations are.', event.snapshot);
+    };
+    row.append(title,date,details,button,explain); element('events').append(row);
   }
 }
 
@@ -171,12 +187,91 @@ element('journal-form').onsubmit = event => {
   try { localStorage.setItem('crewsafety-journal', JSON.stringify(updated)); journals = updated; element('journal-body').value = ''; element('journal-message').textContent = 'Saved on this browser only.'; renderJournals(); } catch { element('journal-message').textContent = 'Browser storage is unavailable or full. Your text has not been cleared.'; }
 };
 element('clear-journal').onclick = () => { if (!journals.length || !confirm('Delete all journal entries from this browser?')) return; try { localStorage.removeItem('crewsafety-journal'); journals = []; renderJournals(); } catch { element('journal-message').textContent = 'Could not clear browser storage.'; } };
-element('chat-form').onsubmit = event => { event.preventDefault(); const question = element('question').value.trim(); if (!question) return; const row = document.createElement('article'); row.className = 'entry'; const title = document.createElement('strong'); title.textContent = question; const answer = document.createElement('p'); answer.textContent = 'No supporting material is available. Add verified source documents to the backend and build its index before using grounded MUSE answers. This hosted version is an offline interface demo.'; row.append(title,answer); element('chat').append(row); element('question').value = ''; };
+const coachPanel = document.createElement('div'); coachPanel.className = 'panel instructions'; coachPanel.id = 'coach-panel';
+coachPanel.innerHTML = '<span class="eyebrow">OPTIONAL / POWERED BY META</span><h3>Camera Coach</h3><p id="pose-summary">Start the camera or run a replay first.</p><button id="analyze-pose" class="primary" disabled>Explain pose summary ↗</button><p class="micro">Sends your question and numerical pose summary to Meta on click. No video, images, journal entries, or crew identity. Not NASA research or a medical assessment.</p><p id="coach-status" role="status">Checking coach configuration…</p><div id="coach-chat" class="entries" aria-live="polite"></div><form id="coach-form"><label for="coach-question">Camera setup or pose question</label><input id="coach-question" required maxlength="500" placeholder="How should I frame the camera?"><button id="ask-coach">Ask Camera Coach</button></form>';
+
+document.querySelector('.monitor-side').append(coachPanel);
+
+function updateCoachContext() {
+  if (!element('pose-summary')) return;
+  const snapshot = latestSnapshot;
+  const description = snapshot.source === 'none' ? 'No pose captured yet.' : `${snapshot.source === 'replay' ? 'Synthetic replay' : 'Webcam'} · captured ${new Date(snapshot.capturedAt).toLocaleTimeString()} · ${snapshot.measurement ? `torso ${Math.round(snapshot.measurement.angle)}°, hip height ${Math.round(snapshot.measurement.hipY * 100)}%` : 'no reliable pose'}`;
+  element('pose-summary').textContent = description;
+  element('analyze-pose').disabled = coachPending || snapshot.source === 'none';
+}
+
+async function askCoach(question, snapshot = latestSnapshot, target = null) {
+  if (coachPending) return;
+  const sentSnapshot = structuredClone(snapshot);
+  coachPending = true; element('ask-coach').disabled = true;
+  document.querySelectorAll('.coach-event').forEach(button => { button.disabled = true; });
+  updateCoachContext();
+  const row = document.createElement('article'); row.className = 'entry';
+  const title = document.createElement('strong'); title.textContent = question;
+  const date = document.createElement('time'); date.textContent = sentSnapshot.source === 'none' ? 'No observation attached' : `${sentSnapshot.source === 'replay' ? 'Synthetic replay' : 'Webcam'} captured ${new Date(sentSnapshot.capturedAt).toLocaleString()}`;
+  const answer = document.createElement('p'); answer.textContent = 'Camera Coach is analyzing the summary…';
+  row.append(title,date,answer); element('coach-chat').append(row);
+  if (target) target.textContent = answer.textContent;
+  try {
+    const response = await fetch('/api/coach/analyze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ question, snapshot: sentSnapshot }), signal: AbortSignal.timeout(30000) });
+    let data;
+    try { data = await response.json(); } catch { throw new Error('Camera Coach requires the hosted site or the local Node server.'); }
+    if (!response.ok) throw new Error(data.error || 'Camera Coach is temporarily unavailable.');
+    if (typeof data.answer !== 'string') throw new Error('Camera Coach returned an invalid reply.');
+    answer.textContent = data.answer;
+    if (target) target.textContent = data.answer;
+    element('coach-status').textContent = `Connected · Meta ${data.model} · AI interpretation, not a verified finding`;
+    return true;
+  } catch (error) {
+    const message = error.name === 'TimeoutError' ? 'Camera Coach timed out. Try again; local detection continues independently.' : error.message;
+    answer.textContent = message; if (target) target.textContent = message;
+    element('coach-status').textContent = `Analysis failed · ${message}`;
+    return false;
+  } finally {
+    coachPending = false; element('ask-coach').disabled = false;
+    document.querySelectorAll('.coach-event').forEach(button => { button.disabled = false; });
+    updateCoachContext();
+  }
+}
+
+element('analyze-pose').onclick = () => askCoach('Explain this pose summary and any camera setup limitations. Do not confirm a fall.', latestSnapshot);
+element('coach-form').onsubmit = async event => {
+  event.preventDefault(); const question = element('coach-question').value.trim(); if (!question || coachPending) return;
+  if (await askCoach(question)) if (element('coach-question').value.trim() === question) element('coach-question').value = '';
+};
+fetch('/api/coach/status').then(response => { if (!response.ok) throw new Error(); return response.json(); }).then(data => {
+  element('coach-status').textContent = data.configured ? `Meta ${data.model} configured · send a question to verify access` : 'Camera Coach needs a server-side Meta API key.';
+}).catch(() => { element('coach-status').textContent = 'Camera Coach needs the hosted site or local Node server.'; });
 element('export-events').onclick = () => { const url = URL.createObjectURL(new Blob([JSON.stringify(events,null,2)], { type: 'application/json' })); const link = document.createElement('a'); link.href = url; link.download = 'crewsafety-events.json'; link.click(); setTimeout(() => URL.revokeObjectURL(url),1000); };
 element('start').onclick = startCamera; element('stop').onclick = () => stopSession();
+for (const [kind, fixture] of Object.entries(REPLAYS)) { const button = document.createElement('button'); button.dataset.replay = kind; button.textContent = fixture.label; element('replay-actions').append(button); }
 document.querySelectorAll('[data-replay]').forEach(button => button.onclick = () => replay(button.dataset.replay));
 document.addEventListener('visibilitychange', () => { if (document.hidden) stopSession('Session stopped while the page was hidden. Start again to resume.'); });
 window.addEventListener('pagehide', () => stopSession());
 const rates = Array.from({ length: 60 }, () => 68 + Math.random() * 12);
 function updateDashboard() { rates.shift(); rates.push(68 + Math.random() * 12); element('heart-rate').textContent = Math.round(rates.at(-1)); element('chart-line').setAttribute('d', rates.map((rate,index) => `${index ? 'L' : 'M'}${index * 900 / 59},${160 - (rate - 60) * 6}`).join(' ')); element('clock').textContent = `${new Date().toISOString().slice(11,19)} UTC`; }
 setInterval(updateDashboard,2000); updateDashboard(); renderEvents(); renderJournals();
+
+initResearch();
+async function offlineSetup() {
+  if (!('serviceWorker' in navigator)) { element('offline-status').textContent = 'Offline caching is not supported in this browser.'; return; }
+  try {
+    await navigator.serviceWorker.register('/sw.js', { type: 'module', updateViaCache: 'none' });
+    const registration = await navigator.serviceWorker.ready;
+    if (!navigator.serviceWorker.controller) await new Promise(resolve => navigator.serviceWorker.addEventListener('controllerchange', resolve, { once: true }));
+    const query = type => new Promise((resolve, reject) => {
+      const channel = new MessageChannel();
+      const timer = setTimeout(() => { channel.port1.close(); reject(new Error('Offline preparation timed out. Reconnect and retry.')); }, 300000);
+      channel.port1.onmessage = event => { clearTimeout(timer); channel.port1.close(); event.data.error ? reject(new Error(event.data.error)) : resolve(event.data); };
+      navigator.serviceWorker.controller.postMessage({ type }, [channel.port2]);
+    });
+    const show = state => { element('offline-status').textContent = state.modelReady && state.shellReady ? 'Shell and camera model cached. Test offline on this device before the demo.' : state.shellReady ? 'Shell ready: replay, alerts, journal, and saved research cached. Camera model not fully cached.' : 'Shell cache incomplete. Reload while online.'; };
+    show(await query('status')); element('prepare-offline').disabled = false;
+    element('prepare-offline').onclick = async () => {
+      element('prepare-offline').disabled = true; element('offline-status').textContent = 'Downloading pose model and runtime files. Keep this page open…';
+      try { show(await query('prepare-model')); } catch (error) { element('offline-status').textContent = error.message; }
+      finally { element('prepare-offline').disabled = false; }
+    };
+  } catch { element('offline-status').textContent = 'Offline caching unavailable. Reload online and check browser storage permissions.'; }
+}
+offlineSetup();

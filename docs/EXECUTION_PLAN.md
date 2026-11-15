@@ -1,8 +1,8 @@
 # Crew Safety & Wellness — Technical Execution Plan
 
 > **Source of requirements:** `CREW_SAFETY_HACKATHON.md` ("the brief"). Where this plan goes beyond or deviates from the brief, it says so.
-> **Status:** Plan and agent prompts only. No application code exists yet; the repository currently contains a one-line `README.md`. The brief itself is an untracked file in the main checkout and should be committed as `docs/BUILD_BRIEF.md`.
-> **Verification done on this plan:** the Swift contracts in §5 were type-checked with `swiftc -typecheck` (Apple Swift 6.4.2) in both Swift 5 and Swift 6 language modes and compile cleanly. Nothing else here has been built or run.
+> **Status (updated 2026-11-14):** This is the original architecture and acceptance plan. Implementation exists; see `docs/HANDOFF.md` for current results and remaining checks. The native app stays primary. The user later authorized a public browser companion, Meta as provider, and the NASA/OSDR source set. The web Worker is a deployment adapter for the unchanged §5.3 API, using an exported Python index; it does not replace FastAPI or physical-iPhone acceptance. Original brief and frozen contracts are unchanged.
+> **Historical verification done when this plan was written:** the Swift contracts in §5 were type-checked with `swiftc -typecheck` (Apple Swift 6.4.2) in both Swift 5 and Swift 6 language modes and compile cleanly. Nothing else here has been built or run.
 
 ---
 
@@ -1023,7 +1023,7 @@ About 2 minutes 45 seconds. One presenter talks, one operates the phone, one per
 
 | Failure | Fallback | What to say |
 | --- | --- | --- |
-| Live detection does not fire | Use the Replay control | "This is a replay of a fall we recorded earlier, running through the same detector." |
+| Live detection does not fire | Use the Replay control | "Use this wording only after real fixtures exist: this is a replay of recorded motion. For the current generated fixtures, say: this is synthetic pose input through the same detector." |
 | Backend unreachable | Switch MUSE to demo mode in settings | "We're offline, so this is a precomputed answer from the same system. It's labelled Demo mode." |
 | App or phone fails | Play the backup recording | "This is a recording of the app from earlier today." |
 
