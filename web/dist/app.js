@@ -1,8 +1,9 @@
 import { journalToneElement, museJournalElement, sentimentMetadata } from './journal-sentiment.js';
 import { InactivityDetector, measurePose, STILL_SECONDS } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
-import { VISION_MODULE, VISION_WASM, POSE_MODELS } from './offline-config.js';
+import { VISION_MODULE, VISION_WASM, POSE_MODELS, FACE_MODEL } from './offline-config.js';
 import { visibilityGroups, FramingMonitor, RestPause, REST_OPTIONS, MODEL_CHOICES } from './camera-health.js';
+import { PersonTracker, personCentre, nearestIndex, blendshapeScores, eyeReading, MouthActivity, faceBox, cropRect, describePerson } from './people.js';
 import { initializeResearch } from './research.js';
 import { initializeCrewSync } from './crew-sync.js';
 import { initAccount, api } from './account.js';
@@ -22,7 +23,13 @@ const element = id => document.getElementById(id);
 const video = element('video');
 const canvas = element('overlay');
 const context = canvas.getContext('2d');
-const detector = new InactivityDetector();
+const detector = new InactivityDetector(); // the single synthetic-replay person
+// Live people: a stable id per person, each with their own detector and face readings.
+const tracker = new PersonTracker(), people = new Map(), replayPerson = { id: 1, detector, mouth: new MouthActivity(), face: null, result: null };
+let selectedId = null, focusId = null, faceLandmarker = null, maxPeople = 4, landmarkerPeople = 0, lastFace = 0;
+const newPerson = id => ({ id, detector: new InactivityDetector(), mouth: new MouthActivity(), face: null, result: null, pose: null, seen: 0 });
+function resetPeople() { tracker.reset(); people.clear(); detector.reset(); replayPerson.mouth.reset(); replayPerson.face = null; replayPerson.result = null; focusId = null; selectedId = null; renderViews(true); }
+const resetDetectors = () => { detector.reset(); for (const person of people.values()) person.detector.reset(); };
 let stream, landmarker, animation, generation = 0, mode = 'idle', lastVideoTime = -1, lastInference = 0;
 const events = [];
 let latestSnapshot = { source: 'none', capturedAt: null, measurement: null, detection: null };
@@ -52,7 +59,7 @@ function setCameraState(label, live) {
 function stopSession(message = 'Session stopped. Camera released.') {
   generation++; cancelAnimationFrame(animation);
   if (stream) stream.getTracks().forEach(track => track.stop());
-  stream = null; video.srcObject = null; mode = 'idle'; detector.reset(); resetDiagnostics();
+  stream = null; video.srcObject = null; mode = 'idle'; resetPeople(); resetDiagnostics();
   context.clearRect(0, 0, canvas.width, canvas.height);
   element('camera-placeholder').hidden = false; element('start').disabled = false; element('stop').disabled = true;
   setCameraState('Camera off', false);
@@ -77,6 +84,7 @@ function resetDiagnostics() {
 // Model choice and rest period controls.
 for (const [value, choice] of Object.entries(MODEL_CHOICES)) element('model-select').add(new Option(`${choice.label} · ${choice.size}`, value));
 element('model-select').onchange = () => { poseModel = element('model-select').value; element('model-note').textContent = poseModel === 'heavy' ? 'Heavy is 31 MB and needs a connection the first time. Start the camera again to use it.' : 'Start the camera again to use this model.'; if (mode === 'live') stopSession(`Model changed to ${MODEL_CHOICES[poseModel].label}. Start the camera again.`); };
+element('people-max').onchange = () => { maxPeople = Number(element('people-max').value); if (mode === 'live') stopSession(`Now tracking up to ${maxPeople} ${maxPeople === 1 ? 'person' : 'people'}. Start the camera again.`); };
 for (const option of REST_OPTIONS) element('rest-length').add(new Option(option.label, option.minutes));
 function renderRest() {
   const paused = rest.isPaused(Date.now());
@@ -85,8 +93,8 @@ function renderRest() {
   status.textContent = paused ? `Paused until ${new Date(rest.until).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : 'Monitoring is on';
   if (paused) { element('detector-state').textContent = 'Paused (rest period)'; }
 }
-element('rest-start').onclick = () => { rest.start(Date.now(), Number(element('rest-length').value)); detector.reset(); renderRest(); };
-element('rest-end').onclick = () => { rest.clear(); detector.reset(); renderRest(); };
+element('rest-start').onclick = () => { rest.start(Date.now(), Number(element('rest-length').value)); resetDetectors(); renderRest(); };
+element('rest-end').onclick = () => { rest.clear(); resetDetectors(); renderRest(); };
 setInterval(renderRest, 1000);
 
 async function startCamera() {
@@ -103,17 +111,21 @@ async function startCamera() {
     if (session !== generation) return;
     element('camera-placeholder').hidden = true;
     element('camera-message').textContent = 'Camera connected. Downloading the pose model for local processing…';
-    if (!landmarker || landmarkerModel !== poseModel) {
+    if (!landmarker || landmarkerModel !== poseModel || landmarkerPeople !== maxPeople) {
       landmarker?.close(); landmarker = null;
-      const { FilesetResolver, PoseLandmarker } = await import(VISION_MODULE);
+      const { FilesetResolver, PoseLandmarker, FaceLandmarker } = await import(VISION_MODULE);
       const files = await FilesetResolver.forVisionTasks(VISION_WASM);
       let loaded, used = 'GPU';
       for (const delegate of ['GPU', 'CPU']) { // Try the GPU first and fall back to the CPU.
-        try { loaded = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: POSE_MODELS[poseModel], delegate }, runningMode: 'VIDEO', numPoses: 1, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 }); used = delegate; break; }
+        try { loaded = await PoseLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: POSE_MODELS[poseModel], delegate }, runningMode: 'VIDEO', numPoses: maxPeople, minPoseDetectionConfidence: 0.5, minTrackingConfidence: 0.5 }); used = delegate; break; }
         catch (error) { if (delegate === 'CPU') throw error; }
       }
       if (session !== generation) { loaded.close(); return; }
-      landmarker = loaded; landmarkerModel = poseModel; landmarkerDelegate = used;
+      landmarker = loaded; landmarkerModel = poseModel; landmarkerDelegate = used; landmarkerPeople = maxPeople;
+      // Face readings are optional: if the face model cannot load, pose tracking still works.
+      faceLandmarker?.close(); faceLandmarker = null;
+      try { faceLandmarker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: used }, runningMode: 'VIDEO', numFaces: maxPeople, outputFaceBlendshapes: true }); }
+      catch { try { faceLandmarker = await FaceLandmarker.createFromOptions(files, { baseOptions: { modelAssetPath: FACE_MODEL, delegate: 'CPU' }, runningMode: 'VIDEO', numFaces: maxPeople, outputFaceBlendshapes: true }); } catch { faceLandmarker = null; } }
     }
     element('diag-model').textContent = MODEL_CHOICES[poseModel].label; element('diag-delegate').textContent = landmarkerDelegate;
     if (session !== generation) return;
@@ -127,13 +139,25 @@ async function startCamera() {
         if (video.readyState >= 2 && video.currentTime !== lastVideoTime && now - lastInference >= 65) {
           const elapsed = now - lastInference; lastInference = now; lastVideoTime = video.currentTime;
           canvas.width = video.videoWidth; canvas.height = video.videoHeight;
-          const result = landmarker.detectForVideo(video, now);
-          const pose = result.landmarks[0];
+          const result = landmarker.detectForVideo(video, now), time = now / 1000, aspect = canvas.width / canvas.height;
+          const poses = result.landmarks.filter(pose => personCentre(pose));
+          const ids = tracker.update(time, poses.map(personCentre));
+          for (const gone of tracker.gone) { people.delete(gone); if (selectedId === gone) selectedId = null; }
+          const seenNow = new Set();
+          poses.forEach((pose, index) => {
+            const person = people.get(ids[index]) ?? newPerson(ids[index]); people.set(person.id, person);
+            person.pose = pose; person.seen = time; seenNow.add(person.id);
+            evaluatePerson(person, time, measurePose(pose, aspect));
+          });
+          for (const person of people.values()) if (!seenNow.has(person.id)) { person.pose = null; evaluatePerson(person, time, null); } // keeps the lost-pose timer honest
+          if (faceLandmarker && now - lastFace >= 120) { lastFace = now; updateFaces(now, time, poses, ids); }
+          focusId = chooseFocus();
+          const focus = people.get(focusId);
           context.clearRect(0, 0, canvas.width, canvas.height);
-          if (pose && element('skeleton').checked) drawPose(pose);
-          const groups = visibilityGroups(pose);
-          updateDiagnostics(now / 1000, groups);
-          handleMeasurement(now / 1000, measurePose(pose, canvas.width / canvas.height));
+          if (element('skeleton').checked) for (const person of people.values()) if (person.pose) drawPerson(person);
+          updateDiagnostics(time, focus?.pose ? visibilityGroups(focus.pose) : null);
+          renderFocus(focus ?? null, time);
+          drawCloseUp();
           element('fps').textContent = `${Math.min(15, Math.round(1000 / elapsed))} fps`;
         }
         animation = requestAnimationFrame(tick);
@@ -147,9 +171,84 @@ async function startCamera() {
   }
 }
 
-function drawPose(pose) {
+const statusColour = person => !person.result ? '#5ccf8e' : person.result.alerted ? '#df6a5e' : person.result.stillFor >= STILL_SECONDS / 3 ? '#d6a24e' : '#5ccf8e';
+// Second view: a zoomed crop of the video around the face of whoever the monitor is following.
+const faceCanvas = element('face-view'), faceContext = faceCanvas.getContext('2d');
+function closeUpTarget() {
+  const list = mode === 'replay' ? [] : [...people.values()];
+  const flagged = people.get(focusId);
+  if (flagged?.result && (flagged.result.alerted || flagged.result.stillFor >= STILL_SECONDS / 3)) return flagged;
+  return list.find(person => person.id === selectedId) ?? null;
+}
+function headBox(pose) { // fallback when the face model has nothing: a box around the head from the pose
+  const nose = pose?.[0]; if (!nose || (nose.visibility ?? 0) < 0.3) return null;
+  const ls = pose[11], rs = pose[12], width = ls && rs ? Math.hypot(ls.x - rs.x, ls.y - rs.y) * 0.9 : 0.2;
+  return { x: nose.x - width / 2, y: nose.y - width * 0.65, width, height: width * 1.2 };
+}
+function drawCloseUp() {
+  const target = closeUpTarget(), box = target && (target.face?.box ?? headBox(target.pose));
+  element('closeup-placeholder').hidden = Boolean(box);
+  if (!box || video.readyState < 2) { faceContext.clearRect(0, 0, faceCanvas.width, faceCanvas.height); return; }
+  const crop = cropRect(box, video.videoWidth, video.videoHeight, faceCanvas.width / faceCanvas.height);
+  faceContext.drawImage(video, crop.x, crop.y, crop.width, crop.height, 0, 0, faceCanvas.width, faceCanvas.height);
+}
+const READING = { open: 'Open', closed: 'Closed', unclear: 'Mixed', unknown: '—', moving: 'Moving', still: 'Still' };
+let lastViews = 0;
+function renderViews(force = false) {
+  const nowMs = performance.now(); if (!force && nowMs - lastViews < 250) return; lastViews = nowMs;
+  const list = mode === 'replay' ? [replayPerson] : [...people.values()].sort((a, b) => a.id - b.id);
+  const target = closeUpTarget();
+  element('closeup-title').textContent = target ? `Close-up · Person ${target.id}` : 'Close-up';
+  element('closeup-eyes').textContent = target ? READING[target.face?.eyes?.state ?? 'unknown'] : '—';
+  element('closeup-mouth').textContent = target ? READING[target.face?.mouth?.state ?? 'unknown'] : '—';
+  element('closeup-note').textContent = !target ? 'Appears when someone stops moving, or click a person in the camera view.' : target.face ? 'Readings come from the face model, on this device.' : faceLandmarker ? 'No clear face in view. Showing the head area.' : 'Face model unavailable. Showing the head area.';
+  const boxes = element('thought-boxes'); boxes.replaceChildren();
+  if (!list.length) { const empty = document.createElement('p'); empty.className = 'empty'; empty.textContent = 'No one is being tracked yet. Start the camera or a replay.'; boxes.append(empty); return; }
+  for (const person of list) {
+    const result = person.result, card = document.createElement('article'); card.className = 'thought' + (person.id === focusId ? ' focus' : '') + (result?.alerted ? ' alert' : '');
+    const head = document.createElement('div'); head.className = 'thought-head';
+    const name = document.createElement('strong'); name.textContent = mode === 'replay' ? 'Synthetic person' : `Person ${person.id}`;
+    const chip = document.createElement('span'); chip.className = 'chip'; chip.textContent = result?.paused ? 'Paused' : result?.alerted ? 'Alert' : !result?.measurement ? 'Not tracked' : result.stillFor >= STILL_SECONDS / 3 ? 'Still' : 'Moving';
+    head.append(name, chip); card.append(head);
+    const lines = describePerson({ tracked: Boolean(result?.measurement), upper: result?.upper, motion: result?.motion, threshold: result?.threshold, stillFor: result?.stillFor ?? 0, stillSeconds: STILL_SECONDS, alerted: result?.alerted, paused: result?.paused, eyes: person.face?.eyes, mouth: person.face?.mouth, replay: mode === 'replay' });
+    for (const line of lines) { const item = document.createElement('p'); item.textContent = line; card.append(item); }
+    const look = events.find(event => event.personId === person.id && event.lookNote?.status === 'done');
+    if (look) { const note = document.createElement('p'); note.className = 'look'; note.textContent = `MUSE second look (a description, not a decision): ${look.lookNote.text}`; card.append(note); }
+    if (mode !== 'replay') card.onclick = () => { selectedId = person.id; renderViews(true); };
+    boxes.append(card);
+  }
+}
+canvas.addEventListener('click', event => {
+  if (mode !== 'live') return;
+  const rect = canvas.getBoundingClientRect(), point = [(event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height];
+  const list = [...people.values()].filter(person => person.pose), at = nearestIndex(point, list.map(person => personCentre(person.pose)), 0.4);
+  if (at >= 0) { selectedId = list[at].id; renderViews(true); }
+});
+// Face readings for each tracked person: eyes open or closed, and whether the mouth is moving.
+function updateFaces(now, time, poses, ids) {
+  const result = faceLandmarker.detectForVideo(video, now);
+  const heads = poses.map(pose => pose[0] && (pose[0].visibility ?? 0) >= 0.3 ? [pose[0].x, pose[0].y] : personCentre(pose)), matched = new Set();
+  (result.faceLandmarks || []).forEach((landmarks, index) => {
+    const nose = landmarks[1], at = nose ? nearestIndex([nose.x, nose.y], heads, 0.25) : -1, person = at >= 0 ? people.get(ids[at]) : null;
+    if (!person) return;
+    const scores = blendshapeScores(result.faceBlendshapes?.[index]?.categories);
+    person.face = { eyes: eyeReading(scores), mouth: person.mouth.update(time, scores), box: faceBox(landmarks), at: time }; matched.add(person.id);
+  });
+  for (const person of people.values()) if (!matched.has(person.id) && person.face && time - person.face.at > 1) { person.face = null; person.mouth.reset(); }
+}
+function drawPerson(person) {
+  const pose = person.pose, colour = statusColour(person), points = pose.filter(point => (point.visibility ?? 0) >= 0.3);
+  drawPose(pose, colour);
+  if (!points.length) return;
+  const x0 = Math.min(...points.map(point => point.x)) * canvas.width, x1 = Math.max(...points.map(point => point.x)) * canvas.width, y0 = Math.min(...points.map(point => point.y)) * canvas.height, y1 = Math.max(...points.map(point => point.y)) * canvas.height;
+  context.save(); context.strokeStyle = colour; context.lineWidth = person.id === focusId ? 3 : 1.5; context.setLineDash(person.id === selectedId ? [] : [6, 4]); context.strokeRect(x0 - 8, y0 - 8, x1 - x0 + 16, y1 - y0 + 16);
+  const result = person.result, status = !result ? '' : result.alerted ? ' · ALERT' : result.stillFor >= 1 ? ` · still ${Math.floor(result.stillFor)} s` : ' · moving', label = `Person ${person.id}${status}`;
+  context.font = '14px system-ui, sans-serif'; const width = context.measureText(label).width + 12;
+  context.fillStyle = colour; context.fillRect(x0 - 8, Math.max(0, y0 - 32), width, 22); context.fillStyle = '#121314'; context.fillText(label, x0 - 2, Math.max(16, y0 - 16)); context.restore();
+}
+function drawPose(pose, colour = '#5ccf8e') {
   const links = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
-  context.strokeStyle = '#5ccf8e'; context.fillStyle = '#ececef'; context.lineWidth = 3;
+  context.strokeStyle = colour; context.fillStyle = '#ececef'; context.lineWidth = 3;
   for (const [from, to] of links) {
     if ((pose[from]?.visibility ?? 0) < 0.3 || (pose[to]?.visibility ?? 0) < 0.3) continue;
     context.beginPath(); context.moveTo(pose[from].x * canvas.width, pose[from].y * canvas.height); context.lineTo(pose[to].x * canvas.width, pose[to].y * canvas.height); context.stroke();
@@ -157,26 +256,53 @@ function drawPose(pose) {
   for (const point of pose) if ((point.visibility ?? 0) >= 0.3) { context.beginPath(); context.arc(point.x * canvas.width, point.y * canvas.height, 4, 0, Math.PI * 2); context.fill(); }
 }
 
-function handleMeasurement(time, measurement) {
-  if (rest.isPaused(Date.now())) { detector.reset(); latestSnapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: null, detection: null }; element('pose-status').textContent = 'Paused'; element('motion').textContent = '—'; element('still').textContent = '—'; return; }
-  const detection = detector.process(time, measurement);
-  const stillFor = detector.stillFor(time);
+// One person's detector step. Raises an event when the detector fires; the display is separate.
+function evaluatePerson(person, time, measurement) {
+  if (rest.isPaused(Date.now())) { person.detector.reset(); person.result = { paused: true, measurement: null, stillFor: 0, alerted: false }; return; }
+  const d = person.detector, detection = d.process(time, measurement), stillFor = d.stillFor(time);
   // Coach and events get two numbers, never joint positions.
-  const summary = measurement ? { motion: Number(Math.min(detector.motion ?? 0, 9.99).toFixed(3)), stillFor: Number(stillFor.toFixed(1)) } : null;
-  latestSnapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: summary, detection: detection && { stillFor: Number(detection.stillFor.toFixed(1)), threshold: detection.threshold } };
+  const summary = measurement ? { motion: Number(Math.min(d.motion ?? 0, 9.99).toFixed(3)), stillFor: Number(stillFor.toFixed(1)) } : null;
+  const snapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: summary, detection: detection && { stillFor: Number(detection.stillFor.toFixed(1)), threshold: detection.threshold } };
+  person.result = { measurement, summary, stillFor, alerted: d.alerted, detection, snapshot, upper: Boolean(measurement?.upper), threshold: d.threshold, motion: d.motion, paused: false };
+  if (!detection) return;
+  const who = mode === 'replay' ? '' : `Person ${person.id}: `;
+  const details = `${who}No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`;
+  events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', personId: mode === 'replay' ? null : person.id, type: 'Possible unresponsive', details, snapshot: structuredClone(snapshot), eyes: person.face?.eyes?.state ?? null, mouth: person.face?.mouth?.state ?? null, acknowledged: false, lookNote: null });
+  if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
+  speakAlert();
+  element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${who}${events[0].source}. ${details}`;
+  renderEvents();
+}
+
+// The person the session panel, close-up and coach follow: someone with an alert, else the person who
+// has been still longest (past a third of the alert time), else the one the user clicked.
+function chooseFocus() {
+  const list = [...people.values()].filter(person => person.result && !person.result.paused);
+  const alerted = list.filter(person => person.result.alerted).sort((a, b) => b.result.stillFor - a.result.stillFor)[0];
+  if (alerted) return alerted.id;
+  const stillest = list.filter(person => person.pose).sort((a, b) => b.result.stillFor - a.result.stillFor)[0];
+  if (stillest && stillest.result.stillFor >= STILL_SECONDS / 3) return stillest.id;
+  if (selectedId !== null && people.has(selectedId)) return selectedId;
+  return stillest?.id ?? [...people.keys()][0] ?? null;
+}
+
+function renderFocus(person, time) {
+  const result = person?.result;
+  if (result?.paused) { latestSnapshot = { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: null, detection: null }; element('pose-status').textContent = 'Paused'; element('motion').textContent = '—'; element('still').textContent = '—'; renderViews(); return; }
+  const measurement = result?.measurement ?? null, summary = result?.summary ?? null, stillFor = result?.stillFor ?? 0;
+  latestSnapshot = result?.snapshot ?? { source: mode === 'replay' ? 'replay' : 'live', capturedAt: new Date().toISOString(), measurement: null, detection: null };
   updateCoachContext();
-  element('pose-status').textContent = measurement ? 'Person visible' : 'No reliable pose';
+  const count = [...people.values()].filter(item => item.pose).length;
+  element('pose-status').textContent = mode === 'replay' ? (measurement ? 'Person visible' : 'No reliable pose') : count > 1 ? `${count} people visible` : measurement ? 'Person visible' : 'No reliable pose';
   element('tracking').textContent = measurement ? (mode === 'replay' ? 'Synthetic pose · not a recording' : measurement.upper ? 'Upper-body tracking (hips not visible)' : 'Pose tracking active') : 'No reliable pose · show your shoulders';
   element('motion').textContent = summary ? summary.motion.toFixed(2) : '—';
   element('still').textContent = summary ? Math.floor(stillFor) : '—';
-  element('detector-state').textContent = !measurement ? 'Waiting for crew member' : detector.alerted ? 'Alert raised · waiting for movement' : stillFor >= STILL_SECONDS / 3 ? `No movement · alert at ${STILL_SECONDS} s` : 'Monitoring';
-  if (!detection) return;
-  const details = `No body movement for ${Math.round(detection.stillFor)} s while in view (${detection.upper ? 'upper body only: no joint moved more than about a shoulder width' : `no joint moved more than ${detection.threshold} torso lengths`}). Check in with the crew member.`;
-  events.unshift({ id: crypto.randomUUID(), date: new Date().toISOString(), source: mode === 'replay' ? 'Synthetic replay' : 'Live webcam', type: 'Possible unresponsive', details, snapshot: structuredClone(latestSnapshot), acknowledged: false, lookNote: null });
-  if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
-  speakAlert();
-  element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${events[0].source}. ${details}`;
-  renderEvents();
+  element('detector-state').textContent = !measurement ? 'Waiting for crew member' : result.alerted ? 'Alert raised · waiting for movement' : stillFor >= STILL_SECONDS / 3 ? `No movement · alert at ${STILL_SECONDS} s` : 'Monitoring';
+  renderViews();
+}
+function handleMeasurement(time, measurement) { // synthetic replay: one person, no faces
+  evaluatePerson(replayPerson, time, measurement); focusId = replayPerson.id;
+  renderFocus(replayPerson, time);
 }
 
 const LINKS = [[11,12],[11,13],[13,15],[12,14],[14,16],[11,23],[12,24],[23,24],[23,25],[25,27],[24,26],[26,28]];
