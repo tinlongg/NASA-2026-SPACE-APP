@@ -12,20 +12,20 @@ export const MISSION_SHOP=[
  {id:'cap',name:'Orbit cap',cost:30,slot:'hat',icon:'🧢',description:'A teal flight cap for Pip.'},
  {id:'crown',name:'Star crown',cost:90,slot:'hat',icon:'♛',description:'A golden constellation crown.'},
  {id:'scarf',name:'Comet scarf',cost:45,slot:'gear',icon:'🧣',description:'A coral scarf for your explorer.'},
- {id:'pack',name:'Sample pack',cost:60,slot:'gear',icon:'🎒',description:'Room for imaginary moon rocks.'},
+ {id:'pack',name:'Sample pack',cost:60,slot:'back',icon:'🎒',description:'Room for imaginary moon rocks.'},
  {id:'beanie',name:'Nebula beanie',cost:55,slot:'hat',icon:'◒',description:'A plum knit hat with a tiny star pom-pom.'},
  {id:'antenna',name:'Signal antenna',cost:80,slot:'hat',icon:'⌁',description:'A little teal antenna for receiving cosmic chirps.'},
  {id:'moon-badge',name:'Moon badge',cost:35,slot:'gear',icon:'☾',description:'A crescent mission patch on the suit collar.'},
- {id:'wings',name:'Solar wings',cost:110,slot:'gear',icon:'✧',description:'A pair of golden solar panels for your explorer.'},
+ {id:'wings',name:'Solar wings',cost:110,slot:'back',icon:'✧',description:'A pair of golden solar panels for your explorer.'},
  {id:'beret',name:'Comet beret',cost:70,slot:'hat',icon:'◒',description:'A soft blue beret with a tiny comet pin.'},
  {id:'wreath',name:'Lunar leaf wreath',cost:65,slot:'hat',icon:'❧',description:'A ring of moon-green leaves fitted around the head.'},
  {id:'headphones',name:'Mission headphones',cost:95,slot:'hat',icon:'♫',description:'A snug pair of lavender mission headphones.'},
  {id:'bowtie',name:'Starlight bow tie',cost:50,slot:'gear',icon:'⋈',description:'A little plum bow tied to the suit collar.'},
  {id:'star-brooch',name:'Star brooch',cost:45,slot:'gear',icon:'★',description:'A golden star pinned to the collar.'},
  {id:'medal',name:'Explorer medal',cost:85,slot:'gear',icon:'✪',description:'A small expedition medal on a blue ribbon.'},
- {id:'cigarette',name:'Cigarette',cost:5000,slot:'gear',icon:'≈',description:'A rare accessory with animated drifting smoke.'},
+ {id:'cigarette',name:'Cigarette',cost:5000,slot:'face',icon:'≈',description:'A rare accessory with animated drifting smoke.'},
  {id:'dunce',name:'Dunce hat',cost:75,slot:'hat',icon:'△',description:'A little paper cone fitted inside the helmet.'},
- {id:'fire-cape',name:'Cape of fire',cost:400,slot:'gear',icon:'♨',description:'A flowing cape with softly flickering illustrated flames.'},
+ {id:'fire-cape',name:'Cape of fire',cost:400,slot:'back',icon:'♨',description:'A flowing cape with softly flickering illustrated flames.'},
  {id:'propeller',name:'Propeller hat',cost:90,slot:'hat',icon:'✣',description:'A multicolored cap with a spinning blue propeller.'},
  {id:'solar-aura',name:'Solar aura',cost:350,slot:'aura',icon:'✺',description:'A golden energy aura with rising sparks. Wear it with hats and gear.'},
  {id:'garden',name:'Garden light',cost:75,slot:'buff',icon:'✿',description:'+1 garden growth on each completed daily routine. No change to health or game scoring.'}
@@ -35,6 +35,7 @@ export const missionDay=now=>new Date(now).toISOString().slice(0,10);
 export const GARDEN_STAGES=['Seed resting','Taking root','First sprout','Seedling','Growing leaves','Budding','First bloom','Full bloom'];
 export const plantGrowthLevel=(growth,index)=>Math.min(GARDEN_STAGES.length-1,Math.max(0,Math.floor((growth-index)/2)));
 export const missionGap=(a,b)=>Math.round((Date.parse(b+'T00:00:00Z')-Date.parse(a+'T00:00:00Z'))/86400000);
+export function missionEquipment(equipped={}){const next={...equipped},legacy=MISSION_SHOP.find(item=>item.id===next.gear);if(legacy&&legacy.slot!=='gear'&&legacy.slot!=='buff'){if(!next[legacy.slot])next[legacy.slot]=next.gear;delete next.gear;}return next;}
 export function newMission(){return {version:1,fuel:0,coins:0,rankPoints:0,distance:0,prestige:0,garden:0,streak:0,lastDay:null,days:{},owned:[],equipped:{},history:[],bests:{},pending:null,actions:[],listed:false};}
 export function missionSummary(state,now=Date.now()) {
  const day=missionDay(now), gap=state.lastDay?missionGap(state.lastDay,day):0;
@@ -43,7 +44,7 @@ export function missionSummary(state,now=Date.now()) {
 export function missionStats(state,game){const runs=state.history.filter(r=>r.game===game).slice(-10),scores=runs.map(r=>r.score);return {count:runs.length,best:state.bests?.[game]??(scores.length?Math.max(...state.history.filter(r=>r.game===game).map(r=>r.score)):null),average:scores.length?Math.round(scores.reduce((a,b)=>a+b,0)/scores.length):null};}
 export function applyMissionAction(original,action,now=Date.now(),{admin=false}={}) {
  if(!action||typeof action.id!=='string'||!/^[a-zA-Z0-9-]{8,80}$/.test(action.id)) throw Error('Invalid action identifier.');
- const s=structuredClone(original),day=missionDay(now);
+ const s=structuredClone(original),day=missionDay(now);s.equipped=missionEquipment(s.equipped);
  if(s.actions.includes(action.id)) return s;
  s.days[day]??={tasks:[],plays:0}; const today=s.days[day];
  switch(action.type){

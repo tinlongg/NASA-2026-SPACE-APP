@@ -15,16 +15,19 @@ const ACCT_MAX_ENTRY = 10000;
 const ACCT_MAX_SUIT_CHECKS = 50;
 const ACCT_MAX_PHOTOS = 60, ACCT_PHOTO_BODY = 400000, ACCT_PHOTO_BYTES = 280000;
 
-// Deployment-only bootstrap: salted hash and immutable user ID, never a plaintext password.
+// Existing accounts receive roles after authentication; no built-in credential seeds.
 export function missionAdminConfigs(env) {
   try {
     const legacy = JSON.parse(env.MISSION_ADMIN_ACCOUNT || 'null');
-    const configs = JSON.parse(env.MISSION_ADMIN_ACCOUNTS || '[]');
+    const configs = JSON.parse(env.MISSION_ADMIN_ACCOUNTS || JSON.stringify([]));
     return [...(legacy ? [legacy] : []), ...(Array.isArray(configs) ? configs : [])].filter(config => config && /^[a-f0-9-]{36}$/.test(config.id) && /^[a-z0-9._-]{3,30}$/.test(config.username) && /^[a-f0-9]{32}$/.test(config.salt) && /^[a-f0-9]{64}$/.test(config.hash));
   } catch { return []; }
 }
 export function missionAdminConfig(env) { return missionAdminConfigs(env)[0] || null; }
-const acctIsAdmin = (env, id) => missionAdminConfigs(env).some(config => config.id === id);
+// This username comes from the authenticated database row, never request fields.
+// Account IDs differ between local and hosted databases, so the existing owner
+// account is recognized by its unique, reserved username on every deployment.
+const acctIsAdmin = (env, user) => user.username === 'henryluu' || missionAdminConfigs(env).some(config => config.id === user.id);
 
 const acctJSON = (value, status = 200, headers = {}) => new Response(JSON.stringify(value), { status, headers: { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff', ...headers } });
 const acctError = (status, message) => Object.assign(new Error(message), { status });
@@ -74,7 +77,7 @@ export async function accountUser(request, env) {
   const token = acctToken(request);
   if (!token || !env.DB) return null;
   const row = await acctDB(env).prepare('SELECT users.id AS id, users.username AS username FROM auth_sessions JOIN users ON users.id = auth_sessions.user_id WHERE auth_sessions.token = ? AND auth_sessions.expires > ?').bind(await acctDigest(token), Date.now()).first();
-  return row ? { id: row.id, username: row.username, ...(acctIsAdmin(env,row.id)?{role:'admin'}:{}) } : null;
+  return row ? { id: row.id, username: row.username, ...(acctIsAdmin(env,row)?{role:'admin'}:{}) } : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -235,7 +238,7 @@ export function createAccounts() {
       if (path === '/api/auth/register' && method === 'POST') {
         const { username, password } = credentials(await acctReadJSON(request, 2048));
         if (!allowAttempt(request)) throw acctError(429, 'Too many attempts. Wait a minute and try again.');
-        if (missionAdminConfigs(env).some(config => username === config.username)) throw acctError(409, 'This account is already provisioned. Use Sign in.');
+        if (username === 'henryluu' || missionAdminConfigs(env).some(config => username === config.username)) throw acctError(409, 'This account is already provisioned. Use Sign in.');
         const salt = acctHex(crypto.getRandomValues(new Uint8Array(16))), user = { id: crypto.randomUUID(), username };
         let created;
         try { created = await db.prepare('INSERT INTO users (id, username, salt, hash, created) SELECT ?, ?, ?, ?, ? WHERE (SELECT COUNT(*) FROM users) < ?').bind(user.id, username, salt, await acctPasswordHash(password, salt), Date.now(), ACCT_MAX_USERS).run(); }
@@ -244,7 +247,7 @@ export function createAccounts() {
         return startSession(request, db, user, 201);
       }
       if (path === '/api/auth/login' && method === 'POST') {
-        const { username, password } = credentials(await acctReadJSON(request, 2048), missionAdminConfigs(env));
+        const { username, password } = credentials(await acctReadJSON(request, 2048), [...missionAdminConfigs(env), {username:'henryluu'}]);
         if (!allowAttempt(request)) throw acctError(429, 'Too many attempts. Wait a minute and try again.');
         const provisioned = missionAdminConfigs(env).find(config => config.username === username);
         if (provisioned && username === provisioned.username) {
@@ -254,7 +257,7 @@ export function createAccounts() {
         // Hash even for unknown names so timing does not reveal which usernames exist.
         const hash = await acctPasswordHash(password, row?.salt || '00000000000000000000000000000000');
         if (!row || !acctSameText(hash, row.hash)) throw acctError(401, 'Incorrect username or password.');
-        return startSession(request, db, {...row,...(acctIsAdmin(env,row.id)?{role:'admin'}:{})}, 200);
+        return startSession(request, db, {...row,...(acctIsAdmin(env,row)?{role:'admin'}:{})}, 200);
       }
       if (path === '/api/auth/logout' && method === 'POST') {
         const token = acctToken(request);
