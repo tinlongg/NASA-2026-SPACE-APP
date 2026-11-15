@@ -9,6 +9,7 @@ test('positive, negative and mixed reflections are distinguished',()=>{
 });
 test('negation is bounded by clauses and modifies wording, not author health',()=>{
  assert.ok(analyzeJournalTone('I am not happy').score<0);
+ assert.equal(analyzeJournalTone('I am super sad').label,'Negative tone');
  assert.ok(analyzeJournalTone('I am not sad').score>0);
  assert.ok(analyzeJournalTone('Not today. I am happy.').score>0);
  assert.ok(analyzeJournalTone('I am not only happy').score>0);

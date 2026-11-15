@@ -1,7 +1,7 @@
 import { sentimentLexicon, sentimentMetadata } from './sentiment-lexicon.js';
 export { sentimentMetadata };
 const negators=new Set(['not','no','never','neither','nor','without','hardly','barely',"isn't","wasn't","don't","didn't","can't","couldn't","won't","wouldn't","aren't","wasn't","weren't","doesn't","haven't","hasn't"]);
-const intensifiers=new Map([['very',1.3],['really',1.3],['extremely',1.5],['so',1.2],['slightly',0.7],['somewhat',0.7]]);
+const intensifiers=new Map([['super',1.3],['very',1.3],['really',1.3],['extremely',1.5],['so',1.2],['slightly',0.7],['somewhat',0.7]]);
 // Transparent lexicon heuristic, NOT a reproduction of the full VADER algorithm.
 export function analyzeJournalTone(text) {
   const tokens=String(text).slice(0,10000).replaceAll('’',"'").toLowerCase().match(/[\p{L}]+(?:'[\p{L}]+)?|[.!?;,]|[:;=][\-^]?[)(DPp/]/gu)||[];
