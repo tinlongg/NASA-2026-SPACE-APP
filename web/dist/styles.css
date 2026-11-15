@@ -307,6 +307,40 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .views .closeup-read { display: flex; gap: 24px; }
 .closeup-panel .popout { padding: 4px 10px; font-size: 12px; }
 @media (max-width: 980px) { .views { grid-template-columns: 1fr; } }
+.stations-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 980px) { .stations-grid { grid-template-columns: 1fr; } }
+#station-plan { width: 100%; height: auto; padding: 12px; }
+.plan-link { stroke: var(--line-strong); stroke-width: 2; stroke-dasharray: 4 4; }
+.plan-room rect { fill: var(--surface); stroke: var(--line-strong); stroke-width: 1.5; cursor: pointer; }
+.plan-room text { fill: var(--text); font: 500 11px system-ui, sans-serif; pointer-events: none; }
+.plan-room .plan-sub { fill: var(--text-2); font-weight: 400; font-size: 10px; }
+.plan-room.empty rect { stroke-dasharray: 4 3; opacity: .6; }
+.plan-room.moving rect { stroke: var(--accent); } .plan-room.still rect { stroke: var(--warn); } .plan-room.checking rect { stroke: var(--warn); fill: var(--raised); } .plan-room.alert rect { stroke: var(--danger); fill: rgba(223,106,94,.12); }
+.station-form, .station-code, .station-list { padding: 0 20px; }
+.station-form { padding-top: 12px; } .station-form button { margin: 12px 0; }
+.station-code { padding: 12px 20px; } .station-code .code { font: 600 32px var(--mono); letter-spacing: .2em; margin: 6px 0; }
+.station-list { display: grid; gap: 12px; padding-bottom: 16px; }
+.station-card { border: 1px solid var(--line); border-radius: var(--r-card); padding: 12px 14px; background: var(--surface); }
+.station-card.alert { border-color: var(--danger); } .station-card.still, .station-card.checking { border-color: var(--warn); } .station-card.offline { opacity: .6; } .station-card.selected { background: var(--raised); }
+.station-head { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.station-card video { width: 100%; border-radius: var(--r-control); margin: 8px 0; background: var(--field); }
+.station-card p { margin: 4px 0; font-size: 13px; }
+.station-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; } .station-actions button { padding: 4px 12px; font-size: 13px; }
+.station-note { padding: 0 20px 16px; }
+.circle-body { padding: 4px 20px 16px; display: grid; gap: 4px; }
+.circle-block { padding: 12px 0; border-bottom: 1px solid var(--line); } .circle-block:last-child { border: 0; }
+.circle-block h3 { margin-bottom: 4px; } .circle-block p { margin: 4px 0; font-size: 13px; }
+.circle-block form { display: flex; gap: 8px; margin-top: 8px; } .circle-block form input { flex: 1; }
+.circle-members { list-style: none; margin: 8px 0; padding: 0; } .circle-members li { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; border-top: 1px solid var(--line); }
+.circle-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.circle-code { padding: 8px 20px; } .circle-code .code { font: 600 32px var(--mono); letter-spacing: .2em; }
+.code-input { text-transform: uppercase; letter-spacing: .15em; }
+.iss-view { position: relative; display: block; width: 100%; height: auto; aspect-ratio: 1 / 0.62; cursor: grab; touch-action: none; background: radial-gradient(ellipse at 50% 40%, #1a1d22, #101113); }
+.iss-modules { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 16px 16px; }
+.module-button { padding: 4px 10px; font-size: 12px; }
+.module-button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
+.module-button.private { opacity: .55; }
+.station-room-note { margin: 8px 0 0; font-size: 13px; }
 
 .dialog-corner-bar{position:sticky;top:0;z-index:5;display:flex;justify-content:flex-end;pointer-events:none;margin:-10px -10px 4px 0}.dialog-corner-close{pointer-events:auto;width:40px;height:40px;min-height:40px!important;border-radius:50%;padding:0;font-size:25px;line-height:1;background:#353540;color:#fff;border:1px solid #777080;box-shadow:0 2px 8px #0003}.dialog-corner-close:focus-visible{outline:3px solid #e9d6a3;outline-offset:2px}
 

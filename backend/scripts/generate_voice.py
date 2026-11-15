@@ -5,7 +5,7 @@ exact text) and writes one mp3 per phrase next to it. Phrases named web-* go to 
 
     ELEVENLABS_API_KEY=... python backend/scripts/generate_voice.py [--force]
 
-The key is read from the environment or backend/.env (git-ignored). Optional: ELEVENLABS_VOICE_ID
+The key is read from the environment, the repo-root .env or backend/.env (all git-ignored). Optional: ELEVENLABS_VOICE_ID
 (default: the voice set on the CrewSafety Check-in agent, found through the API; Eric if that lookup fails) and ELEVENLABS_MODEL (default eleven_multilingual_v2).
 """
 import json
@@ -23,9 +23,11 @@ DEFAULT_VOICE = "cjVigY5qzO86Huf0OWal"  # Eric - Smooth, Trustworthy: the voice 
 
 
 def load_key() -> str:
+    """ELEVENLABS_API_KEY from the environment, then the repo-root .env, then backend/.env (all git-ignored)."""
     key = os.environ.get("ELEVENLABS_API_KEY", "")
-    env_file = ROOT / "backend" / ".env"
-    if not key and env_file.exists():
+    for env_file in (ROOT / ".env", ROOT / "backend" / ".env"):
+        if key or not env_file.exists():
+            continue
         for line in env_file.read_text().splitlines():
             if line.startswith("ELEVENLABS_API_KEY="):
                 key = line.split("=", 1)[1].strip().strip('"')
