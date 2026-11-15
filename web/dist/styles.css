@@ -341,3 +341,5 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .module-button[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); }
 .module-button.private { opacity: .55; }
 .station-room-note { margin: 8px 0 0; font-size: 13px; }
+
+.dialog-corner-bar{position:sticky;top:0;z-index:5;display:flex;justify-content:flex-end;pointer-events:none;margin:-10px -10px 4px 0}.dialog-corner-close{pointer-events:auto;width:40px;height:40px;min-height:40px!important;border-radius:50%;padding:0;font-size:25px;line-height:1;background:#353540;color:#fff;border:1px solid #777080;box-shadow:0 2px 8px #0003}.dialog-corner-close:focus-visible{outline:3px solid #e9d6a3;outline-offset:2px}

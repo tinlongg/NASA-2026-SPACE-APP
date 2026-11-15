@@ -10,6 +10,9 @@ test('admin simulations require server authority and preserve ordinary shop rule
  assert.throws(()=>applyMissionAction(base,action('buy',{item:'crown'})),/Not enough/);
  let s=applyMissionAction(base,action('buy',{item:'crown'}),Date.now(),{admin:true});assert.equal(s.coins,0);assert.ok(s.owned.includes('crown'));
  s=applyMissionAction(s,action('admin',{stage:'needs-care',growth:18}),Date.now(),{admin:true});assert.equal(s.birdStage,'needs-care');assert.equal(s.garden,18);assert.equal(s.rankPoints,0);
+ s=applyMissionAction(s,action('admin',{distance:800,prestige:3}),Date.now(),{admin:true});assert.equal(s.distance,800);assert.equal(s.prestige,3);
+ assert.throws(()=>applyMissionAction(s,action('admin',{distance:1001}),Date.now(),{admin:true}));
+ assert.throws(()=>applyMissionAction(s,action('admin',{prestige:1}),Date.now()),/Admin/);
  for(const extra of [{stage:'made-up'},{growth:-1},{growth:101}])assert.throws(()=>applyMissionAction(s,action('admin',extra),Date.now(),{admin:true}));
  assert.throws(()=>applyMissionAction(s,action('listing',{listed:true}),Date.now(),{admin:true}),/outside public/);
 });
@@ -22,6 +25,7 @@ test('provisioned admin authenticates by hashed password and ID; client flags ca
  assert.equal((await a('/api/auth/login',{username:config.username,password:'wrong-password'})).status,401);
  assert.equal((await a('/api/auth/login',{username:config.username,password})).status,200);
  assert.equal((await(await a('/api/mission/state')).json()).admin,true);
+ assert.equal((await(await a('/api/auth/me')).json()).user.role,'admin');
  for(const item of ['cap','crown','scarf','pack','garden'])assert.equal((await a('/api/mission/action',action('buy',{item}))).status,200);
  assert.equal((await a('/api/mission/action',action('admin',{stage:'tired',growth:18}))).status,200);
  assert.equal((await(await a('/api/mission/state')).json()).state.garden,18);
@@ -32,5 +36,13 @@ test('provisioned admin authenticates by hashed password and ID; client flags ca
  assert.equal((await regular('/api/mission/action',action('buy',{item:'cap'}))).status,400);
  assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,0);
  assert.equal(DB.sqlite.prepare('SELECT hash FROM users WHERE id=?').get(config.id).hash,config.hash);
+ await a('/api/mission/action',action('admin',{bots:true}));
+ const demo=await(await a('/api/mission/leaderboard')).json();assert.equal(demo.demo,true);assert.equal(demo.rows.length,10);assert.ok(demo.rows.every(r=>r.bot));assert.equal(demo.self.rank,13);
+ assert.equal((await(await regular('/api/mission/leaderboard')).json()).rows.length,0);
+ assert.equal((await regular('/api/mission/action',action('admin',{bots:true}))).status,403);
+ await a('/api/mission/action',action('admin',{bots:false}));assert.equal((await(await a('/api/mission/leaderboard')).json()).demo,false);
+ await regular('/api/mission/action',action('listing',{listed:true}));
+ for(let i=0;i<12;i++)DB.sqlite.prepare('INSERT INTO mission_profiles (user_id,state,revision,points,listed,alias) VALUES (?,?,0,?,1,?)').run(randomUUID(),JSON.stringify(newMission()),100+i,'Test-'+i);
+ const ranked=await(await regular('/api/mission/leaderboard')).json();assert.equal(ranked.rows.length,10);assert.equal(ranked.self.rank,13);assert.equal(ranked.self.points,0);
  DB.sqlite.close();
 });
