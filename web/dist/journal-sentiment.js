@@ -50,3 +50,24 @@ export function journalToneElement(text) {
   evidence.textContent=unique.length?`Matched wording: ${unique.map(m=>`${m.term}${m.normalized!==m.term?` → ${m.normalized}`:''}${m.negated?' (negated)':''}`).join(', ')}. Lexicon score: ${result.score} (−1 to +1; not a confidence percentage).`:'Try an English reflection with more context. Other languages and unfamiliar expressions may not be recognized.';
   details.append(evidence); section.append(heading,help,details); return section;
 }
+
+export function museJournalElement(text) {
+  const section=document.createElement('div'); section.className='journal-tone';
+  const heading=document.createElement('strong'); heading.textContent='MUSE · optional AI reflection';
+  const disclosure=document.createElement('p'); disclosure.className='micro';
+  disclosure.textContent='Clicking sends only this entry through our server to Meta (Muse Spark). Other entries and crew data are not included. AI reflections may be wrong and are not a health assessment.';
+  const button=document.createElement('button'); button.type='button'; button.textContent='Send this entry to MUSE';
+  const output=document.createElement('p'); output.setAttribute('role','status'); output.style.whiteSpace='pre-wrap';
+  if(text.length>2000) {button.disabled=true; output.textContent='MUSE supports entries up to 2,000 characters. Local analysis is available for this longer entry.';}
+  button.onclick=async()=>{
+    button.disabled=true; output.textContent='MUSE is reflecting…';
+    try {
+      const response=await fetch('/api/journal/analyze',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({entry:text,consent:true}),cache:'no-store',signal:AbortSignal.timeout(30000)});
+      const result=await response.json();
+      if(!response.ok) throw Error(typeof result.error==='string'?result.error:'MUSE is unavailable. Try again later.');
+      output.textContent=`MUSE reflection (${result.model})\n${result.answer}`;
+    } catch(error) {output.textContent=error.name==='TimeoutError'?'MUSE took too long. Try again.':error.message;}
+    finally {button.disabled=false;}
+  };
+  section.append(heading,disclosure,button,output); return section;
+}

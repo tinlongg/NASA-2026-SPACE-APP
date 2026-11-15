@@ -1,4 +1,4 @@
-import { journalToneElement, sentimentMetadata } from './journal-sentiment.js';
+import { journalToneElement, museJournalElement, sentimentMetadata } from './journal-sentiment.js';
 import { FallDetector, measurePose } from './detector.js';
 import { REPLAYS, replayMeasurement } from './fixtures.js';
 import { VISION_MODULE, VISION_WASM, POSE_MODEL } from './offline-config.js';
@@ -179,7 +179,7 @@ function renderJournals() {
     const date = document.createElement('time'); date.textContent = new Date(entry.date).toLocaleString();
     const body = document.createElement('p'); body.textContent = entry.body;
     const summary = document.createElement('p'); summary.className = 'tag'; summary.textContent = `${summarize(entry.body)} Summary of your words, not an assessment.`;
-    row.append(date,body,summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); element('journal-entries').append(row);
+    row.append(date,body,summary); if (element('journal-tone-enabled').checked) row.append(journalToneElement(entry.body)); row.append(museJournalElement(entry.body)); element('journal-entries').append(row);
   }
 }
 element('journal-tone-enabled').onchange = renderJournals;
