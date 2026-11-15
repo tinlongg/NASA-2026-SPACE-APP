@@ -403,3 +403,5 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .thought .wear-button { margin-top: 6px; padding: 4px 10px; font-size: 12px; }
 
 .iss-view-tools{display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}.iss-view-tools button{padding:6px 14px;font-size:12px}.iss-view:active{cursor:grabbing}
+
+a.nav{text-decoration:none;border-radius:var(--r-control)}a.nav:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
