@@ -278,3 +278,9 @@ Built without the live test (that still needs a person in front of the camera; s
 - The close-up is now an always-on second view beside the main camera, with a pop-out window ("Open on another screen"). Pose model now defaults to Full.
 - Not verified with a camera: walking in front of a real webcam, the pop-out window (browsers may block it), and the layout below 980 px width (stacked).
 - Open question for the product: Earth mode is the default because every test so far is on Earth; the space-station behaviour is the checkbox off.
+
+### Stations: phones as cameras (2026-11-15, branch `claude/stations-circle-push`)
+
+- Built: the Stations tab, `/camera` phone page, pairing by one-time code, status reports, a simulated deck plan, and live video signalling (WebRTC). Migration `0005_stations.sql` must be applied to hosted D1. Web tests 96/96 (server routes, pairing, isolation, signalling).
+- **Not verified:** a real phone running `/camera` (pose and face models on a phone, check-in, audio), and WebRTC video end to end (only the signalling is tested; the browser pane could not run a second device). No TURN server, so video may fail on some networks. A phone needs HTTPS for camera access (localhost is fine only on the same machine): use the hosted site or a tunnel for real phones.
+- Still to build on this branch: the notification circle and real push, and phone calls.
