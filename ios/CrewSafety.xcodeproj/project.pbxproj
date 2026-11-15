@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		C5A0000000000000000000B6 /* CrewSafetyWatch.app in Embed Watch Content */ = {isa = PBXBuildFile; fileRef = C5A0000000000000000000B1 /* CrewSafetyWatch.app */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		C5A000000000000000000010 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -14,12 +18,37 @@
 			remoteGlobalIDString = C5A000000000000000000005;
 			remoteInfo = CrewSafety;
 		};
+		C5A0000000000000000000B8 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = C5A000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = C5A0000000000000000000B0;
+			remoteInfo = CrewSafetyWatch;
+		};
 /* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		C5A0000000000000000000B7 /* Embed Watch Content */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "$(CONTENTS_FOLDER_PATH)/Watch";
+			dstSubfolderSpec = 16;
+			files = (
+				C5A0000000000000000000B6 /* CrewSafetyWatch.app in Embed Watch Content */,
+			);
+			name = "Embed Watch Content";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		C5A000000000000000000006 /* CrewSafety.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CrewSafety.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		C5A000000000000000000007 /* CrewSafetyTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CrewSafetyTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		C5A00000000000000000000A /* CrewSafety-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "CrewSafety-Info.plist"; sourceTree = "<group>"; };
+		C5A0000000000000000000B1 /* CrewSafetyWatch.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = CrewSafetyWatch.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		C5A0000000000000000000BA /* CrewSafetyWatch-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "CrewSafetyWatch-Info.plist"; sourceTree = "<group>"; };
+		C5A0000000000000000000BB /* CrewSafety.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CrewSafety.entitlements; sourceTree = "<group>"; };
+		C5A0000000000000000000BC /* CrewSafetyWatch.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = CrewSafetyWatch.entitlements; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -31,6 +60,16 @@
 		C5A000000000000000000009 /* CrewSafetyTests */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = CrewSafetyTests;
+			sourceTree = "<group>";
+		};
+		C5A0000000000000000000B2 /* CrewSafetyWatch */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CrewSafetyWatch;
+			sourceTree = "<group>";
+		};
+		C5A0000000000000000000B3 /* CrewSafetyShared */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = CrewSafetyShared;
 			sourceTree = "<group>";
 		};
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -50,6 +89,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C5A0000000000000000000BE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -58,7 +104,12 @@
 			children = (
 				C5A000000000000000000008 /* CrewSafety */,
 				C5A000000000000000000009 /* CrewSafetyTests */,
+				C5A0000000000000000000B2 /* CrewSafetyWatch */,
+				C5A0000000000000000000B3 /* CrewSafetyShared */,
 				C5A00000000000000000000A /* CrewSafety-Info.plist */,
+				C5A0000000000000000000BA /* CrewSafetyWatch-Info.plist */,
+				C5A0000000000000000000BB /* CrewSafety.entitlements */,
+				C5A0000000000000000000BC /* CrewSafetyWatch.entitlements */,
 				C5A000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -68,6 +119,7 @@
 			children = (
 				C5A000000000000000000006 /* CrewSafety.app */,
 				C5A000000000000000000007 /* CrewSafetyTests.xctest */,
+				C5A0000000000000000000B1 /* CrewSafetyWatch.app */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -82,13 +134,16 @@
 				C5A000000000000000000020 /* Sources */,
 				C5A000000000000000000021 /* Frameworks */,
 				C5A000000000000000000022 /* Resources */,
+				C5A0000000000000000000B7 /* Embed Watch Content */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				C5A0000000000000000000B9 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
 				C5A000000000000000000008 /* CrewSafety */,
+				C5A0000000000000000000B3 /* CrewSafetyShared */,
 			);
 			name = CrewSafety;
 			packageProductDependencies = (
@@ -120,6 +175,29 @@
 			productReference = C5A000000000000000000007 /* CrewSafetyTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
+		C5A0000000000000000000B0 /* CrewSafetyWatch */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C5A0000000000000000000C0 /* Build configuration list for PBXNativeTarget "CrewSafetyWatch" */;
+			buildPhases = (
+				C5A0000000000000000000BD /* Sources */,
+				C5A0000000000000000000BE /* Frameworks */,
+				C5A0000000000000000000BF /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				C5A0000000000000000000B2 /* CrewSafetyWatch */,
+				C5A0000000000000000000B3 /* CrewSafetyShared */,
+			);
+			name = CrewSafetyWatch;
+			packageProductDependencies = (
+			);
+			productName = CrewSafetyWatch;
+			productReference = C5A0000000000000000000B1 /* CrewSafetyWatch.app */;
+			productType = "com.apple.product-type.application";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -136,6 +214,9 @@
 					C5A00000000000000000000B = {
 						CreatedOnToolsVersion = 16.0;
 						TestTargetID = C5A000000000000000000005;
+					};
+					C5A0000000000000000000B0 = {
+						CreatedOnToolsVersion = 16.0;
 					};
 				};
 			};
@@ -155,6 +236,7 @@
 			targets = (
 				C5A000000000000000000005 /* CrewSafety */,
 				C5A00000000000000000000B /* CrewSafetyTests */,
+				C5A0000000000000000000B0 /* CrewSafetyWatch */,
 			);
 		};
 /* End PBXProject section */
@@ -168,6 +250,13 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		C5A000000000000000000032 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		C5A0000000000000000000BF /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -191,6 +280,13 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		C5A0000000000000000000BD /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -198,6 +294,11 @@
 			isa = PBXTargetDependency;
 			target = C5A000000000000000000005 /* CrewSafety */;
 			targetProxy = C5A000000000000000000010 /* PBXContainerItemProxy */;
+		};
+		C5A0000000000000000000B9 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = C5A0000000000000000000B0 /* CrewSafetyWatch */;
+			targetProxy = C5A0000000000000000000B8 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -207,13 +308,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = CrewSafety.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "CrewSafety-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = CrewSafety;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Used on-device to check whether a crew member is moving. Video is not stored or sent.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads heart rate from your Apple Watch to show it next to camera alerts. It never decides an alert.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Starts a monitoring session on your Apple Watch so heart rate arrives every few seconds. The session is discarded, not saved as a workout.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your computer's CrewSafety dashboard to share crew status and safety alerts.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used on-device to hear whether you're OK after no movement is detected. Audio is not stored or sent.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Used on-device to recognise \"I'm okay\" or \"help\" after no movement is detected. Audio is not stored or sent.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -223,8 +327,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.crewsafety.hackathon.CrewSafety;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).CrewSafety";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -237,13 +340,16 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = CrewSafety.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "CrewSafety-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = CrewSafety;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Used on-device to check whether a crew member is moving. Video is not stored or sent.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads heart rate from your Apple Watch to show it next to camera alerts. It never decides an alert.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Starts a monitoring session on your Apple Watch so heart rate arrives every few seconds. The session is discarded, not saved as a workout.";
+				INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Connect to your computer's CrewSafety dashboard to share crew status and safety alerts.";
 				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used on-device to hear whether you're OK after no movement is detected. Audio is not stored or sent.";
 				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Used on-device to recognise \"I'm okay\" or \"help\" after no movement is detected. Audio is not stored or sent.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -253,8 +359,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.crewsafety.hackathon.CrewSafety;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).CrewSafety";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -267,10 +372,8 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.crewsafety.hackathon.CrewSafetyTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).CrewSafetyTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
@@ -284,10 +387,8 @@
 			buildSettings = {
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
 				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.crewsafety.hackathon.CrewSafetyTests;
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).CrewSafetyTests";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = NO;
 				SWIFT_VERSION = 5.0;
@@ -300,6 +401,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				BUNDLE_ID_PREFIX = org.crewsafety.hackathon;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				MARKETING_VERSION = 1.0;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				COPY_PHASE_STRIP = NO;
@@ -321,6 +426,10 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ALWAYS_SEARCH_USER_PATHS = NO;
+				BUNDLE_ID_PREFIX = org.crewsafety.hackathon;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = "";
+				MARKETING_VERSION = 1.0;
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				COPY_PHASE_STRIP = NO;
@@ -333,6 +442,66 @@
 				SDKROOT = iphoneos;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		C5A0000000000000000000C1 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = CrewSafetyWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "CrewSafetyWatch-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = CrewSafety;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads your heart rate during monitoring so the crew dashboard can show it next to camera alerts.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Runs a monitoring session so heart rate arrives every few seconds. The session is discarded, not saved as a workout.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Detects wrist movement during monitoring, so moving your arm restarts the stillness timer.";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(BUNDLE_ID_PREFIX).CrewSafety";
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).CrewSafety.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
+			};
+			name = Debug;
+		};
+		C5A0000000000000000000C2 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = CrewSafetyWatch.entitlements;
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "CrewSafetyWatch-Info.plist";
+				INFOPLIST_KEY_CFBundleDisplayName = CrewSafety;
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Reads your heart rate during monitoring so the crew dashboard can show it next to camera alerts.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Runs a monitoring session so heart rate arrives every few seconds. The session is discarded, not saved as a workout.";
+				INFOPLIST_KEY_NSMotionUsageDescription = "Detects wrist movement during monitoring, so moving your arm restarts the stillness timer.";
+				INFOPLIST_KEY_WKCompanionAppBundleIdentifier = "$(BUNDLE_ID_PREFIX).CrewSafety";
+				INFOPLIST_KEY_WKRunsIndependentlyOfCompanionApp = NO;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = "$(BUNDLE_ID_PREFIX).CrewSafety.watchkitapp";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = watchos;
+				SKIP_INSTALL = YES;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = 4;
+				WATCHOS_DEPLOYMENT_TARGET = 10.0;
 			};
 			name = Release;
 		};
@@ -362,6 +531,15 @@
 			buildConfigurations = (
 				C5A000000000000000000047 /* Debug */,
 				C5A000000000000000000048 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		C5A0000000000000000000C0 /* Build configuration list for PBXNativeTarget "CrewSafetyWatch" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C5A0000000000000000000C1 /* Debug */,
+				C5A0000000000000000000C2 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
