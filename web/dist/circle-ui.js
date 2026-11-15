@@ -5,7 +5,7 @@ const text = (tag, value, className) => { const node = document.createElement(ta
 const keyBytes = key => Uint8Array.from(atob(key.replaceAll('-', '+').replaceAll('_', '/').padEnd(Math.ceil(key.length / 4) * 4, '=')), char => char.charCodeAt(0));
 
 export function initCircle({ api, onAlert }) {
-  let user = null, poll = null, after = null, state = null, history = [];
+  let user = null, poll = null, after = null, state = null, history = [], calls = null;
   const say = message => { el('circle-message').textContent = message; };
 
   async function pushState() {
@@ -45,6 +45,26 @@ export function initCircle({ api, onAlert }) {
     const button = text('button', 'Join'); form.append(input, button);
     form.onsubmit = async event => { event.preventDefault(); try { const result = await api('/api/circle/join', 'POST', { code: input.value }); say(`Joined “${result.circle}”.`); input.value = ''; refresh(); } catch (error) { say(error.message); } };
     joined.append(form); host.append(joined);
+    // Phone calls: each person adds their own number and agrees to be called.
+    const phone = document.createElement('div'); phone.className = 'circle-block';
+    phone.append(text('h3', 'Phone calls'));
+    if (!calls?.configured) phone.append(text('p', 'Phone calls are not set up on this server yet (see web/README, Phone calls).'));
+    else if (calls.number) {
+      phone.append(text('p', `Serious alerts (someone asks for help, or does not answer the check-in) will call ${calls.number}.`));
+      const row = document.createElement('div'); row.className = 'circle-actions';
+      const test = text('button', 'Send me a test call'); test.onclick = async () => { try { await api('/api/calls/test', 'POST'); say('Calling you now. Pick up to hear the alert.'); } catch (error) { say(error.message); } };
+      const remove = text('button', 'Remove my number'); remove.onclick = async () => { await api('/api/calls/me', 'DELETE'); await refresh(); };
+      row.append(test, remove); phone.append(row);
+    } else {
+      phone.append(text('p', 'Get a phone call for serious alerts. Only you can add your own number.'));
+      const form = document.createElement('form'), input = document.createElement('input'); input.type = 'tel'; input.placeholder = '+15551234567'; input.required = true; input.autocomplete = 'tel'; input.setAttribute('aria-label', 'Your phone number with country code');
+      const agree = document.createElement('label'); agree.className = 'toggle'; const box = document.createElement('input'); box.type = 'checkbox'; box.required = true; agree.append(box, ' I agree that CrewSafety may call this number for serious alerts, and that the number is shared with ElevenLabs and Twilio to place the calls.');
+      const save = text('button', 'Save my number'); save.className = 'primary';
+      form.style.flexDirection = 'column'; form.append(input, agree, save);
+      form.onsubmit = async event => { event.preventDefault(); try { await api('/api/calls/me', 'PUT', { phone: input.value, consent: box.checked }); say('Number saved.'); await refresh(); } catch (error) { say(error.message); } };
+      phone.append(form);
+    }
+    host.append(phone);
     // Notifications on this device
     const notify = document.createElement('div'); notify.className = 'circle-block';
     notify.append(text('h3', 'Alerts on this device'));
@@ -73,7 +93,7 @@ export function initCircle({ api, onAlert }) {
     if (subscription) { await api('/api/push/subscribe', 'DELETE', { endpoint: subscription.endpoint }); await subscription.unsubscribe(); }
     say('Alerts are off for this device.');
   }
-  async function refresh() { try { state = await api('/api/circle'); say(''); } catch (error) { say(error.status === 401 ? '' : error.message); } render(); }
+  async function refresh() { try { state = await api('/api/circle'); calls = await api('/api/calls/me').catch(() => null); say(''); } catch (error) { say(error.status === 401 ? '' : error.message); } render(); }
 
   async function check() {
     if (!user || !state || (!state.owned && !state.memberOf.length)) return;

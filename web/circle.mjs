@@ -4,6 +4,7 @@
 // Alert text carries only a station name, a person number and what happened: no video, no names.
 import { accountUser } from './account.mjs';
 import { wpSend, wpConfigured } from './webpush.mjs';
+import { callMembers } from './calls.mjs';
 
 const CRC_MAX_MEMBERS = 20, CRC_INVITE_MS = 24 * 3600000, CRC_ALERT_KEEP_MS = 24 * 3600000, CRC_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 const crcJSON = (value, status = 200) => Response.json(value, { status, headers: { 'Cache-Control': 'no-store', 'X-Content-Type-Options': 'nosniff' } });
@@ -24,7 +25,7 @@ async function crcRead(request, limit) {
 const crcText = (value, max) => typeof value === 'string' ? value.trim().slice(0, max) : '';
 
 /** Records an alert for the circle owned by `ownerId` and pushes it to every member's devices. */
-export async function notifyCircle(env, ownerId, { title, body }, fetcher = fetch) {
+export async function notifyCircle(env, ownerId, { title, body, call }, fetcher = fetch) {
   const db = crcDB(env), circle = await db.prepare('SELECT id FROM circles WHERE owner_id = ?').bind(ownerId).first();
   if (!circle) return { recorded: false, sent: 0 };
   await db.prepare('DELETE FROM circle_alerts WHERE created < ?').bind(Date.now() - CRC_ALERT_KEEP_MS).run();
@@ -37,7 +38,10 @@ export async function notifyCircle(env, ownerId, { title, body }, fetcher = fetc
       if (outcome === 'sent') sent++; else if (outcome === 'gone') await db.prepare('DELETE FROM push_subscriptions WHERE id = ?').bind(subscription.id).run();
     }
   }
-  return { recorded: true, sent };
+  // Serious alerts (help, or no answer to the check-in) also ring the members who opted in to phone calls.
+  let called = 0;
+  if (call) { const { results } = await db.prepare('SELECT user_id FROM circle_members WHERE circle_id = ?').bind(circle.id).all(); called = await callMembers(env, [ownerId, ...results.map(row => row.user_id)], call, fetcher).catch(() => 0); }
+  return { recorded: true, sent, called };
 }
 
 export async function handleCircle(request, env, fetcher = fetch) {
@@ -112,7 +116,8 @@ export async function handleCircle(request, env, fetcher = fetch) {
       const body = path === '/api/circle/test' ? {} : await crcRead(request, 1024);
       const title = path === '/api/circle/test' ? 'CrewSafety test alert' : crcText(body.title, 80), text = path === '/api/circle/test' ? 'This is a test. Nothing is wrong.' : crcText(body.body, 200);
       if (!title || !text) throw crcError(400, 'Send a title and a message.');
-      return crcJSON(await notifyCircle(env, user.id, { title, body: text }, fetcher), 201);
+      const kind = path !== '/api/circle/test' && ['help', 'timeout', 'still'].includes(body.callKind) ? body.callKind : null; // only serious alerts ring phones
+      return crcJSON(await notifyCircle(env, user.id, { title, body: text, ...(kind ? { call: { kind, person: crcText(body.person, 40), room: crcText(body.room, 40), camera: crcText(body.camera, 40) } } : {}) }, fetcher), 201);
     }
     throw crcError(405, 'Unsupported circle operation.');
   } catch (error) { return crcJSON({ error: error.status ? error.message : 'Circles are temporarily unavailable.' }, error.status || 503); }

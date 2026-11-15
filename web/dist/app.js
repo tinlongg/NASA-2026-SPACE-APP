@@ -290,7 +290,7 @@ function raiseEvent(person, detection, snapshot, why = '') {
   if (mode !== 'replay' && element('look-enabled').checked) secondLook(events[0]);
   if (element('voice-answer-enabled').checked && mode === 'live' && !why) listenAfterAlert(events[0]); else speakAlert();
   element('event-banner').hidden = false; element('event-banner').textContent = `Possible unresponsive crew member · ${events[0].source}. ${details}`;
-  if (mode === 'live' && account) { lastCirclePost = Date.now(); api('/api/circle/alert', 'POST', { title: 'Alert: live camera', body: `${person.id ? `Person ${person.id}: ` : ''}${why ? (why.includes('help') ? 'asked for help' : 'did not answer the check-in') : 'no movement for a while'}. Go to them now.` }).catch(() => {}); }
+  if (mode === 'live' && account) { lastCirclePost = Date.now(); api('/api/circle/alert', 'POST', { title: 'Alert: live camera', body: `${person.id ? `Person ${person.id}: ` : ''}${why ? (why.includes('help') ? 'asked for help' : 'did not answer the check-in') : 'no movement for a while'}. Go to them now.`, callKind: why ? (why.includes('help') ? 'help' : 'timeout') : 'still', person: person.id ? `Person ${person.id}` : 'A crew member', room: 'the live camera', camera: 'Live monitor' }).catch(() => {}); }
   renderEvents();
 }
 

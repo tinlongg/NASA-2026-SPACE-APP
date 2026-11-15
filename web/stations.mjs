@@ -77,7 +77,7 @@ export async function handleStations(request, env) {
         const { report, alert } = cleanReport(await stnReadJSON(request, 4096)), now = Date.now();
         await db.prepare('UPDATE stations SET report = ?, last_seen = ? WHERE id = ?').bind(JSON.stringify({ ...report, at: now }), now, device.id).run();
         if (alert) await db.prepare('UPDATE stations SET last_alert = ? WHERE id = ?').bind(JSON.stringify({ ...alert, at: now }), device.id).run();
-        if (alert) await notifyCircle(env, device.owner_id, { title: `Alert: ${device.name}`, body: `${STN_ROOM_NAMES[device.room] || device.room}: Person ${alert.personId} ${alert.kind === 'help' ? 'asked for help' : 'did not answer the check-in'}. Go to them now.` }).catch(() => {});
+        if (alert) await notifyCircle(env, device.owner_id, { title: `Alert: ${device.name}`, body: `${STN_ROOM_NAMES[device.room] || device.room}: Person ${alert.personId} ${alert.kind === 'help' ? 'asked for help' : 'did not answer the check-in'}. Go to them now.`, call: { kind: alert.kind, person: `Person ${alert.personId}`, room: STN_ROOM_NAMES[device.room] || device.room, camera: device.name } }).catch(() => {});
         await db.prepare('DELETE FROM station_signals WHERE created < ?').bind(now - STN_SIGNAL_MS).run();
         const { results } = await db.prepare('SELECT id, payload FROM station_signals WHERE station_id = ? AND to_device = 1 ORDER BY id').bind(device.id).all();
         if (results.length) await db.prepare('DELETE FROM station_signals WHERE station_id = ? AND to_device = 1 AND id <= ?').bind(device.id, results.at(-1).id).run();
