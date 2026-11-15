@@ -214,6 +214,8 @@
 				INFOPLIST_FILE = "CrewSafety-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = CrewSafety;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Used on-device to detect a possible fall. Video is not stored or sent.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used on-device to hear whether you're OK after a possible fall. Audio is not stored or sent.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Used on-device to recognise \"I'm okay\" or \"help\" after a possible fall. Audio is not stored or sent.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;
@@ -242,6 +244,8 @@
 				INFOPLIST_FILE = "CrewSafety-Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = CrewSafety;
 				INFOPLIST_KEY_NSCameraUsageDescription = "Used on-device to detect a possible fall. Video is not stored or sent.";
+				INFOPLIST_KEY_NSMicrophoneUsageDescription = "Used on-device to hear whether you're OK after a possible fall. Audio is not stored or sent.";
+				INFOPLIST_KEY_NSSpeechRecognitionUsageDescription = "Used on-device to recognise \"I'm okay\" or \"help\" after a possible fall. Audio is not stored or sent.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
 				INFOPLIST_KEY_UISupportedInterfaceOrientations = UIInterfaceOrientationPortrait;

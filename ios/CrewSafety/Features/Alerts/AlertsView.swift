@@ -56,6 +56,11 @@ struct AlertsView: View {
                 Text("\(crewName(event.crewMemberID)) · \(event.timestamp.formatted(date: .abbreviated, time: .standard))")
                     .font(.caption)
                     .foregroundStyle(.secondary)
+                if let checkIn = event.checkIn {
+                    Text(checkIn.summary)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(event.severity.color)
+                }
                 if let score = event.heuristicScore {
                     Text("Heuristic score \(Int((score * 100).rounded()))%")
                         .font(.caption)
@@ -90,6 +95,9 @@ struct AlertDetailView: View {
                     LabeledContent("Time", value: event.timestamp.formatted(date: .abbreviated, time: .standard))
                     LabeledContent("Source", value: event.source.displayName)
                     LabeledContent("Severity", value: event.severity.displayName)
+                    if let checkIn = event.checkIn {
+                        LabeledContent("Check-in", value: checkIn.summary)
+                    }
                     if let score = event.heuristicScore {
                         LabeledContent("Heuristic score", value: "\(Int((score * 100).rounded()))%")
                     }

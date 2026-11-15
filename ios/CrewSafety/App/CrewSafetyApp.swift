@@ -14,6 +14,7 @@ struct CrewSafetyApp: App {
                                                    monitoredCrewMemberID: SampleData.monitoredID))
         _settings = State(initialValue: settings)
         _services = State(initialValue: ServiceFactory.makeServices(settings: settings))
+        AlertNotifier.shared.install()
     }
 
     var body: some Scene {
