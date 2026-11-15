@@ -10,6 +10,9 @@ test('admin simulations require server authority and preserve ordinary shop rule
  assert.throws(()=>applyMissionAction(base,action('buy',{item:'crown'})),/Not enough/);
  let s=applyMissionAction(base,action('buy',{item:'crown'}),Date.now(),{admin:true});assert.equal(s.coins,0);assert.ok(s.owned.includes('crown'));
  s=applyMissionAction(s,action('admin',{stage:'needs-care',growth:18}),Date.now(),{admin:true});assert.equal(s.birdStage,'needs-care');assert.equal(s.garden,18);assert.equal(s.rankPoints,0);
+ s=applyMissionAction(s,action('admin',{distance:800,prestige:3}),Date.now(),{admin:true});assert.equal(s.distance,800);assert.equal(s.prestige,3);
+ assert.throws(()=>applyMissionAction(s,action('admin',{distance:1001}),Date.now(),{admin:true}));
+ assert.throws(()=>applyMissionAction(s,action('admin',{prestige:1}),Date.now()),/Admin/);
  for(const extra of [{stage:'made-up'},{growth:-1},{growth:101}])assert.throws(()=>applyMissionAction(s,action('admin',extra),Date.now(),{admin:true}));
  assert.throws(()=>applyMissionAction(s,action('listing',{listed:true}),Date.now(),{admin:true}),/outside public/);
 });

@@ -307,3 +307,5 @@ footer { display: flex; justify-content: space-between; gap: 20px; border-top: 1
 .views .closeup-read { display: flex; gap: 24px; }
 .closeup-panel .popout { padding: 4px 10px; font-size: 12px; }
 @media (max-width: 980px) { .views { grid-template-columns: 1fr; } }
+
+.dialog-corner-bar{position:sticky;top:0;z-index:5;display:flex;justify-content:flex-end;pointer-events:none;margin:-10px -10px 4px 0}.dialog-corner-close{pointer-events:auto;width:40px;height:40px;min-height:40px!important;border-radius:50%;padding:0;font-size:25px;line-height:1;background:#353540;color:#fff;border:1px solid #777080;box-shadow:0 2px 8px #0003}.dialog-corner-close:focus-visible{outline:3px solid #e9d6a3;outline-offset:2px}
