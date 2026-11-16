@@ -30,7 +30,7 @@
 
 A crew member counts as unresponsive when no tracked joint moves more than **0.25 torso lengths for 15 seconds** while the shoulders and hips are visible. Joints are measured relative to the torso centre, rotated so the torso points up and scaled by torso length. Leaving the view for over 2 seconds restarts the timer, and the person must move again before another event is raised.
 
-Known limits: sleep, reading or holding still on purpose will trigger it, it tracks one person with a fixed camera, and the thresholds are starting values that have not been validated on people. The same rules live in [`InactivityDetector.swift`](ios/CrewSafety/Features/Camera/InactivityDetector.swift) and [`web/dist/detector.js`](web/dist/detector.js).
+Known limits: sleep, reading or holding still on purpose will trigger it, it tracks one person with a fixed camera, and the thresholds are starting values that have not been validated on people.
 
 ## Repository layout
 
@@ -62,7 +62,7 @@ cd web && npm test       # web checks
 
 ### iPhone app
 
-Open `ios/CrewSafety.xcodeproj` in Xcode 16 or later, set your team and bundle identifier under Signing & Capabilities, and run on an iPhone (iOS 17+). The Simulator works for everything except the live camera: use **Monitor → Test → Synthetic Stops Moving**.
+Open `ios/CrewSafety.xcodeproj` in Xcode 16 or later, set your team and bundle identifier under Signing & Capabilities, and run on an iPhone (iOS 17+).
 
 For tests without the watchOS runtime:
 
@@ -99,26 +99,6 @@ Copy [`.env.example`](.env.example) to `.env`. Never commit real values.
 
 The live site runs on **Vercel** with a **Turso** database. Database migrations in `web/drizzle/` apply themselves on the first request after a deploy. Set the environment variables above for Production and redeploy. Step-by-step instructions, including the ElevenLabs dashboard setup, are in [docs/HOSTING_HANDOFF.md](docs/HOSTING_HANDOFF.md).
 
-## Docs
-
-| Doc | Read it for |
-| --- | --- |
-| [docs/PASSDOWN.md](docs/PASSDOWN.md) | **Start here.** Current state, verified results and what is still unchecked |
-| [docs/HOSTING_HANDOFF.md](docs/HOSTING_HANDOFF.md) | Deploying and configuring the live site |
-| [docs/ALERT_CALL_AGENT.md](docs/ALERT_CALL_AGENT.md) | Prompt and variables for the alert call agent |
-| [docs/JOURNAL.md](docs/JOURNAL.md) | Journal and MUSE privacy, API and migrations |
-| [docs/IOS_WEB_CONNECTION.md](docs/IOS_WEB_CONNECTION.md) | Pairing the iPhone with the website |
-| [docs/INTEGRATION_CHECKLIST.md](docs/INTEGRATION_CHECKLIST.md) | What to check on a demo iPhone |
-| [Watch the demo](https://www.youtube.com/watch?v=kkVVHrnEJSY) | CrewSafety video demo |
-| [docs/SOURCES.md](docs/SOURCES.md) | NASA sources and provenance |
-| [docs/BUILD_BRIEF.md](docs/BUILD_BRIEF.md), [docs/EXECUTION_PLAN.md](docs/EXECUTION_PLAN.md), [docs/HANDOFF.md](docs/HANDOFF.md) | Original brief, architecture and earlier status |
-
-## Status and known gaps
-
-- Web tests pass. A real-microphone run of the live voice check-in, a real alert phone call and a physical-device pass of the iPhone app are still outstanding.
-- Calls are not rate limited, so each alert places a real call. Keep that in mind when testing with real numbers.
-- The iPhone app ends the voice agent as soon as someone says "help", while the website lets the agent finish its sentence.
-
 ## Team
 
-Built for NASA Space Apps 2026 by Andrew Ha, Henry Luu, Tin Luong, Al Hoang, Leon Nguyen and teammates.
+Built for NASA Space Apps 2026 by Andrew Ha, Henry Luu, Tin Luong, Alain Hoang, Leon Nguyen.
