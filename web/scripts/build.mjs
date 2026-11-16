@@ -12,7 +12,6 @@ export async function loadAssets() {
   for(const path of Object.values({...PAGE_ROUTES,...MISSION_ROUTES}))assets[path]=assets['/index.html'];
   assets['/camera'] = assets['/camera.html']; // the phone camera page lives at /camera
   // Binary assets are embedded as base64 and decoded by the Worker.
-  assets['/favicon.png'] = { base64: (await readFile(new URL('../dist/favicon.png', import.meta.url))).toString('base64'), type: 'image/png' };
   for (const name of ['web-alert.mp3', 'web-checkin.mp3']) assets[`/voice/${name}`] = { base64: (await readFile(new URL(`../dist/voice/${name}`, import.meta.url))).toString('base64'), type: 'audio/mpeg' };
   const serviceWorker = await readFile(new URL('../dist/sw.js', import.meta.url), 'utf8');
   const version = createHash('sha256').update(JSON.stringify(assets) + serviceWorker).digest('hex').slice(0,16);
