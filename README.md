@@ -5,7 +5,7 @@
 > **Not a medical device.** An alert means someone *stopped moving* according to a simple heuristic. Heart-rate and other crew telemetry in the demo is simulated and labelled. Journal feedback reflects the person's own words and never diagnoses anything. All demo replays are synthetic.
 
 - Live site: <https://crew-safety.vercel.app>
-- Demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
+- Demo walkthrough: [Watch the video](https://www.youtube.com/watch?v=kkVVHrnEJSY)
 
 ## What it does
 
@@ -109,7 +109,7 @@ The live site runs on **Vercel** with a **Turso** database. Database migrations 
 | [docs/JOURNAL.md](docs/JOURNAL.md) | Journal and MUSE privacy, API and migrations |
 | [docs/IOS_WEB_CONNECTION.md](docs/IOS_WEB_CONNECTION.md) | Pairing the iPhone with the website |
 | [docs/INTEGRATION_CHECKLIST.md](docs/INTEGRATION_CHECKLIST.md) | What to check on a demo iPhone |
-| [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | The 2 to 3 minute demo, with fallbacks |
+| [Watch the demo](https://www.youtube.com/watch?v=kkVVHrnEJSY) | CrewSafety video demo |
 | [docs/SOURCES.md](docs/SOURCES.md) | NASA sources and provenance |
 | [docs/BUILD_BRIEF.md](docs/BUILD_BRIEF.md), [docs/EXECUTION_PLAN.md](docs/EXECUTION_PLAN.md), [docs/HANDOFF.md](docs/HANDOFF.md) | Original brief, architecture and earlier status |
 
