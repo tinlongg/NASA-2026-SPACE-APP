@@ -1,106 +1,124 @@
-# CrewSafety — NASA Space Apps 2026
+# CrewSafety
 
-A native SwiftUI iPhone prototype for a **simulated** space crew: a crew dashboard,
-camera-based possible-unresponsive alerts with an "Are you OK?" check-in, and a wellness journal with
-collective MUSE reflections. MUSE handles images and journals; ElevenLabs provides opt-in live voice check-ins.
+**NASA Space Apps Challenge 2026.** A safety and wellness companion for a crew living in microgravity. It watches for a crew member who stops moving, checks in with them by voice, calls for help when they do not answer, and gives the crew a private journal with supportive feedback.
 
-**Not a medical device.** Detections mean a crew member *stopped moving*, from a simple heuristic. Heart-rate values
-are simulated and labelled. Journal feedback reflects your own words and offers gentle suggestions; it does not diagnose conditions.
+> **Not a medical device.** An alert means someone *stopped moving* according to a simple heuristic. Heart-rate and other crew telemetry in the demo is simulated and labelled. Journal feedback reflects the person's own words and never diagnoses anything. All demo replays are synthetic.
 
-## Setting and detection
+- Live site: <https://crew-safety.vercel.app>
+- Demo walkthrough: [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md)
 
-The crew is aboard a space station, in microgravity. Nobody falls there, so the camera does not look for
-falls. It looks for a crew member who **stops moving** while in view:
+## What it does
 
-- Pose tracking (Apple Vision on iPhone, MediaPipe in the browser) gives head, shoulder, elbow, wrist,
-  hip, knee and ankle positions.
-- Each joint is measured relative to the torso centre, rotated so the torso points up and scaled by
-  torso length. Drifting across the frame or a limp body slowly tumbling is therefore *not* movement.
-- If no joint moves more than 0.25 torso lengths for **15 seconds** while shoulders and hips are
-  tracked, the app raises one *possible unresponsive* event and asks "Are you OK?" (60 s to answer by
-  button or voice, then a critical alert). The crew member must move again before another event.
-- Leaving the view for more than 2 seconds restarts the timer: out of view is not unresponsive.
-- Known limits: sleep, focused reading or holding still on purpose will trigger it; one person; a fixed
-  camera; arms hidden from the camera show little movement. Thresholds are starting values, not validated
-  on people. All replays are synthetic.
+| Feature | How it works |
+| --- | --- |
+| **Stops-moving detection** | Pose tracking (Apple Vision on iPhone, MediaPipe in the browser) measures each joint against the torso, so drifting or tumbling in microgravity is not mistaken for movement. If nothing moves for 15 seconds, it raises a *possible unresponsive* event. |
+| **"Are you OK?" check-in** | Asks out loud and listens for "I'm okay" or "help". A person has 60 seconds to answer before a critical alert. An opt-in live two-way voice agent (ElevenLabs) can hold the conversation instead of a recorded question. |
+| **Alert phone calls** | Members of a circle can add a phone number (with consent). When an alert goes out, the circle is called by an ElevenLabs voice agent. |
+| **Circle and Mission** | Crew members, status, acknowledgements and public mission rankings. |
+| **Journal with MUSE** | A wellness journal. MUSE (Meta) reflects on each entry and, after three entries in 14 days, offers gentle collective suggestions. MUSE only does journal analysis and image descriptions. |
+| **Camera Coach** | Optional explanations of a pose snapshot. Sends numbers only, never video. |
+| **iPhone + Apple Watch** | Native SwiftUI app. It syncs crew status, events and telemetry to the website. An opt-in summary of Watch health data (five daily averages and ranges, no ECG) can be shared too. |
 
-The same rules run in `ios/CrewSafety/Features/Camera/InactivityDetector.swift` and
-`web/dist/detector.js`. The synced event type is `possibleUnresponsive`.
+### Privacy
 
-## What is here
+- Camera frames are processed on the device and are never recorded or uploaded. The only exception is the opt-in MUSE second look, which sends one downscaled frame when a live alert fires and does not store it.
+- The live voice agent is opt-in. While it is on, microphone audio goes to ElevenLabs.
+- Journal text is sent through the server to Meta for reflections, and saving says so first.
+- API keys stay on the server. Browsers and the app only ever receive short-lived links.
+
+## How detection works
+
+A crew member counts as unresponsive when no tracked joint moves more than **0.25 torso lengths for 15 seconds** while the shoulders and hips are visible. Joints are measured relative to the torso centre, rotated so the torso points up and scaled by torso length. Leaving the view for over 2 seconds restarts the timer, and the person must move again before another event is raised.
+
+Known limits: sleep, reading or holding still on purpose will trigger it, it tracks one person with a fixed camera, and the thresholds are starting values that have not been validated on people. The same rules live in [`InactivityDetector.swift`](ios/CrewSafety/Features/Camera/InactivityDetector.swift) and [`web/dist/detector.js`](web/dist/detector.js).
+
+## Repository layout
 
 | Path | What |
 | --- | --- |
-| `ios/` | Xcode project `CrewSafety.xcodeproj`, app sources, unit tests |
-| `backend/` | FastAPI service for crew sync, the local dashboard and `GET /health` |
-| `web/` | Browser companion for Windows/Mac: webcam pose detection, replay, alerts, paired crew status, accounts and a journal with MUSE reflections; see `web/README.md` |
-| `docs/PASSDOWN.md` | **Start here**: current state, verified results, remaining checks and run commands |
-| `docs/HANDOFF.md` | Historical status before the station-detector/account changes |
-| `docs/BUILD_BRIEF.md` | Original project brief |
-| `docs/EXECUTION_PLAN.md` | Architecture, shared contracts, team plan |
-| `docs/INTEGRATION_CHECKLIST.md` | What to check on the demo iPhone |
-| `docs/DEMO_SCRIPT.md` | 2–3 minute demo with fallbacks |
-| `docs/SOURCES.md` | NASA source list, provenance, and review status |
+| [`ios/`](ios) | SwiftUI iPhone and Apple Watch app, shared code and unit tests |
+| [`web/`](web) | Website and API: Node server code, browser app in `dist/`, Drizzle migrations, tests. See [web/README.md](web/README.md) |
+| [`backend/`](backend) | Small FastAPI service for local crew sync and the local dashboard. See [backend/README.md](backend/README.md) |
+| [`webcam/`](webcam) | Standalone webcam experiment |
+| [`data/`](data) | NASA reference data used for background |
+| [`docs/`](docs) | Guides, listed below |
 
-## Run the app
+## Quick start
 
-For iPhone-to-website crew status, events, telemetry and shared acknowledgements, follow [the local connection guide](docs/IOS_WEB_CONNECTION.md). The backend serves the connected dashboard at `http://COMPUTER-IP:8000/dashboard/`.
+### Website
 
-Open `ios/CrewSafety.xcodeproj` in Xcode 16 or later, set your development team and a bundle
-identifier under Signing & Capabilities, and run on an iPhone (iOS 17+). The Simulator works for
-everything except the live camera; use **Monitor → Test → Synthetic Stops Moving** there.
+Requires Node 22.13 or newer.
 
 ```bash
-cd ios && xcodebuild test -project CrewSafety.xcodeproj -scheme CrewSafety -destination 'platform=iOS Simulator,name=iPhone 17' CODE_SIGNING_ALLOWED=NO
+cp .env.example .env     # then fill in the keys you have; every feature degrades gracefully without them
+cd web && npm install && npm start
 ```
 
-The shipping `CrewSafety` scheme embeds the Apple Watch app, so it requires the watchOS simulator
-runtime. For iPhone-only unit tests that skip the Watch app entirely:
+Open <http://127.0.0.1:4173> in Chrome or Edge. The camera needs HTTPS or localhost. Use the synthetic replays to try alerts without holding still.
+
+```bash
+cd web && npm test       # web checks
+```
+
+### iPhone app
+
+Open `ios/CrewSafety.xcodeproj` in Xcode 16 or later, set your team and bundle identifier under Signing & Capabilities, and run on an iPhone (iOS 17+). The Simulator works for everything except the live camera: use **Monitor → Test → Synthetic Stops Moving**.
+
+For tests without the watchOS runtime:
 
 ```bash
 ios/scripts/test-ios-only.sh
 ```
 
-or directly:
+### Connect the app to the website
+
+In the website's Crew dashboard, create a pairing session, then enter the address and code in the app under **Settings → Website connection**. Full steps are in [docs/IOS_WEB_CONNECTION.md](docs/IOS_WEB_CONNECTION.md).
+
+### Local backend (optional)
 
 ```bash
-cd ios && xcodebuild test -project CrewSafetyIOSOnly.xcodeproj -scheme CrewSafety-iOSOnly \
-  -destination 'platform=iOS Simulator,name=iPhone 17,OS=26.5' CODE_SIGNING_ALLOWED=NO
+cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+.venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
-`CrewSafetyIOSOnly.xcodeproj` is generated from `ios/project-ios-only.yml`. Regenerate it after adding
-Swift files:
+The local dashboard is at `http://COMPUTER-IP:8000/dashboard/`.
 
-```bash
-cd ios && xcodegen generate --spec project-ios-only.yml --project . --project-root .
-```
+## Configuration
 
-## Run the backend
+Copy [`.env.example`](.env.example) to `.env`. Never commit real values.
 
-See `backend/README.md`. Short version:
+| Variable | Used for |
+| --- | --- |
+| `META_API_KEY`, `META_MODEL` | MUSE journal reflections, photo descriptions, Camera Coach |
+| `ELEVENLABS_API_KEY` | Voice clips, alert calls, live check-in |
+| `ELEVENLABS_CHECKIN_AGENT_ID` | Live two-way "Are you OK?" agent |
+| `ELEVENLABS_ALERT_AGENT_ID`, `ELEVENLABS_PHONE_NUMBER_ID` | Alert phone calls |
+| `VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT` | Background push notifications (optional) |
 
-```bash
-cd backend && python3 -m venv .venv && .venv/bin/pip install -r requirements.txt && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+## Deployment
 
-In the app: Dashboard → gear, and set the backend address.
+The live site runs on **Vercel** with a **Turso** database. Database migrations in `web/drizzle/` apply themselves on the first request after a deploy. Set the environment variables above for Production and redeploy. Step-by-step instructions, including the ElevenLabs dashboard setup, are in [docs/HOSTING_HANDOFF.md](docs/HOSTING_HANDOFF.md).
 
-## Status
+## Docs
 
-The station detector, browser accounts and journal recall were merged in PR #4 (`19906a1`). SwiftUI
-remains primary; the browser companion uses MediaPipe for Windows/Mac testing. Xcode 26.6 and an iOS
-26.5 simulator now run on this Mac. Current test results and interactive QA are in
-[PASSDOWN.md](docs/PASSDOWN.md).
+| Doc | Read it for |
+| --- | --- |
+| [docs/PASSDOWN.md](docs/PASSDOWN.md) | **Start here.** Current state, verified results and what is still unchecked |
+| [docs/HOSTING_HANDOFF.md](docs/HOSTING_HANDOFF.md) | Deploying and configuring the live site |
+| [docs/ALERT_CALL_AGENT.md](docs/ALERT_CALL_AGENT.md) | Prompt and variables for the alert call agent |
+| [docs/JOURNAL.md](docs/JOURNAL.md) | Journal and MUSE privacy, API and migrations |
+| [docs/IOS_WEB_CONNECTION.md](docs/IOS_WEB_CONNECTION.md) | Pairing the iPhone with the website |
+| [docs/INTEGRATION_CHECKLIST.md](docs/INTEGRATION_CHECKLIST.md) | What to check on a demo iPhone |
+| [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md) | The 2 to 3 minute demo, with fallbacks |
+| [docs/SOURCES.md](docs/SOURCES.md) | NASA sources and provenance |
+| [docs/BUILD_BRIEF.md](docs/BUILD_BRIEF.md), [docs/EXECUTION_PLAN.md](docs/EXECUTION_PLAN.md), [docs/HANDOFF.md](docs/HANDOFF.md) | Original brief, architecture and earlier status |
 
-MUSE handles images and journal-entry analysis. The NASA research chat, `/chat`, and its source
-corpus have been removed. Both journals automatically request a MUSE reflection after saving, using
-the current entry and up to 11 recent entries within 14 days. Saving discloses that text is sent
-through the server to Meta. Sentiment and internal analysis stay behind the API; supportive feedback
-is shown on every save; collective suggestions start after 3 entries within 14 days.
-Both journals include a fictional astronaut demo with real MUSE feedback. Failures preserve the entry and offer retry. Native and guest
-entries persist locally; account entries persist on the server. Keys remain server-side.
-See the [current journal contract](docs/JOURNAL.md) for privacy, API and migration details.
+## Status and known gaps
 
-Main also includes opt-in live voice check-ins, native Watch comparisons, public Mission rankings,
-and habitat/cosmetic updates. Real-device and live-provider checks remain outstanding; see
-[PASSDOWN.md](docs/PASSDOWN.md) for verification and deployment status.
+- Web tests pass. A real-microphone run of the live voice check-in, a real alert phone call and a physical-device pass of the iPhone app are still outstanding.
+- Calls are not rate limited, so each alert places a real call. Keep that in mind when testing with real numbers.
+- The iPhone app ends the voice agent as soon as someone says "help", while the website lets the agent finish its sentence.
+
+## Team
+
+Built for NASA Space Apps 2026 by Andrew Ha, Henry Luu, Tin Luong, Al Hoang, Leon Nguyen and teammates.
