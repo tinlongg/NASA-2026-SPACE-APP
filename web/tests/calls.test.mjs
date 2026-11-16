@@ -51,7 +51,7 @@ test('cllPlace posts the documented ElevenLabs body and survives failures', asyn
   assert.equal(await cllPlace({}, '+1', {}, fetcher), 'failed');
 });
 
-test('a serious alert calls only opted-in circle members, within the cooldown and daily cap', async () => {
+test('a serious alert calls only opted-in circle members, every time, with no cooldown or cap', async () => {
   const { request, account, DB, calls, fetcher, env } = setup(), owner = await account('call-o'), friend = await account('call-f'), quiet = await account('call-q');
   await request('/api/circle', { method: 'POST', cookie: owner, body: { name: 'Crew' } });
   const { code } = await (await request('/api/circle/invite', { method: 'POST', cookie: owner })).json();
@@ -64,24 +64,22 @@ test('a serious alert calls only opted-in circle members, within the cooldown an
   const alert = { title: 'Alert', body: 'x', call: { kind: 'timeout', person: 'Person 1', room: 'Destiny', camera: 'Lab' } };
   assert.equal((await notifyCircle(env, ownerId, alert, fetcher)).called, 2);
   assert.deepEqual(calls.map(call => call.body.to_number).sort(), ['+15550000001', '+15550000002']);
-  assert.equal((await notifyCircle(env, ownerId, alert, fetcher)).called, 0, '10-minute cooldown');
+  for (let again = 0; again < 8; again++) assert.equal((await notifyCircle(env, ownerId, alert, fetcher)).called, 2, 'no cooldown and no daily cap');
   assert.equal((await notifyCircle(env, ownerId, { title: 'Alert', body: 'x' }, fetcher)).called, 0, 'an alert without call details never rings');
-  DB.sqlite.prepare('UPDATE call_contacts SET last_called = 0').run(); DB.sqlite.prepare('INSERT INTO call_log (user_id, created, outcome) SELECT user_id, ?, ? FROM call_contacts, (SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4)').run(Date.now(), 'placed');
-  assert.equal((await notifyCircle(env, ownerId, alert, fetcher)).called, 0, 'daily cap of 5');
   assert.equal((await notifyCircle({ DB }, ownerId, alert, fetcher)).called, 0, 'nothing rings unless calls are configured');
 });
 
-test('a test call goes only to your own saved number and is rate limited', async () => {
+test('a test call goes only to your own saved number and can be repeated', async () => {
   const { request, account, DB, calls, fetcher, env } = setup(), cookie = await account('call-t');
   const direct = path => handleCalls(new Request(origin + path, { method: 'POST', headers: { Origin: origin, Cookie: cookie } }), env, fetcher);
   assert.equal((await direct('/api/calls/test')).status, 404, 'save a number first');
   await request('/api/calls/me', { method: 'PUT', cookie, body: { phone: '+15550000003', consent: true } });
   assert.equal((await direct('/api/calls/test')).status, 201);
   assert.equal(calls.length, 1); assert.equal(calls[0].body.to_number, '+15550000003'); assert.equal(calls[0].body.conversation_initiation_client_data.dynamic_variables.what_happened, 'This is a test call. Nothing is wrong.');
-  assert.equal((await direct('/api/calls/test')).status, 429, 'two minutes between tests');
+  assert.equal((await direct('/api/calls/test')).status, 201, 'no wait between tests');
   assert.equal((await handleCalls(new Request(origin + '/api/calls/test', { method: 'POST', headers: { Origin: origin, Cookie: cookie } }), { DB }, fetcher)).status, 503, 'not configured');
   const failing = await handleCalls(new Request(origin + '/api/calls/test', { method: 'POST', headers: { Origin: origin, Cookie: cookie } }), env, async () => new Response('', { status: 500 }));
   DB.sqlite.prepare('DELETE FROM call_log').run();
   assert.equal((await handleCalls(new Request(origin + '/api/calls/test', { method: 'POST', headers: { Origin: origin, Cookie: cookie } }), env, async () => new Response('', { status: 500 }))).status, 502);
-  assert.ok(failing.status === 429 || failing.status === 502);
+  assert.equal(failing.status, 502);
 });

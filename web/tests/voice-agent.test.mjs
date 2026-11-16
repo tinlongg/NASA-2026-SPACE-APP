@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { downsample, floatToPcm16Base64, pcm16Base64ToFloat, parseOutputRate, interpretMessage } from '../dist/voice-agent.js';
+import { downsample, floatToPcm16Base64, pcm16Base64ToFloat, parseOutputRate, interpretMessage, INIT_MESSAGE } from '../dist/voice-agent.js';
 import { createWorker } from '../worker.mjs';
 import { handleCheckinVoice, cllCheckinConfigured } from '../calls.mjs';
 
@@ -57,5 +57,10 @@ test('the page follows what the check-in agent decided', async () => {
   const { agentOutcome } = await import('../dist/voice-agent.js');
   assert.equal(agentOutcome("[apologetic] Okay, I'm alerting the crew now. Stay where you are, help is on the way."), 'help');
   assert.equal(agentOutcome("[warmly] Thanks, glad you're okay. I'll let the crew know."), 'ok');
+  assert.equal(agentOutcome("I haven't heard from you, so I'm letting the crew know."), 'help');
   assert.equal(agentOutcome('Hey, are you okay?'), null);
+});
+
+test('the client starts the conversation with the initiation message, or the agent stays silent', () => {
+  assert.deepEqual(INIT_MESSAGE, { type: 'conversation_initiation_client_data' });
 });

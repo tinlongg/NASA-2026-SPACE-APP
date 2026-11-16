@@ -11,6 +11,9 @@ enum AgentMessage: Equatable {
     case ping(Int?)
     case ignored
 
+    /// The first message a client must send. The agent does not start speaking until it arrives.
+    static let initiation = #"{"type":"conversation_initiation_client_data"}"#
+
     static func parse(_ text: String) -> AgentMessage {
         guard let data = text.data(using: .utf8),
               let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
@@ -128,6 +131,7 @@ final class AgentConversation {
         let socket = URLSession.shared.webSocketTask(with: url)
         self.socket = socket
         socket.resume()
+        socket.send(.string(AgentMessage.initiation)) { _ in }
         Task { await receiveLoop(socket) }
         Task { [weak self] in
             try? await Task.sleep(nanoseconds: 10_000_000_000)

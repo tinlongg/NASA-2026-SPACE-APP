@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 VOICE_DIR = ROOT / "ios" / "CrewSafety" / "Resources" / "Voice"
 WEB_VOICE_DIR = ROOT / "web" / "dist" / "voice"  # phrases named web-* are for the website, not the app
-DEFAULT_VOICE = "WAhoMTNdLdMoq1j3wf3I"  # Hope - Smooth talker: the voice of the CrewSafety Check-in agent (was Eric until 2026-11-15)
+DEFAULT_VOICE = "tnSpp4vdxKPjI9w0GnoV"  # Hope - upbeat and clear: the voice of the CrewSafety agents (Hope - Smooth talker before 2026-11-15 evening)
 
 
 def load_key() -> str:

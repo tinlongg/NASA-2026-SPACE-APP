@@ -6,6 +6,9 @@ import { classifyAnswer } from './voice-answer.js';
 
 export const INPUT_RATE = 16000;
 
+/** The first message a client must send. The agent does not start speaking until it arrives. */
+export const INIT_MESSAGE = { type: 'conversation_initiation_client_data' };
+
 /** Averages samples down to the target rate (the browser may not honour a 16 kHz AudioContext). */
 export function downsample(input, fromRate, toRate = INPUT_RATE) {
   if (toRate >= fromRate) return input;
@@ -43,7 +46,7 @@ export function parseOutputRate(format) {
  *  The page follows it, so when the agent tells someone "I'm alerting the crew now" the alert really goes out. */
 export function agentOutcome(text) {
   const said = String(text || '').toLowerCase();
-  if (/alerting the crew|help is on the way|getting (you )?help|sending (someone|help)/.test(said)) return 'help';
+  if (/alerting the crew|letting the crew know|help is on the way|getting (you )?help|sending (someone|help)/.test(said)) return 'help';
   if (/glad you'?re (okay|ok|alright|all right)/.test(said)) return 'ok';
   return null;
 }
@@ -93,6 +96,7 @@ export function startAgentConversation({ signedUrl, onState = () => {}, onUser =
       context = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: INPUT_RATE });
       await context.resume?.();
       socket = new WebSocketImpl(signedUrl);
+      socket.onopen = () => send(INIT_MESSAGE);
       socket.onmessage = event => {
         let message; try { message = JSON.parse(event.data); } catch { return; }
         const effect = interpretMessage(message);
